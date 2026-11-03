@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.svg">
+  <img alt="kalyx" src=".github/assets/logo.svg" height="64">
+</picture>
+
 # kalyx
 
 kalyx is the computer algebra library of casξ, a portable workstation for
@@ -9,9 +14,9 @@ send it what you type and show what it computes. The name comes from the Greek
 
 ## Status
 
-This repository is newly initialized. It holds this README, the contribution
-rules, a `.gitignore` and a commit-message hook. There is no code here, and
-nothing in this repository builds or runs yet.
+This repository is newly initialized. It holds this README, the kalyx logo,
+the contribution rules, a `.gitignore` and a commit-message hook. There is no
+code here, and nothing in this repository builds or runs yet.
 
 The library exists today as
 [erthoaers/casxi-cas](https://github.com/erthoaers/casxi-cas), version 0.4.0.

@@ -2,8 +2,8 @@
 
 - kalyx is the computer algebra library of casξ. Until its code moves here,
   the library lives in erthoaers/casxi-cas, and this repository holds only the
-  skeleton: `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.gitignore` and
-  `.githooks/commit-msg`.
+  skeleton: `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `.gitignore`,
+  `.githooks/commit-msg` and the logo files in `.github/assets/`.
 - Make no code changes here before the move. Do not add source files, tests,
   fixtures, benchmarks, proofs, registries, feature documents, domain pages or
   a Cargo package. Make every change to the library in casxi-cas, following the

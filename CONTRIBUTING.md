@@ -9,8 +9,9 @@ and [AGENTS](https://github.com/erthoaers/casxi-cas/blob/main/AGENTS.md) files
 of casxi-cas.
 
 Changes here are limited to the skeleton files: `README.md`, `AGENTS.md`,
-`CONTRIBUTING.md`, `.gitignore` and the commit hook. There is no Cargo package,
-so there is nothing to build or test. These are the commands that apply today:
+`CONTRIBUTING.md`, `.gitignore`, the logo files in `.github/assets/` and the
+commit hook. There is no Cargo package, so there is nothing to build or test.
+These are the commands that apply today:
 
 ```sh
 git config --local core.hooksPath .githooks
