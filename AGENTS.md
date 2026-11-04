@@ -23,8 +23,6 @@
   narratives, review histories and evidence ledgers in the project's
   coordination records outside this repository. They appear in no document
   here.
-- This repository is public: never name or link the project's private
-  repositories; see [contributing](CONTRIBUTING.md#private-repositories).
 - Use English Conventional Commit subjects of at most 72 characters and the
   local `.githooks/commit-msg` hook. Preserve history. Do not change global Git
   configuration, create remotes, tags or releases, or publish without
