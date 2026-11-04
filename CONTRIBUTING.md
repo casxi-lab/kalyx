@@ -34,15 +34,6 @@ commands that run from this repository. Milestone, task, proposal and decision
 numbers, agent narratives and evidence ledgers belong in the project's
 coordination records outside this repository and appear in no document here.
 
-## Private repositories
-
-This repository is public. Documents, code comments and commit messages do not
-name or link the project's private repositories. Refer to their content in
-neutral terms (the library's development repository, the coordination
-records) and give only commit hashes and paths where a reference must be
-traceable. The documentation check rejects lines that match the
-case-insensitive pattern `casxi-(system|cas|build)|krepi-h[i]l|erthoaers[/]`.
-
 ## License
 
 kalyx is released under the [MIT License](LICENSE). The copyright holders are
