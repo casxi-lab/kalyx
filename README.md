@@ -20,8 +20,9 @@ and a command-line program that has no commands, the repository checks that
 continuous integration runs on every pull request to `main` and on every push
 to `main`, the [porting record](PORTING.md), still empty, of code taken over
 from an earlier implementation of the casξ computer algebra system, and the
-58 [answer vectors](vectors/README.md) of 0.1, converted from that earlier
-implementation's fixtures; only their format is checked so far. The earlier
+58 [answer vectors](vectors/README.md) for the planned first release, 0.1,
+converted from that earlier implementation's fixtures; only their format is
+checked so far. The earlier
 implementation is not public; it serves as a reference and as a source of
 test vectors.
 

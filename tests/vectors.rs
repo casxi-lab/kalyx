@@ -78,7 +78,7 @@ fn cases(text: &str) -> Result<Vec<Case<'_>>, String> {
         }
         let at = format!("line {}", index + 1);
         let columns: Vec<&str> = line.split('\t').collect();
-        let [id, operation, variable, input, result, answer, limit] = columns.as_slice() else {
+        let [id, operation, variable, _input, result, answer, limit] = columns.as_slice() else {
             return Err(format!("{at}: {} columns instead of 7", columns.len()));
         };
         if columns.iter().any(|column| column.is_empty()) {
@@ -90,15 +90,15 @@ fn cases(text: &str) -> Result<Vec<Case<'_>>, String> {
         if !OPERATIONS.contains(operation) {
             return Err(format!("{at}: unknown operation {operation}"));
         }
-        if variable.chars().any(|c| !c.is_ascii_alphabetic()) || input.contains('\t') {
-            return Err(format!("{at}: invalid variable or input"));
+        if variable.chars().any(|c| !c.is_ascii_alphabetic()) {
+            return Err(format!("{at}: invalid variable {variable}"));
         }
         if !RESULTS.contains(result) {
             return Err(format!("{at}: unknown result kind {result}"));
         }
         if (*result == "ok") == (*answer == "-") {
             return Err(format!(
-                "{at}: the answer must be given exactly for ok results"
+                "{at}: an ok case needs an answer and an error case `-`"
             ));
         }
         let limits = limits(limit).map_err(|message| format!("{at}: {message}"))?;
@@ -111,7 +111,7 @@ fn cases(text: &str) -> Result<Vec<Case<'_>>, String> {
 }
 
 #[test]
-fn the_vectors_have_the_frozen_format() {
+fn the_vectors_have_the_documented_format() {
     let cases = cases(VECTORS).unwrap();
     assert_eq!(cases.len(), 58);
     assert_eq!(cases.iter().filter(|case| case.result == "ok").count(), 49);
@@ -155,4 +155,16 @@ fn rejects_a_duplicate_id_and_an_unknown_limit_field() {
         field.contains("unknown Limits field: max_degree"),
         "{field}"
     );
+}
+
+#[test]
+fn rejects_an_answer_that_does_not_match_the_result() {
+    let error = cases("a\teval\tx\t1/0\tDivisionByZero\t0\t-\n").unwrap_err();
+    assert!(error.contains("an ok case needs an answer"), "{error}");
+}
+
+#[test]
+fn rejects_a_resource_limit_case_without_its_limit() {
+    let error = cases("a\texpand\tx\tx^9\tResourceLimit\t-\t-\n").unwrap_err();
+    assert!(error.contains("must state its limit"), "{error}");
 }

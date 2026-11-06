@@ -1,5 +1,5 @@
-# Answer vectors of kalyx 0.1: 58 cases of parsing, exact rational arithmetic, and expansion and
-# differentiation in Q[x]. Columns and rules: vectors/README.md. schema=1
+# Answer vectors for kalyx 0.1, the planned first release: 58 cases of parsing, exact rational
+# arithmetic, and expansion and differentiation in Q[x]. Columns and rules: vectors/README.md.
 #
 # Converted mechanically, without running any code, from the fixtures of the earlier implementation:
 # cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:fixtures/workloads.tsv (the first 11 cases) and
