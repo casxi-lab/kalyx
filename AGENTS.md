@@ -16,8 +16,16 @@
   math library, and constructs the context only in the command entry and the
   program. Non-test code makes no explicit panic (`unwrap`, `expect`,
   `panic!`, `unreachable!`, `todo!`, `unimplemented!`), and every `#[allow]`
-  states its reason. The library has no third-party dependencies; adding one
-  is a reviewed change of its own.
+  states its reason. Non-test code uses only the `std` paths listed in
+  [guard/std-paths.txt](guard/std-paths.txt). The library has no third-party
+  dependencies; `Cargo.lock` may hold only the packages listed in
+  [guard/crates.txt](guard/crates.txt), and adding a dependency is a reviewed
+  change of its own. `cargo xtask check` enforces these rules, within the
+  limits that [CONTRIBUTING](CONTRIBUTING.md#guard) states: the compiler and
+  Clippy check the attributes and lints in `Cargo.toml`, `src/lib.rs` and
+  `clippy.toml`, and the guard step checks the rest, including the release
+  profile and the license. Extending either list is a reviewed change of its
+  own.
 - Code that is to become a proof target is written in the subset of Rust that
   Charon and Aeneas translate into Lean 4. The subset, the proof workflow and
   the register of proof targets are added with the first proof target.
@@ -49,9 +57,8 @@
   rustfmt and free of Clippy warnings, with unit tests in `#[cfg(test)]`
   modules next to the code. A change to a check adds tests for the cases it
   rejects.
-- Before committing, run these from the repository root; they must pass:
-  `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`,
-  `cargo test --locked` and `cargo xtask check`.
-  [CONTRIBUTING](CONTRIBUTING.md#checks) describes the steps of the last one.
-  Also run `git diff --check` and `git diff --cached --check` and review the
-  staged diff.
+- Before committing, run `cargo xtask check` from the repository root; it
+  must pass. It format-checks, lints and tests both the package and the
+  checks, and runs the guard; [CONTRIBUTING](CONTRIBUTING.md#checks)
+  describes its steps. Also run `git diff --check` and
+  `git diff --cached --check` and review the staged diff.

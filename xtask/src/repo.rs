@@ -84,6 +84,12 @@ impl Tree {
         tree
     }
 
+    /// Adds or replaces the entry at `path`, for tests.
+    #[cfg(test)]
+    pub fn insert(&mut self, path: &str, entry: Entry) {
+        self.entries.insert(path.to_string(), entry);
+    }
+
     /// All entries in path order.
     pub fn entries(&self) -> impl Iterator<Item = (&str, &Entry)> {
         self.entries

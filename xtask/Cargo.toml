@@ -14,3 +14,7 @@ rust-version = "1.99"
 # The workflows step uses the event parser on text that is already UTF-8,
 # so the input-decoding support of the default feature is left out.
 yaml-rust2 = { version = "=0.13.0", default-features = false }
+# The guard step parses the Rust source of the package. Line numbers of
+# findings need the span locations of proc-macro2.
+proc-macro2 = { version = "=1.0.107", default-features = false, features = ["span-locations"] }
+syn = { version = "=3.0.9", default-features = false, features = ["full", "parsing", "visit"] }

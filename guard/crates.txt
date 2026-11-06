@@ -1,0 +1,13 @@
+# The packages that Cargo.lock of the kalyx package may hold besides the
+# package itself, checked by the guard step of `cargo xtask check`.
+#
+# One package name per line; blank lines and lines that start with `#` are
+# skipped. getrandom and the rand, rayon and crossbeam families are rejected
+# even if listed. Adding a package is a reviewed change of its own.
+
+# Arbitrary-precision integers and rationals, and their build dependency.
+autocfg
+num-bigint
+num-integer
+num-rational
+num-traits

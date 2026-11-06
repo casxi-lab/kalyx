@@ -4,8 +4,10 @@
 mod check;
 mod commits;
 mod docs;
+mod guard;
 mod receipt;
 mod repo;
+mod scan;
 mod workflows;
 
 use std::path::PathBuf;
@@ -15,7 +17,7 @@ use std::process::ExitCode;
 const COMMANDS: &[(&str, &str)] = &[
     (
         "check",
-        "Run the format, Clippy, test, documentation, commit message and workflow checks; with --receipt <path>, also write a JSON receipt of the run",
+        "Run the format, Clippy and test checks of xtask, the documentation, commit message and workflow checks, the format, Clippy and test checks of the kalyx package and its guard; with --receipt <path>, also write a JSON receipt of the run",
     ),
     ("help", "List the commands"),
 ];
