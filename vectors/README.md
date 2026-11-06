@@ -10,9 +10,16 @@ command entry.
 
 ## Format
 
-The file is UTF-8 text with one case per line and tab-separated columns. Lines
-that start with `#` and empty lines are skipped. Every case has these seven
-columns, none of them empty:
+The file is UTF-8 text with tab-separated columns. Lines that start with `#`
+and empty lines are skipped. The first other line is the header row, which
+names the seven columns in order:
+
+```text
+id	operation	variable	input	result	answer	limits
+```
+
+Every following line is one case with these seven columns, none of them
+empty:
 
 | Column | Meaning |
 | --- | --- |

@@ -8,7 +8,7 @@
 # integer and rational arithmetic (seed 212148262); the generator is not public. The 11 workload cases
 # are small identities that can be checked by hand; their expected values are taken as written.
 #
-# id	operation	variable	input	result	answer	limits
+id	operation	variable	input	result	answer	limits
 rational_sum	eval	x	1/3 + 1/6	ok	1/2	-
 exact_decimal	eval	x	0.1 + 0.2	ok	3/10	-
 wide_integer	eval	x	18446744073709551616^2	ok	340282366920938463463374607431768211456	-
