@@ -15,15 +15,16 @@ comes from the Greek κάλυξ.
 ## Status
 
 kalyx is being built from its foundations, and it has no usable capabilities
-yet. The repository holds a Rust package named `kalyx` with a library that so
-far holds only the types of its errors and result states and a command-line
-program that has no commands, the repository checks that continuous
-integration runs on every pull request to `main` and on every push to `main`,
-the [porting record](PORTING.md) of code taken over from an earlier
-implementation of the casξ computer algebra system, and the
+yet. The repository holds a Rust package named `kalyx`, with a library that
+so far holds only the types of its errors and result states and the request
+context with its limits, and a command-line program that has no commands;
+the repository checks, which continuous integration runs on every pull
+request to `main` and on every push to `main`; the
+[porting record](PORTING.md) of code taken over from an earlier
+implementation of the casξ computer algebra system; and the
 58 [answer vectors](vectors/README.md) for the planned first release, 0.1,
-converted from that earlier implementation's fixtures; only their format is
-checked so far. The earlier
+converted from that earlier implementation's fixtures, of which only the
+format is checked so far. The earlier
 implementation is not public; it serves as a reference and as a source of
 test vectors.
 
@@ -37,7 +38,7 @@ releases complete the shared foundations (coefficient fields, the function
 registry, numerical evaluators with rigorous enclosures, collection values,
 stable value encoding and a machine floating-point path) and then build the
 subject domains below on them. Apart from the types of the errors and
-result states, none of this is available yet.
+result states and the request context, none of this is available yet.
 
 ## Build
 
@@ -159,7 +160,8 @@ domains, and natural-language input.
 - [Architecture](docs/architecture.md): the planned components with their
   verification tiers and first callers, and the design rules of the
   foundations: term representation, coefficient fields, the context and
-  error kinds. None of the library components is implemented yet.
+  error kinds. Of the library components, only the errors and result
+  states and the context and limits are implemented yet.
 - [Public API conventions](docs/conventions/public-api.md): the rules that
   every public interface of the library is to follow.
 - [Answer vectors](vectors/README.md): the format of the test vectors and
