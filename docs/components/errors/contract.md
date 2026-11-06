@@ -17,9 +17,11 @@ concern errors and states and are not restated here.
 
 **Status.** Implemented in `src/error.rs`, at tier A1 (tested with a written
 contract). The request context, the only code that constructs request
-failures, returns them from its charge points and checks; no entry of the
-library computes yet, and the first public method with result states comes
-with a later release. The crate-internal channel and its boundaries are
+failures, returns them from its charge points and checks. The exact numbers
+(`kalyx::number` and `kalyx::coefficient`) are the first entries of the
+library that compute: they return the faults `DivisionByZero`, `Syntax` and
+`Internal` and the request failures of the context. The first public method
+with result states comes with a later release. The crate-internal channel and its boundaries are
 exercised by the unit tests of `src/error.rs`.
 
 ## Interface

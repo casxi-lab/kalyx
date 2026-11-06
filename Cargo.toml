@@ -8,6 +8,11 @@ publish = false
 rust-version = "1.99"
 
 [dependencies]
+# Arbitrary-precision integers and rationals, wrapped by the `number` module;
+# no type of these packages appears in the public interface.
+num-bigint = "=0.4.8"
+num-rational = "=0.4.2"
+num-traits = "=0.2.19"
 
 # The rules hold for every target of the package: the library, the program
 # and the tests. Explicit panics are denied in non-test code; clippy.toml

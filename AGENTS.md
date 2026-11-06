@@ -17,8 +17,9 @@
   program. Non-test code makes no explicit panic (`unwrap`, `expect`,
   `panic!`, `unreachable!`, `todo!`, `unimplemented!`), and every `#[allow]`
   states its reason. Non-test code uses only the `std` paths listed in
-  [guard/std-paths.txt](guard/std-paths.txt). The library has no third-party
-  dependencies; `Cargo.lock` may hold only the packages listed in
+  [guard/std-paths.txt](guard/std-paths.txt). The library's only direct
+  third-party dependencies are num-bigint, num-rational and num-traits, which
+  the `number` module wraps; `Cargo.lock` may hold only the packages listed in
   [guard/crates.txt](guard/crates.txt), and adding a dependency is a reviewed
   change of its own. `cargo xtask check` enforces these rules, within the
   limits that [CONTRIBUTING](CONTRIBUTING.md#guard) states: the compiler and
