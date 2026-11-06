@@ -23,7 +23,7 @@ const RESULTS: [&str; 11] = [
 
 const OPERATIONS: [&str; 3] = ["eval", "expand", "diff"];
 
-/// The header row: the first line that is neither empty nor a comment.
+/// The header row, which is the first line of the file.
 const HEADER: &str = "id\toperation\tvariable\tinput\tresult\tanswer\tlimits";
 
 /// The fields of `Limits` that the `limits` column may set.
@@ -71,23 +71,22 @@ fn limits(column: &str) -> Result<Vec<(&str, u64)>, String> {
     Ok(settings)
 }
 
-/// Reads a vector file, rejecting the first case that breaks the format.
+/// Reads a vector file, rejecting the first line that breaks the format. The
+/// file is plain TSV: the header row, then one case per line, with no comment
+/// or empty lines, so that any TSV reader takes the first line as the header.
 fn cases(text: &str) -> Result<Vec<Case<'_>>, String> {
+    let mut lines = text.lines().enumerate();
+    match lines.next() {
+        Some((_, line)) if line == HEADER => {}
+        _ => return Err("line 1: expected the header row".to_owned()),
+    }
     let mut ids = BTreeSet::new();
     let mut cases = Vec::new();
-    let mut header = false;
-    for (index, line) in text.lines().enumerate() {
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        if !header {
-            if line != HEADER {
-                return Err(format!("line {}: expected the header row", index + 1));
-            }
-            header = true;
-            continue;
-        }
+    for (index, line) in lines {
         let at = format!("line {}", index + 1);
+        if line.is_empty() || line.starts_with('#') {
+            return Err(format!("{at}: an empty or comment line"));
+        }
         let columns: Vec<&str> = line.split('\t').collect();
         let [id, operation, variable, _input, result, answer, limit] = columns.as_slice() else {
             return Err(format!("{at}: {} columns instead of 7", columns.len()));
@@ -117,9 +116,6 @@ fn cases(text: &str) -> Result<Vec<Case<'_>>, String> {
             return Err(format!("{at}: a ResourceLimit case must state its limit"));
         }
         cases.push(Case { id, result, limits });
-    }
-    if !header {
-        return Err("the header row is missing".to_owned());
     }
     Ok(cases)
 }
@@ -195,11 +191,31 @@ fn with_header(cases: &str) -> String {
 }
 
 #[test]
-fn rejects_a_missing_or_commented_header() {
+fn rejects_a_missing_commented_or_late_header() {
     let missing = cases("a\teval\tx\t1\tok\t1\t-\n").unwrap_err();
-    assert!(missing.contains("expected the header row"), "{missing}");
+    assert!(
+        missing.contains("line 1: expected the header row"),
+        "{missing}"
+    );
     let commented = cases(&format!("# {HEADER}\na\teval\tx\t1\tok\t1\t-\n")).unwrap_err();
-    assert!(commented.contains("expected the header row"), "{commented}");
-    let empty = cases("# only comments\n").unwrap_err();
-    assert!(empty.contains("header row is missing"), "{empty}");
+    assert!(
+        commented.contains("line 1: expected the header row"),
+        "{commented}"
+    );
+    let late = cases(&format!("# sources\n{HEADER}\n")).unwrap_err();
+    assert!(late.contains("line 1: expected the header row"), "{late}");
+}
+
+#[test]
+fn rejects_comment_and_empty_lines_after_the_header() {
+    let comment = cases(&with_header("# a note\na\teval\tx\t1\tok\t1\t-\n")).unwrap_err();
+    assert!(
+        comment.contains("line 2: an empty or comment line"),
+        "{comment}"
+    );
+    let empty = cases(&with_header("\na\teval\tx\t1\tok\t1\t-\n")).unwrap_err();
+    assert!(
+        empty.contains("line 2: an empty or comment line"),
+        "{empty}"
+    );
 }

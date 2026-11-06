@@ -3,16 +3,17 @@
 `r02.tsv` holds the 58 answer vectors for kalyx 0.1, the planned first
 release: parsing, exact rational arithmetic, and expansion and differentiation
 in $\mathbb{Q}[x]$. They were converted mechanically from two fixtures of the
-earlier implementation, without running any of its code; the file header
-names the sources. The vectors are test data: `tests/vectors.rs` checks their
-format today; replaying them against the library is planned together with the
-command entry.
+earlier implementation, without running any of its code (see
+[Sources](#sources)). The vectors are test data: `tests/vectors.rs` checks
+their format today; replaying them against the library is planned together
+with the command entry.
 
 ## Format
 
-The file is UTF-8 text with tab-separated columns. Lines that start with `#`
-and empty lines are skipped. The first other line is the header row, which
-names the seven columns in order:
+The file is plain TSV: UTF-8 text with tab-separated columns, no comment
+lines and no empty lines, so that any TSV reader, including the file view on
+GitHub, takes the first line as the header. The first line is the header row,
+which names the seven columns in order:
 
 ```text
 id	operation	variable	input	result	answer	limits
@@ -34,6 +35,18 @@ empty:
 Of a request's outcome, a vector records only the result kind and, for `ok`,
 the answer. Display text, work units and the resource profiles of the earlier
 fixtures are not recorded.
+
+## Sources
+
+The first 11 cases come from
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:fixtures/workloads.tsv`
+and the other 47 from
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:fixtures/profiles.tsv`,
+two fixtures of the earlier implementation, in their order there. The
+expected values of the 47 profile cases were computed by an independent
+generator with exact integer and rational arithmetic (seed 212148262); the
+generator is not public. The 11 workload cases are small identities that can
+be checked by hand; their expected values are taken as written.
 
 ## Result kinds
 
