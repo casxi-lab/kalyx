@@ -283,7 +283,10 @@ pub fn render(
             "result",
             Json::text(if passed { "passed" } else { "failed" }),
         ),
-        ("rustc", Json::optional(rustc)),
+        (
+            "tools",
+            Json::object(vec![("rustc", Json::optional(rustc))]),
+        ),
         ("steps", Json::Array(outcomes.iter().map(step).collect())),
         ("image", Json::variables(&environment.image)),
         ("github", Json::variables(&environment.github)),
@@ -426,7 +429,9 @@ mod tests {
   "clean_before": true,
   "clean_after": null,
   "result": "failed",
-  "rustc": "rustc 1.99.0 (abc 2026-10-01)",
+  "tools": {
+    "rustc": "rustc 1.99.0 (abc 2026-10-01)"
+  },
   "steps": [
     {
       "name": "commits",
@@ -493,7 +498,10 @@ mod tests {
         assert!(text.contains("\n  \"commit\": null,\n"), "{text}");
         assert!(text.contains("\n  \"clean_before\": false,\n"), "{text}");
         assert!(text.contains("\n  \"result\": \"passed\",\n"), "{text}");
-        assert!(text.contains("\n  \"rustc\": null,\n"), "{text}");
+        assert!(
+            text.contains("\n  \"tools\": {\n    \"rustc\": null\n  },\n"),
+            "{text}"
+        );
         assert!(render(&state, &state, None, &[], &none()).contains("\n  \"steps\": [],\n"));
     }
 
