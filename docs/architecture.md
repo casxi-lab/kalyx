@@ -8,10 +8,14 @@ kinds. The interface conventions that all public items follow are in
 [the public API conventions](conventions/public-api.md).
 
 **Status.** kalyx ships the errors and result states, the context and
-limits, a command-line program without commands and the repository checks.
-The errors and result states and the context and limits are implemented,
-each with its contract ([errors](components/errors/contract.md),
-[context](components/context/contract.md)); no other library component below
+limits, the exact numbers with the coefficient-field trait over
+$\mathbb{Q}$, a command-line program without commands and the repository
+checks. The errors and result states, the context and limits, and the exact
+numbers with the two layers of the coefficient-field trait and `Rationals`
+are implemented, each with its contract
+([errors](components/errors/contract.md),
+[context](components/context/contract.md),
+[numbers](components/numbers/contract.md)); no other library component below
 is implemented yet. For the other components, the tables are the plan and the
 design rules are the rules that their code follows when it lands; each
 component also gets its own `contract.md` with its requirements at that time.
@@ -79,7 +83,7 @@ at once in 0.2.
 | Answer vectors taken from the earlier implementation | A0 | none | not applicable: test infrastructure |
 | Errors and result states (`Error`, `Settled<T>`; implemented, [contract](components/errors/contract.md)) | A1 | 0.2, for the result-state core | the context, in 0.1 |
 | Context and limits (`Context`, `Limits`; implemented, [contract](components/context/contract.md)) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
-| Exact numbers and the coefficient-field trait over $\mathbb{Q}$ | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
+| Exact numbers and the coefficient-field trait over $\mathbb{Q}$ (`number`, `coefficient`; implemented, with the polynomial ring still planned, [contract](components/numbers/contract.md)) | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
 | Term core and canonical forms | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
 | Parser | A1 | none | the command entry, in 0.1 |
 | Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
@@ -284,10 +288,14 @@ are taken only from this list or from spellings that are errors in 0.1.
 
 ## Coefficient-field trait
 
-**Status:** planned for 0.1; not implemented. The shape below is the planned
-interface; `Context` and `Result` are those of
+**Status:** the two traits `CoefficientRing` and `CoefficientField`,
+`ZeroTest` and `Rationals` are implemented in
+`src/coefficient.rs`, over the exact numbers of `src/number.rs`; their
+[contract](components/numbers/contract.md) states the checks, the charges and
+the tests. `PolynomialRing` and `Polynomial` are planned for 0.1, with the
+polynomials over $\mathbb{Q}$. `Context` and `Result` are those of
 [the context](#context-api) and [the errors](#error-kinds), and `Integer` is
-the library's exact integer.
+the library's exact integer, `kalyx::number::Integer`.
 
 ```rust
 pub enum ZeroTest<U> { Zero, Nonzero, Undecided(U) }

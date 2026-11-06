@@ -522,6 +522,21 @@ fn request_failures_carry_the_span_of_the_caller() {
     assert_eq!(c.charge(0).unwrap_err().span(), None);
 }
 
+// An amount beyond u64::MAX is reported for every field as check_at reports
+// u64::MAX: the same limit and the same scope.
+#[test]
+fn an_unbounded_amount_is_reported_as_check_at_reports_the_largest() {
+    let c = Context::new(Limits::new(), CancelFlag::new());
+    for &field in LimitField::ALL {
+        let bound = c.check_bound_at(field, None, None).unwrap_err();
+        let largest = c.check_at(field, u64::MAX, None).unwrap_err();
+        let (bound, largest) = (bound.exceeded().unwrap(), largest.exceeded().unwrap());
+        assert_eq!(bound.id(), largest.id(), "{field:?}");
+        assert_eq!(bound.scope(), largest.scope(), "{field:?}");
+        assert_eq!(bound.amount(), LimitAmount::Bound(u64::MAX), "{field:?}");
+    }
+}
+
 // The invariants of the frame table hold through entering, recording,
 // reserving and leaving: frames_total is the sum of the costs in the table,
 // and the generation of the next frame never exceeds the work charged.

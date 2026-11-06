@@ -137,8 +137,8 @@ rest of `hash_map` and `hash_set`, `RandomState`, `SystemTime`,
 
 `Cargo.lock` may hold only the package itself and the packages named in
 [guard/crates.txt](guard/crates.txt), one name per line: today the `num-*`
-packages for arbitrary-precision integers and rationals and their build
-dependency `autocfg`, none of which the package uses yet. `getrandom` and the
+packages for arbitrary-precision integers and rationals, which the `number`
+module uses, and their build dependency `autocfg`. `getrandom` and the
 `rand`, `rayon` and `crossbeam` families (`rand_core`, `crossbeam-utils` and
 the like) are rejected even if listed. The `license` field of the package in
 `Cargo.toml` must be exactly `MIT`, and its `[profile.release]` table must

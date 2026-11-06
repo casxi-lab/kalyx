@@ -21,10 +21,11 @@ and are not restated here. The errors that the context reports are those of
 the [errors and result states](../errors/contract.md).
 
 **Status.** Implemented in `src/context.rs`, at tier A1 (tested with a written
-contract). No other component of the library computes yet, so the context is
-charged today only by its tests and by code outside the library; the first
-callers in the library are exact numbers, the term core, the parser and the
-command entry. The command-line program does not create a context yet.
+contract). Its first caller in the library is the exact numbers
+(`kalyx::number` and `kalyx::coefficient`), which check `max_integer_bits`
+and `max_exponent` and charge work; the term core, the parser and the command
+entry are planned callers. The command-line program does not create a context
+yet.
 
 ## Interface
 
@@ -54,8 +55,10 @@ The crate root re-exports `Context` and `Limits`. The module
   `overrun_bound(last_large)`.
 
 Crate-internal: `charge_at`, `check_at` and `check_storage_at`, which put the
-caller's span on the error, and the `Observer` adapter that holds the clock
-and the probe.
+caller's span on the error; `check_bound_at`, which is `check_at` for an
+amount that may not fit in a `u64` and rejects such an amount under every
+limit with `LimitAmount::Bound(u64::MAX)`; and the `Observer` adapter that
+holds the clock and the probe.
 
 Every charge point and check returns `Result<_>` with the library's `Error`.
 A request failure is built only here, through the crate-internal constructors
@@ -184,8 +187,10 @@ charge point polls it and fails with `Cancelled`. A reservation is not a charge 
 `max_integer_bits` and otherwise rejected with `ResourceLimit` naming
 `max_integer_bits`.
 
-- **Implemented here.** `Context::check(LimitField::IntegerBits, b)`. The
-  integers that are checked come with exact numbers.
+- **Implemented here.** `Context::check(LimitField::IntegerBits, b)`. Its
+  callers are the operations of `Rational` and the new elements of
+  `Rationals`, which check a bound on the bits of their results, as the
+  [exact numbers](../numbers/contract.md#checks-and-charges) state.
 - **Evidence.** Positive: `ctx_r07_an_integer_of_max_integer_bits_is_admitted`.
   Negative: `ctx_r07_one_bit_more_is_a_resource_limit`.
 
@@ -510,9 +515,9 @@ that Charon and Aeneas translate into Lean 4. It is, all in
   `set_frame_cost`, `write_frame_cost`, `leave_frame`, `truncate_frames`,
   `without_frames`, `frame_cost`, `frame_count`, `retained`, `reserve` and
   `release`;
-- the checks: `check`, `check_at`, `check_parameter`, `check_storage`,
-  `check_storage_at`, `admit`, `fit`, `retained_exceeded` and
-  `field_exceeded`.
+- the checks: `check`, `check_at`, `check_bound_at`, `check_parameter`,
+  `check_storage`, `check_storage_at`, `admit`, `fit`, `retained_exceeded`
+  and `field_exceeded`.
 
 The core uses `match` instead of combinators with closures and instead of
 `if let`, no iterators and no closures, one index loop in a helper of its

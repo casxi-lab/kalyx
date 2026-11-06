@@ -16,8 +16,10 @@ comes from the Greek κάλυξ.
 
 kalyx is being built from its foundations, and it has no usable capabilities
 yet. The repository holds a Rust package named `kalyx`, with a library that
-so far holds only the types of its errors and result states and the request
-context with its limits, and a command-line program that has no commands;
+so far holds only the types of its errors and result states, the request
+context with its limits, and exact integers and rationals with the
+coefficient-field trait over $\mathbb{Q}$, and a command-line program that
+has no commands;
 the repository checks, which continuous integration runs on every pull
 request to `main` and on every push to `main`; the
 [porting record](PORTING.md) of code taken over from an earlier
@@ -38,7 +40,9 @@ releases complete the shared foundations (coefficient fields, the function
 registry, numerical evaluators with rigorous enclosures, collection values,
 stable value encoding and a machine floating-point path) and then build the
 subject domains below on them. Apart from the types of the errors and
-result states and the request context, none of this is available yet.
+result states, the request context and the exact rational number type with
+the coefficient-field trait over $\mathbb{Q}$, none of this is available
+yet.
 
 ## Build
 
@@ -52,7 +56,9 @@ cargo test --locked
 ```
 
 The library's public items so far are the types of its errors and result
-states, and no entry computes yet; the program exits without output
+states, the request context, and the exact numbers with the coefficient-field
+trait over $\mathbb{Q}$, whose operations compute exact rational arithmetic
+under a context; the program exits without output
 (`cargo run --quiet` prints nothing).
 
 ## Rules the library is built to
@@ -73,8 +79,10 @@ describes the checks and their limits.
   wall-clock time, thread-local state or unwinding recovery, and no
   transcendental functions of the platform math library.
 - Library code uses only the standard library interfaces listed in
-  [guard/std-paths.txt](guard/std-paths.txt). It has no third-party
-  dependencies; adding one is a reviewed change of its own.
+  [guard/std-paths.txt](guard/std-paths.txt). Its only direct third-party
+  dependencies are num-bigint, num-rational and num-traits, for
+  arbitrary-precision integers and rationals; adding one is a reviewed change
+  of its own.
 - Code taken over from the earlier implementation is recorded in
   [PORTING.md](PORTING.md) and tested again here; its tests, proofs and
   results are not evidence for kalyx.

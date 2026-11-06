@@ -453,6 +453,46 @@ impl Context {
         }
     }
 
+    /// [`check_at`](Context::check_at) for an amount that may not fit in a
+    /// `u64`: `Some(value)` is checked as `check_at` does, and `None`, an
+    /// amount beyond `u64::MAX`, exceeds every limit and is reported with
+    /// `LimitAmount::Bound(u64::MAX)`, with the scope `Value` for `Nodes`
+    /// and `StorageBytes` as `check_at` reports it; charges, reads and
+    /// changes nothing.
+    pub(crate) fn check_bound_at(
+        &self,
+        field: LimitField,
+        value: Option<u64>,
+        span: Option<Span>,
+    ) -> Result<()> {
+        match value {
+            Some(value) => self.check_at(field, value, span),
+            None => {
+                let allowed = self.limits.get(field);
+                let amount = LimitAmount::Bound(u64::MAX);
+                Err(match field {
+                    LimitField::Nodes => {
+                        retained_exceeded(Retained::Nodes, allowed, amount, LimitScope::Value, span)
+                    }
+                    LimitField::StorageBytes => retained_exceeded(
+                        Retained::StorageBytes,
+                        allowed,
+                        amount,
+                        LimitScope::Value,
+                        span,
+                    ),
+                    LimitField::Work
+                    | LimitField::InputBytes
+                    | LimitField::OutputBytes
+                    | LimitField::Depth
+                    | LimitField::IntegerBits
+                    | LimitField::Exponent
+                    | LimitField::Frames => field_exceeded(field, allowed, amount, span),
+                })
+            }
+        }
+    }
+
     /// Checks `value` against the explicit request parameter `name`, whose
     /// value is `allowed`; charges, reads and changes nothing.
     ///
@@ -799,9 +839,9 @@ fn retained_exceeded(
 }
 
 /// The error of an exceeded field without a scope. Its callers pass `Work`,
-/// `OutputBytes` and `Frames`, and in [`Context::check`] the seven fields
-/// other than `Nodes` and `StorageBytes`, which go through
-/// [`retained_exceeded`] instead.
+/// `OutputBytes` and `Frames`, and in [`Context::check`] and
+/// [`Context::check_bound_at`] the seven fields other than `Nodes` and
+/// `StorageBytes`, which go through [`retained_exceeded`] instead.
 fn field_exceeded(
     field: LimitField,
     allowed: u64,
