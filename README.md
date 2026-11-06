@@ -18,10 +18,12 @@ kalyx is being built from its foundations, and it has no usable capabilities
 yet. The repository holds a Rust package named `kalyx` with an empty library
 and a command-line program that has no commands, the repository checks that
 continuous integration runs on every pull request to `main` and on every push
-to `main`, and the [porting record](PORTING.md), still empty, of code taken
-over from an earlier implementation of the casξ computer algebra system. That
-earlier implementation is not public; it serves as a reference, and its
-answers are to be used as test vectors for kalyx.
+to `main`, the [porting record](PORTING.md), still empty, of code taken over
+from an earlier implementation of the casξ computer algebra system, and the
+58 [answer vectors](vectors/README.md) of 0.1, converted from that earlier
+implementation's fixtures; only their format is checked so far. The earlier
+implementation is not public; it serves as a reference and as a source of
+test vectors.
 
 The first release, 0.1, is planned to provide the base of the library and a
 small slice of algebra on it: an exact rational number type, a parser, an
@@ -156,6 +158,8 @@ domains, and natural-language input.
   error kinds. None of the library components is implemented yet.
 - [Public API conventions](docs/conventions/public-api.md): the rules that
   every public interface of the library is to follow.
+- [Answer vectors](vectors/README.md): the format of the test vectors and
+  their result kinds and limits.
 - Rules for this repository: [AGENTS](AGENTS.md) and
   [CONTRIBUTING](CONTRIBUTING.md); code taken over from the earlier
   implementation: [PORTING](PORTING.md).
