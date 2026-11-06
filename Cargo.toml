@@ -1,0 +1,19 @@
+[package]
+name = "kalyx"
+version = "0.1.0-dev.1"
+description = "The computer algebra library of casξ"
+edition = "2024"
+license = "MIT"
+publish = false
+rust-version = "1.99"
+
+[dependencies]
+
+# The release profile keeps integer overflow checks: an overflow is a
+# panic, never a silently wrapped value.
+[profile.release]
+overflow-checks = true
+
+# The repository checks in xtask/ are a workspace of their own.
+[workspace]
+exclude = ["xtask"]

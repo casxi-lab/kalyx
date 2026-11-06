@@ -14,136 +14,59 @@ send it what you type and show what it computes. The name comes from the Greek
 
 ## Status
 
-This repository is newly initialized. It holds this README, the kalyx logo,
-the contribution rules, a `.gitignore`, a commit-message hook and the
-repository checks, which continuous integration runs on every pull request to
-`main` and on every push to `main`. There is no library code here, and the
-library does not build or run from this repository yet.
+kalyx is being built from its foundations, and it has no usable capabilities
+yet. The repository holds a Rust package named `kalyx` with an empty library
+and a command-line program that has no commands, the repository checks that
+continuous integration runs on every pull request to `main` and on every push
+to `main`, and the [porting record](PORTING.md) of code taken over from an
+earlier implementation of the casξ computer algebra system. That earlier
+implementation is not public; it serves as a reference and as the source of
+answer vectors that kalyx is tested against.
 
-The library is developed today in a separate repository that is not public.
-Its code, tests, documentation and Lean proofs will move into this repository
-together with their complete history. The move is planned for the close of the
-library's current development stage, which covers the 0.5 releases; the
-project owner may set a different time. Until the move, this repository
-accepts no library code, and after it development continues here.
+The first release, 0.1, is planned to provide the base of the library and a
+small slice of algebra on it: an exact rational number type, a parser, an
+expression core with canonical forms, univariate polynomials over
+$\mathbb{Q}$ with expansion and differentiation, structured errors and result
+states, and a command entry that runs each request under a work budget, a
+deadline and cancellation, with a minimal command-line program. Later
+releases complete the shared foundations (coefficient fields, the function
+registry, numerical evaluators with rigorous enclosures, collection values,
+stable value encoding and a machine floating-point path) and then build the
+subject domains below on them. None of this is available yet.
 
-## What the library provides
+## Build
 
-The capabilities below are those of the library's current development tree;
-they arrive here with the move. The library is an ordinary Rust `std` library with a command-line program and an
-interactive session. It builds with stable Rust and supports only 64-bit
-targets. The mathematical core runs on a host computer without the casξ
-operating system, a GUI or an async executor, and it has no runtime dependency
-on another computer algebra system, numerical library or floating-point
-fallback.
+Building needs the Rust toolchain that `rust-toolchain.toml` pins and a 64-bit
+target; the crate does not compile for other pointer widths.
 
-- **Exact arithmetic and integers.** Rationals of arbitrary size; decimal
-  literals are exact, so `0.1 + 0.2` is `3/10`. Integer GCD and extended GCD,
-  modular powers and inverses, the Chinese remainder theorem, primality,
-  integer factorization, factorials and binomial coefficients.
-- **Polynomials and rational functions over Q.** Univariate and multivariate
-  rings, division, GCD, resultants, discriminants, partial fractions,
-  square-free decomposition, and factorization over Q and over embedded number
-  fields. Rational functions keep the conditions of their source domain:
-  cancelling `(x^2-1)/(x-1)` gives `x + 1` together with the exclusion
-  `x - 1 != 0`.
-- **Algebraic numbers.** Exact real and complex algebraic numbers, radicals,
-  minimal polynomials and exact comparison.
-- **Equations and sets.** Real polynomial and rational equations, exact real
-  roots with isolating intervals and multiplicities, root counts on intervals,
-  real sets and rational inequalities, Groebner bases and finite polynomial
-  systems, parameter and elementary equations with guarded solution families,
-  and ordinary differential equations with symbolic solutions (first-order
-  linear, separable, and second-order with constant rational coefficients).
-- **Symbolic calculus.** Function expressions with assumptions, guarded
-  differentiation, indefinite and definite integration, limits, local series
-  and sums.
-- **Linear algebra.** Exact rational matrices, elimination and linear systems,
-  reusable LU, matrices over algebraic numbers, parameters and functions,
-  orthogonal and Hermitian decompositions, spectra and canonical forms, exact
-  singular values, matrix functions, controlled-precision numerical matrices,
-  and sparse matrices with iterative solvers.
-- **Numerics.** Controlled-precision evaluation with rigorous enclosures,
-  interval arithmetic, enclosures of elementary functions, certified bracketed
-  roots and finite quadrature. Machine binary64 floating point is partially
-  provided.
-- **Nonlinear problems.** Real function models with structured derivatives,
-  local roots, root-box certificates, weighted nonlinear least squares, local
-  smooth optimization, explicit and implicit initial-value problems, and
-  equilibrium and trajectory sensitivities.
-- **Environments and programs.** Typed environments with versioned requests
-  and atomic bindings, lexical user functions and programs with closures, and
-  collection values (partially provided).
+```sh
+rustup toolchain install
+cargo build --locked
+cargo test --locked
+```
 
-Every capability has one feature document, listed in a feature index with its
-status, source modules and the Lean theorems registered for it. The feature
-documents arrive with the code.
+The library has no public items yet, and `cargo run` exits without output.
 
-## Examples
+## Rules the library is built to
 
-These are results of the library's command-line program. The program and an
-interactive session arrive here with the code; neither runs from this
-repository yet.
-
-| Input | Result |
-| --- | --- |
-| `0.1 + 0.2` | `3/10` |
-| factor `x^4-1` | `(x - 1)*(x + 1)*(x^2 + 1)` |
-| cancel `(x^2-1)/(x-1)` | `x + 1`, valid where `(x - 1) != 0` |
-| real roots of `(x^2-2)^2*(x-1)` | `root(x^2 - 2, (-4, 0))` and `root(x^2 - 2, (5/4, 3/2))`, each of multiplicity 2, and `1` of multiplicity 1 |
-| Groebner basis of `x*y-1`, `y^2-x` in `Q[x,y]`, lex order | `[x - y^2; y^3 - 1]`, a zero-dimensional ideal |
-| definite integral of `1/(x^2+1)` over the real line | `pi` |
-| the linear system `[[1, 2]] * x = [[3]]` | `x = [[3], [0]] + [[-2], [1]] * t` |
-
-Requests are made with a fresh context per request, so that every stage draws
-on the same work allowance, and a cloned cancellation token can cancel a
-request from another thread. The interface is experimental: there is no stable
-binary interface, serialization format, inter-process protocol or C ABI yet.
-
-## How results behave
-
-- Values stay exact unless a feature explicitly computes an enclosure or an
-  approximation. Nothing is silently converted to floating point.
-- Each mathematical domain is its own type, such as polynomials, rational
-  functions, algebraic numbers, matrices over each coefficient domain, sets and
-  enclosures. Conversions between them are explicit and checked.
-- An `Err` means the request has no answer: invalid input, a domain error, an
-  exhausted limit, cancellation or an expired deadline. An `Ok` result can
-  carry a state such as not converged, insufficient precision, unevaluated, a
-  condition set, a residual factor or an unknown box. An unevaluated result or
-  a condition set does not assert that no solution exists. Completeness is
-  promised only where a feature document states it.
-- Every request runs under limits. `Limits::default()` allows, for example,
-  65,536 bytes of input, 100,000 work units and polynomials of degree 256.
-- The limit and cancellation checks are cooperative. A running big-integer
-  primitive, allocation or formatting operation cannot be interrupted, an
-  ordinary Rust allocation failure may abort the process, and the library has
-  no memory quota, CPU-time guarantee or way to terminate a process. A host
-  that needs these supplies them; on casξ that host is krepi.
-
-The full rules are in the semantics document, which arrives with the code.
-
-## Verification
-
-Selected production functions are proved correct in Lean 4. Charon extracts
-the Rust source of the library, Aeneas translates the extraction into Lean
-definitions, and handwritten Lean proofs show that those definitions satisfy
-specifications written independently of the code with Mathlib. A proof covers
-exactly the functions and statements registered for it. Code outside a
-registered target is unverified, the listed trusted inputs remain assumptions,
-and the proofs say nothing about time, memory or the compiled binary.
-
-The proof gate checks every registered target together with the tests. Its
-pinned proof tools are installed by a setup command that currently needs macOS
-on Apple silicon. The gate, the tools, the proof targets and the trusted
-boundary are documented with the code.
+- Values stay exact unless an operation explicitly computes an enclosure or an
+  approximation; the library code forbids `unsafe` code and floating-point
+  arithmetic until the machine floating-point path is added.
+- Every request will run under explicit limits, a deadline and cancellation,
+  checked cooperatively; the library uses no threads, hash containers,
+  wall-clock time, thread-local state or unwinding recovery, and no
+  transcendental functions of the platform math library.
+- The standard-library interfaces and the third-party packages the library
+  uses are limited to reviewed lists.
+- Code taken over from the earlier implementation is recorded in
+  [PORTING.md](PORTING.md) and tested again here; its tests, proofs and
+  results are not evidence for kalyx.
 
 ## What kalyx aims to cover
 
-The target scope of the library is divided into subject domains. Each domain
-page describes the complete feature set of its domain, provided or planned,
-and links the feature documents of what exists. The domain pages arrive with
-the code.
+The target scope of the library is divided into subject domains. A domain
+page describing the complete feature set of a domain is added when work on that
+domain starts.
 
 | Domain | Scope |
 | --- | --- |
@@ -168,17 +91,17 @@ the code.
 
 Shared components that several domains build on, such as the context budget,
 coefficient fields, the function registry, numerical evaluators, rewriting,
-collections, binary64, stable encoding and fast arithmetic, are described on
-the cross-cutting page with their requirements, contracts, specifications and
-proof paths.
+collections, binary64, stable encoding and fast arithmetic, are built first;
+each gets its requirements, contract, specification and proof path when it is
+added.
 
-Across all domains, a result that is not exact states its guarantee level:
-exact, certified, estimated or heuristic. A solution set or search states
-whether it is complete, partial with a residual, or unsolved. A decision states
-its evidence: proved, refuted, numerical evidence or unknown. Settings such as
-the angle unit, number base and exact or approximate mode are inputs of the
-request and are echoed in the result, and every random operation takes an
-explicit seed or stream.
+Across all domains, a result that is not exact is to state its guarantee
+level: exact, certified, estimated or heuristic. A solution set or search is to
+state whether it is complete, partial with a residual, or unsolved, and a
+decision its evidence: proved, refuted, numerical evidence or unknown. Settings
+such as the angle unit, number base and exact or approximate mode are to be
+inputs of the request, echoed in the result, and every random operation is to
+take an explicit seed or stream.
 
 The domains cover only what the mathematical core computes. Editing,
 typesetting, rendering, interaction, documents and permissions belong to the
@@ -202,7 +125,7 @@ domains, and natural-language input.
   its resources. Its first release is planned to run the casξ calculator,
   built from a pinned commit of this library, as such a job over the serial
   console, with the same output bytes on a development host, on QEMU and on
-  the Raspberry Pi 5. krepi is newly initialized, and none of this works yet.
+  the Raspberry Pi 5. krepi is at an early stage, and none of this works yet.
 - **kosmo** ([casxi-lab/kosmo](https://github.com/casxi-lab/kosmo)) is the
   casξ user interface and shell. It will turn what you type into expressions
   for kalyx and show the results it computes, with formula editing,
@@ -216,10 +139,10 @@ domains, and natural-language input.
 
 ## Documentation
 
-The library documentation (semantics, feature index, subject domains, command
-line and interactive session, formal verification, architecture and
-validation) moves here with the code. Rules for this repository:
-[AGENTS](AGENTS.md) and [CONTRIBUTING](CONTRIBUTING.md).
+The library documentation (semantics, feature documents, subject domains,
+architecture and validation) is added as each part is built. Rules for this
+repository: [AGENTS](AGENTS.md) and [CONTRIBUTING](CONTRIBUTING.md); code taken
+over from the earlier implementation: [PORTING](PORTING.md).
 
 ## License
 

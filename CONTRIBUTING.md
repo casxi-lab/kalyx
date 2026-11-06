@@ -1,30 +1,39 @@
 # Contributing
 
-kalyx does not accept library code yet. The library is developed in a
-separate repository that is not public, until its code and complete history
-move into this repository.
-
-Changes here are limited to the skeleton files: `README.md`, `AGENTS.md`,
-`CONTRIBUTING.md`, `LICENSE`, `AUTHORS`, `.gitignore`, the logo files in
-`.github/assets/`, the commit hook and the repository checks. The repository
-checks are the Rust workspace `xtask/`, the `xtask` alias in
-`.cargo/config.toml`, `rust-toolchain.toml` and the CI workflow
-`.github/workflows/check.yml`. They check this repository and contain no
-library code. These are the commands that apply today, run from the
-repository root:
+kalyx is built from its foundations in this repository. The Rust package
+`kalyx` at the repository root holds the library and the command-line
+program. The Rust workspace `xtask/` holds the repository checks, with the
+`xtask` alias in `.cargo/config.toml`, `rust-toolchain.toml` and the CI
+workflow `.github/workflows/check.yml`. These are the commands that apply
+today, run from the repository root:
 
 ```sh
 git config --local core.hooksPath .githooks
 rustup toolchain install
+cargo build --locked
+cargo test --locked
 cargo xtask check
 git diff --check
 git diff --cached --check
 ```
 
 The first command enables the commit message hook in `.githooks/commit-msg`.
-The second installs the Rust toolchain that `rust-toolchain.toml` pins, and
-the third runs the [checks](#checks). The last two report whitespace errors in
-unstaged and staged changes.
+The second installs the Rust toolchain that `rust-toolchain.toml` pins. The
+next two build and test the library, and `cargo xtask check` runs the
+[checks](#checks). The last two report whitespace errors in unstaged and
+staged changes.
+
+## Library rules
+
+[AGENTS](AGENTS.md) lists the rules that library code follows: interfaces,
+panics and dependencies, the porting record, and documentation.
+
+## Porting record
+
+Code taken over from the earlier implementation of the casξ computer algebra
+system, which is not public, is recorded in [PORTING.md](PORTING.md): one row
+per module, added in the same change as the code. The record states where the
+code came from, what changed and which tests were not carried over.
 
 ## Checks
 
@@ -71,11 +80,11 @@ previous head of `main`, and uploads the receipt as the artifact
 ## Commit messages
 
 Commit messages use English Conventional Commits with a header of at most 72
-characters, for example `docs(readme): describe the planned move`. The
-accepted types are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
-`build`, `ci`, `chore` and `revert`. Headers that start with `Merge `,
-`Revert `, `fixup! ` or `squash! ` are accepted as they are. Do not bypass the
-hook or change global Git configuration.
+characters, for example `docs(readme): describe the build`. The accepted types
+are `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`,
+`chore` and `revert`. Headers that start with `Merge `, `Revert `, `fixup! `
+or `squash! ` are accepted as they are. Do not bypass the hook or change
+global Git configuration.
 
 ## Documentation
 
