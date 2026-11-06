@@ -225,3 +225,5 @@ validation) moves here with the code. Rules for this repository:
 
 kalyx is released under the [MIT License](LICENSE). Copyright (c) 2026 The
 casξ Authors; see [AUTHORS](AUTHORS).
+
+[Probe](docs/probe-missing.md)
