@@ -150,10 +150,18 @@ domains, and natural-language input.
 
 ## Documentation
 
-The library documentation (semantics, feature documents, subject domains,
-architecture and validation) is added as each part is built. Rules for this
-repository: [AGENTS](AGENTS.md) and [CONTRIBUTING](CONTRIBUTING.md); code taken
-over from the earlier implementation: [PORTING](PORTING.md).
+- [Architecture](docs/architecture.md): the planned components with their
+  verification tiers and first callers, and the design rules of the
+  foundations: term representation, coefficient fields, the context and
+  error kinds. None of the library components is implemented yet.
+- [Public API conventions](docs/conventions/public-api.md): the rules that
+  every public interface of the library is to follow.
+- Rules for this repository: [AGENTS](AGENTS.md) and
+  [CONTRIBUTING](CONTRIBUTING.md); code taken over from the earlier
+  implementation: [PORTING](PORTING.md).
+
+The rest of the library documentation (semantics, feature documents, subject
+domains and validation) is added as each part is built.
 
 ## License
 

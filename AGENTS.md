@@ -26,6 +26,11 @@
   `clippy.toml`, and the guard step checks the rest, including the release
   profile and the license. Extending either list is a reviewed change of its
   own.
+- Public interfaces follow the
+  [public API conventions](docs/conventions/public-api.md). Components follow
+  the tiers and design rules of the [architecture](docs/architecture.md);
+  a change to a component's tier, first caller or foundation rule updates
+  that document in the same change.
 - Code that is to become a proof target is written in the subset of Rust that
   Charon and Aeneas translate into Lean 4. The subset, the proof workflow and
   the register of proof targets are added with the first proof target.
