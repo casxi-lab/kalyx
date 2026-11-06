@@ -23,6 +23,9 @@ const RESULTS: [&str; 11] = [
 
 const OPERATIONS: [&str; 3] = ["eval", "expand", "diff"];
 
+/// The header row, which is the first line of the file.
+const HEADER: &str = "id\toperation\tvariable\tinput\tresult\tanswer\tlimits";
+
 /// The fields of `Limits` that the `limits` column may set.
 const LIMIT_FIELDS: [&str; 9] = [
     "max_work",
@@ -68,15 +71,22 @@ fn limits(column: &str) -> Result<Vec<(&str, u64)>, String> {
     Ok(settings)
 }
 
-/// Reads a vector file, rejecting the first case that breaks the format.
+/// Reads a vector file, rejecting the first line that breaks the format. The
+/// file is plain TSV: the header row, then one case per line, with no comment
+/// or empty lines, so that any TSV reader takes the first line as the header.
 fn cases(text: &str) -> Result<Vec<Case<'_>>, String> {
+    let mut lines = text.lines().enumerate();
+    match lines.next() {
+        Some((_, line)) if line == HEADER => {}
+        _ => return Err("line 1: expected the header row".to_owned()),
+    }
     let mut ids = BTreeSet::new();
     let mut cases = Vec::new();
-    for (index, line) in text.lines().enumerate() {
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
+    for (index, line) in lines {
         let at = format!("line {}", index + 1);
+        if line.is_empty() || line.starts_with('#') {
+            return Err(format!("{at}: an empty or comment line"));
+        }
         let columns: Vec<&str> = line.split('\t').collect();
         let [id, operation, variable, _input, result, answer, limit] = columns.as_slice() else {
             return Err(format!("{at}: {} columns instead of 7", columns.len()));
@@ -133,13 +143,13 @@ fn the_vectors_have_the_documented_format() {
 
 #[test]
 fn rejects_a_case_with_six_columns() {
-    let error = cases("a\teval\tx\t1\tok\t1\n").unwrap_err();
+    let error = cases(&with_header("a\teval\tx\t1\tok\t1\n")).unwrap_err();
     assert!(error.contains("6 columns instead of 7"), "{error}");
 }
 
 #[test]
 fn rejects_a_result_kind_outside_the_table() {
-    let error = cases("a\teval\tx\t1/0\tDivideByZero\t-\t-\n").unwrap_err();
+    let error = cases(&with_header("a\teval\tx\t1/0\tDivideByZero\t-\t-\n")).unwrap_err();
     assert!(
         error.contains("unknown result kind DivideByZero"),
         "{error}"
@@ -148,9 +158,15 @@ fn rejects_a_result_kind_outside_the_table() {
 
 #[test]
 fn rejects_a_duplicate_id_and_an_unknown_limit_field() {
-    let duplicate = cases("a\teval\tx\t1\tok\t1\t-\na\teval\tx\t2\tok\t2\t-\n").unwrap_err();
+    let duplicate = cases(&with_header(
+        "a\teval\tx\t1\tok\t1\t-\na\teval\tx\t2\tok\t2\t-\n",
+    ))
+    .unwrap_err();
     assert!(duplicate.contains("duplicate id a"), "{duplicate}");
-    let field = cases("a\texpand\tx\tx^9\tResourceLimit\t-\tmax_degree=8\n").unwrap_err();
+    let field = cases(&with_header(
+        "a\texpand\tx\tx^9\tResourceLimit\t-\tmax_degree=8\n",
+    ))
+    .unwrap_err();
     assert!(
         field.contains("unknown Limits field: max_degree"),
         "{field}"
@@ -159,12 +175,47 @@ fn rejects_a_duplicate_id_and_an_unknown_limit_field() {
 
 #[test]
 fn rejects_an_answer_that_does_not_match_the_result() {
-    let error = cases("a\teval\tx\t1/0\tDivisionByZero\t0\t-\n").unwrap_err();
+    let error = cases(&with_header("a\teval\tx\t1/0\tDivisionByZero\t0\t-\n")).unwrap_err();
     assert!(error.contains("an ok case needs an answer"), "{error}");
 }
 
 #[test]
 fn rejects_a_resource_limit_case_without_its_limit() {
-    let error = cases("a\texpand\tx\tx^9\tResourceLimit\t-\t-\n").unwrap_err();
+    let error = cases(&with_header("a\texpand\tx\tx^9\tResourceLimit\t-\t-\n")).unwrap_err();
     assert!(error.contains("must state its limit"), "{error}");
+}
+
+/// Puts the header row in front of the case lines of a negative example.
+fn with_header(cases: &str) -> String {
+    format!("{HEADER}\n{cases}")
+}
+
+#[test]
+fn rejects_a_missing_commented_or_late_header() {
+    let missing = cases("a\teval\tx\t1\tok\t1\t-\n").unwrap_err();
+    assert!(
+        missing.contains("line 1: expected the header row"),
+        "{missing}"
+    );
+    let commented = cases(&format!("# {HEADER}\na\teval\tx\t1\tok\t1\t-\n")).unwrap_err();
+    assert!(
+        commented.contains("line 1: expected the header row"),
+        "{commented}"
+    );
+    let late = cases(&format!("# sources\n{HEADER}\n")).unwrap_err();
+    assert!(late.contains("line 1: expected the header row"), "{late}");
+}
+
+#[test]
+fn rejects_comment_and_empty_lines_after_the_header() {
+    let comment = cases(&with_header("# a note\na\teval\tx\t1\tok\t1\t-\n")).unwrap_err();
+    assert!(
+        comment.contains("line 2: an empty or comment line"),
+        "{comment}"
+    );
+    let empty = cases(&with_header("\na\teval\tx\t1\tok\t1\t-\n")).unwrap_err();
+    assert!(
+        empty.contains("line 2: an empty or comment line"),
+        "{empty}"
+    );
 }
