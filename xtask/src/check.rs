@@ -7,11 +7,15 @@ use std::process::{Command, ExitCode};
 use std::time::{Duration, Instant};
 
 use crate::repo::{Entry, Tree};
-use crate::{commits, docs, receipt, workflows};
+use crate::{commits, docs, guard, receipt, workflows};
 
-/// The manifest of the xtask workspace, which the format, Clippy and test
+/// The manifest of the xtask workspace, which the `fmt`, `clippy` and `test`
 /// steps cover, relative to the repository root.
 pub const MANIFEST: &str = "xtask/Cargo.toml";
+
+/// The manifest of the kalyx package at the repository root, which the
+/// `kalyx-fmt`, `kalyx-clippy` and `kalyx-test` steps cover.
+pub const PACKAGE_MANIFEST: &str = "Cargo.toml";
 
 /// A command run in the repository root.
 #[derive(Debug, Clone)]
@@ -61,12 +65,12 @@ pub struct Outcome {
     pub facts: Facts,
 }
 
-/// A Cargo command on the xtask workspace: `args`, the manifest, then
-/// `trailing`.
-fn cargo(args: &[&str], trailing: &[&str]) -> Cmd {
+/// A Cargo command on the package or workspace of `manifest`: `args`, the
+/// manifest, then `trailing`.
+fn cargo(manifest: &str, args: &[&str], trailing: &[&str]) -> Cmd {
     let mut all: Vec<String> = args.iter().map(|arg| arg.to_string()).collect();
     all.push("--manifest-path".into());
-    all.push(MANIFEST.into());
+    all.push(manifest.into());
     all.extend(trailing.iter().map(|arg| arg.to_string()));
     Cmd {
         program: std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()),
@@ -79,18 +83,23 @@ pub fn steps() -> Vec<Step> {
     vec![
         Step {
             name: "fmt",
-            action: Action::Commands(vec![cargo(&["fmt", "--all", "--check"], &[])]),
+            action: Action::Commands(vec![cargo(MANIFEST, &["fmt", "--all", "--check"], &[])]),
         },
         Step {
             name: "clippy",
             action: Action::Commands(vec![cargo(
+                MANIFEST,
                 &["clippy", "--workspace", "--all-targets", "--locked"],
                 &["--", "-D", "warnings"],
             )]),
         },
         Step {
             name: "test",
-            action: Action::Commands(vec![cargo(&["test", "--workspace", "--locked"], &[])]),
+            action: Action::Commands(vec![cargo(
+                MANIFEST,
+                &["test", "--workspace", "--locked"],
+                &[],
+            )]),
         },
         Step {
             name: "docs",
@@ -103,6 +112,30 @@ pub fn steps() -> Vec<Step> {
         Step {
             name: "workflows",
             action: Action::Internal(Box::new(check_workflows)),
+        },
+        Step {
+            name: "kalyx-fmt",
+            action: Action::Commands(vec![cargo(
+                PACKAGE_MANIFEST,
+                &["fmt", "--all", "--check"],
+                &[],
+            )]),
+        },
+        Step {
+            name: "kalyx-clippy",
+            action: Action::Commands(vec![cargo(
+                PACKAGE_MANIFEST,
+                &["clippy", "--all-targets", "--locked"],
+                &["--", "-D", "warnings"],
+            )]),
+        },
+        Step {
+            name: "kalyx-test",
+            action: Action::Commands(vec![cargo(PACKAGE_MANIFEST, &["test", "--locked"], &[])]),
+        },
+        Step {
+            name: "guard",
+            action: Action::Internal(Box::new(guard::run)),
         },
     ]
 }
@@ -246,7 +279,18 @@ mod tests {
 
     use super::*;
 
-    const ORDER: [&str; 6] = ["fmt", "clippy", "test", "docs", "commits", "workflows"];
+    const ORDER: [&str; 10] = [
+        "fmt",
+        "clippy",
+        "test",
+        "docs",
+        "commits",
+        "workflows",
+        "kalyx-fmt",
+        "kalyx-clippy",
+        "kalyx-test",
+        "guard",
+    ];
 
     #[test]
     fn steps_run_in_the_documented_order() {
@@ -255,32 +299,56 @@ mod tests {
     }
 
     #[test]
-    fn command_steps_cover_the_xtask_workspace() {
-        let mut seen = 0;
+    fn command_steps_cover_the_xtask_workspace_and_then_the_package() {
+        let mut seen = Vec::new();
         for step in steps() {
             if let Action::Commands(commands) = step.action {
                 for cmd in commands {
                     let at = cmd.args.iter().position(|arg| arg == "--manifest-path");
                     let at = at.expect("each command names a manifest");
-                    assert_eq!(cmd.args[at + 1], MANIFEST, "{}", step.name);
-                    seen += 1;
+                    seen.push((step.name, cmd.args[at + 1].clone()));
                 }
             }
         }
-        assert_eq!(seen, 3);
+        assert_eq!(
+            seen,
+            [
+                ("fmt", MANIFEST.to_string()),
+                ("clippy", MANIFEST.to_string()),
+                ("test", MANIFEST.to_string()),
+                ("kalyx-fmt", PACKAGE_MANIFEST.to_string()),
+                ("kalyx-clippy", PACKAGE_MANIFEST.to_string()),
+                ("kalyx-test", PACKAGE_MANIFEST.to_string()),
+            ]
+        );
+    }
+
+    /// The arguments of the single command of the step `name`.
+    fn args_of(name: &str) -> Vec<String> {
+        let steps = steps();
+        let step = steps.iter().find(|step| step.name == name).unwrap();
+        match &step.action {
+            Action::Commands(commands) => {
+                assert_eq!(commands.len(), 1, "{name}");
+                commands[0].args.clone()
+            }
+            Action::Internal(_) => panic!("{name} runs a command"),
+        }
     }
 
     #[test]
     fn clippy_denies_warnings_and_cargo_uses_the_lock_file() {
-        let steps = steps();
-        let args = |name: &str| match &steps.iter().find(|step| step.name == name).unwrap().action {
-            Action::Commands(commands) => commands[0].args.clone(),
-            Action::Internal(_) => panic!("{name} runs a command"),
-        };
-        assert!(args("clippy").ends_with(&["--".into(), "-D".into(), "warnings".into()]));
-        assert!(args("clippy").contains(&"--locked".to_string()));
-        assert!(args("test").contains(&"--locked".to_string()));
-        assert!(args("fmt").contains(&"--check".to_string()));
+        for (fmt, clippy, test) in [
+            ("fmt", "clippy", "test"),
+            ("kalyx-fmt", "kalyx-clippy", "kalyx-test"),
+        ] {
+            let warnings = ["--".to_string(), "-D".to_string(), "warnings".to_string()];
+            assert!(args_of(clippy).ends_with(&warnings), "{clippy}");
+            assert!(args_of(clippy).contains(&"--all-targets".to_string()));
+            assert!(args_of(clippy).contains(&"--locked".to_string()));
+            assert!(args_of(test).contains(&"--locked".to_string()));
+            assert!(args_of(fmt).contains(&"--check".to_string()));
+        }
     }
 
     /// The real step list with `failing` replaced by a failing action and
@@ -377,8 +445,28 @@ mod tests {
     }
 
     #[test]
-    fn a_workflows_failure_fails_the_check_after_every_other_step() {
+    fn a_workflows_failure_stops_the_check() {
         assert_fails_at("workflows");
+    }
+
+    #[test]
+    fn a_package_format_failure_stops_the_check() {
+        assert_fails_at("kalyx-fmt");
+    }
+
+    #[test]
+    fn a_package_clippy_failure_stops_the_check() {
+        assert_fails_at("kalyx-clippy");
+    }
+
+    #[test]
+    fn a_package_test_failure_stops_the_check() {
+        assert_fails_at("kalyx-test");
+    }
+
+    #[test]
+    fn a_guard_failure_fails_the_check_after_every_other_step() {
+        assert_fails_at("guard");
     }
 
     #[test]
@@ -391,5 +479,323 @@ mod tests {
             [("seen".to_string(), "before failing".to_string())]
         );
         assert_eq!(commits.status, Status::Failed("forced failure".to_string()));
+    }
+}
+
+/// The kalyx steps run for real on a temporary copy of the package: its
+/// manifest with the lint configuration, its lock file, `clippy.toml`,
+/// `rust-toolchain.toml` and the crate attributes of `src/lib.rs`, with a
+/// minimal library and program.
+#[cfg(test)]
+mod package_tests {
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::*;
+    use crate::repo;
+
+    /// The files copied unchanged from the repository root.
+    const COPIED: [&str; 4] = [
+        "Cargo.toml",
+        "Cargo.lock",
+        "clippy.toml",
+        "rust-toolchain.toml",
+    ];
+
+    /// Library code that the rules allow: an `#[allow]` with its reason, and
+    /// `unwrap`, `expect` and `panic!` in tests.
+    const ALLOWED: &str = r#"
+#[allow(dead_code, reason = "only the tests call it")]
+fn half(value: u32) -> Option<u32> {
+    value.checked_div(2)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn halves() {
+        assert_eq!(half(4).unwrap(), 2);
+        assert_eq!(half(6).expect("six halves"), 3);
+        if half(8) != Some(4) {
+            panic!("eight halves to four");
+        }
+    }
+}
+"#;
+
+    /// A temporary copy of the package in the system temporary directory,
+    /// removed when dropped. Each copy has a build directory of its own:
+    /// copies share the package name and their files are written within
+    /// moments of each other, so a shared build directory could take one
+    /// copy's build for another's.
+    struct Package {
+        dir: PathBuf,
+    }
+
+    impl Package {
+        fn new() -> Package {
+            static NEXT: AtomicUsize = AtomicUsize::new(0);
+            let root = repo::root();
+            let dir = std::env::temp_dir().join(format!(
+                "kalyx-xtask-package-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
+            if dir.exists() {
+                fs::remove_dir_all(&dir).unwrap();
+            }
+            fs::create_dir_all(dir.join("src")).unwrap();
+            for name in COPIED {
+                fs::copy(root.join(name), dir.join(name)).unwrap();
+            }
+            let lib = fs::read_to_string(root.join("src/lib.rs")).unwrap();
+            let attributes: Vec<&str> =
+                lib.lines().filter(|line| line.starts_with("#![")).collect();
+            for required in [
+                "#![forbid(unsafe_code)]",
+                "#![deny(clippy::float_arithmetic)]",
+            ] {
+                assert!(
+                    attributes.contains(&required),
+                    "src/lib.rs lacks {required}"
+                );
+            }
+            let package = Package { dir };
+            package.write(
+                "src/lib.rs",
+                &format!(
+                    "//! A minimal copy of the kalyx library.\n\n{}\n",
+                    attributes.join("\n")
+                ),
+            );
+            package.write(
+                "src/main.rs",
+                "//! A minimal copy of the kalyx program.\n\nfn main() {}\n",
+            );
+            package
+        }
+
+        fn write(&self, path: &str, text: &str) {
+            fs::write(self.dir.join(path), text).unwrap();
+        }
+
+        fn append(&self, path: &str, text: &str) {
+            let mut content = fs::read_to_string(self.dir.join(path)).unwrap();
+            content.push_str(text);
+            self.write(path, &content);
+        }
+
+        /// Runs the commands of the step `name` in the copy, as the check
+        /// runs them in the repository root; whether every command passed,
+        /// and the output.
+        fn run(&self, name: &str) -> (bool, String) {
+            let steps = steps();
+            let step = steps.iter().find(|step| step.name == name).unwrap();
+            let Action::Commands(commands) = &step.action else {
+                panic!("{name} runs commands");
+            };
+            let mut text = String::new();
+            for cmd in commands {
+                let output = Command::new(&cmd.program)
+                    .args(&cmd.args)
+                    .current_dir(&self.dir)
+                    .env("CARGO_TARGET_DIR", self.dir.join("target"))
+                    .output()
+                    .expect("cargo runs");
+                text.push_str(&String::from_utf8_lossy(&output.stdout));
+                text.push_str(&String::from_utf8_lossy(&output.stderr));
+                if !output.status.success() {
+                    return (false, text);
+                }
+            }
+            (true, text)
+        }
+
+        fn passes(&self, name: &str) {
+            let (passed, output) = self.run(name);
+            assert!(passed, "{name} failed:\n{output}");
+        }
+
+        /// Asserts that the step `name` fails and that its output names
+        /// each of `reasons`, with `-` read as `_`.
+        fn fails(&self, name: &str, reasons: &[&str]) {
+            let (passed, output) = self.run(name);
+            assert!(!passed, "{name} passed:\n{output}");
+            let normalized = output.replace('-', "_");
+            for reason in reasons {
+                assert!(
+                    normalized.contains(reason),
+                    "{name} failed without naming `{reason}`:\n{output}"
+                );
+            }
+        }
+    }
+
+    impl Drop for Package {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    #[test]
+    fn the_package_with_allowed_code_passes_every_package_step() {
+        let package = Package::new();
+        package.append("src/lib.rs", ALLOWED);
+        package.passes("kalyx-fmt");
+        package.passes("kalyx-clippy");
+        package.passes("kalyx-test");
+    }
+
+    #[test]
+    fn unformatted_code_fails_the_package_format_step() {
+        let package = Package::new();
+        package.append("src/lib.rs", "\npub fn one( )->u8{1}\n");
+        package.fails("kalyx-fmt", &["Diff in"]);
+    }
+
+    #[test]
+    fn each_explicit_panic_in_library_code_fails_the_package_clippy_step() {
+        let package = Package::new();
+        package.append(
+            "src/lib.rs",
+            r#"
+pub fn denied(value: Option<u8>, kind: u8) -> u8 {
+    match kind {
+        0 => value.unwrap(),
+        1 => value.expect("a value"),
+        2 => panic!("no value"),
+        3 => unreachable!(),
+        4 => todo!(),
+        _ => unimplemented!(),
+    }
+}
+"#,
+        );
+        package.fails(
+            "kalyx-clippy",
+            &[
+                "clippy::unwrap_used",
+                "clippy::expect_used",
+                "clippy::panic",
+                "clippy::unreachable",
+                "clippy::todo",
+                "clippy::unimplemented",
+            ],
+        );
+    }
+
+    #[test]
+    fn an_allow_without_a_reason_fails_the_package_clippy_step() {
+        let package = Package::new();
+        package.append("src/lib.rs", "\n#[allow(dead_code)]\nfn unused() {}\n");
+        package.fails("kalyx-clippy", &["clippy::allow_attributes_without_reason"]);
+    }
+
+    #[test]
+    fn a_failing_test_fails_the_package_test_step() {
+        let package = Package::new();
+        package.append(
+            "src/lib.rs",
+            r#"
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn fails() {
+        assert_eq!(2_u8.pow(2), 5, "a failing test");
+    }
+}
+"#,
+        );
+        package.passes("kalyx-clippy");
+        package.fails("kalyx-test", &["tests::fails"]);
+    }
+
+    #[test]
+    fn unsafe_code_fails_in_the_library_and_in_the_program() {
+        let package = Package::new();
+        package.append(
+            "src/lib.rs",
+            "\npub fn read(value: &u8) -> u8 {\n    unsafe { *std::ptr::from_ref(value) }\n}\n",
+        );
+        package.fails("kalyx-clippy", &["unsafe_code"]);
+        let package = Package::new();
+        package.write(
+            "src/main.rs",
+            "fn main() {\n    let value = 1_u8;\n    let _copy = unsafe { *std::ptr::from_ref(&value) };\n}\n",
+        );
+        package.fails("kalyx-clippy", &["unsafe_code"]);
+    }
+
+    #[test]
+    fn float_arithmetic_fails_in_the_library_and_in_the_program() {
+        let package = Package::new();
+        package.append(
+            "src/lib.rs",
+            "\npub fn double(value: f64) -> f64 {\n    value * 2.0\n}\n",
+        );
+        package.fails("kalyx-clippy", &["clippy::float_arithmetic"]);
+        let package = Package::new();
+        package.write(
+            "src/main.rs",
+            "fn main() {\n    let value: f64 = 1.5;\n    let _sum = value + 1.0;\n}\n",
+        );
+        package.fails("kalyx-clippy", &["clippy::float_arithmetic"]);
+    }
+
+    #[test]
+    fn a_libm_function_fails_the_package_clippy_step_whatever_the_path() {
+        let package = Package::new();
+        package.append(
+            "src/lib.rs",
+            r#"
+type Float = f64;
+
+pub fn through_an_alias(value: Float) -> Float {
+    Float::sin(value)
+}
+
+pub fn through_a_method(value: f32) -> f32 {
+    value.cbrt()
+}
+
+pub fn through_a_trait<T: Copy>(value: T, apply: fn(T) -> T) -> T {
+    apply(value)
+}
+
+pub fn through_a_function_value(value: f64) -> f64 {
+    through_a_trait(value, f64::exp)
+}
+"#,
+        );
+        package.fails(
+            "kalyx-clippy",
+            &[
+                "clippy::disallowed_methods",
+                "disallowed method `f64::sin`",
+                "disallowed method `f32::cbrt`",
+                "disallowed method `f64::exp`",
+            ],
+        );
+    }
+
+    #[test]
+    fn clippy_disallows_every_libm_function_of_the_floats_and_their_traits() {
+        let config = fs::read_to_string(repo::root().join("clippy.toml")).unwrap();
+        for owner in [
+            "f32",
+            "f64",
+            "num_traits::float::Float",
+            "num_traits::real::Real",
+        ] {
+            for name in crate::scan::LIBM {
+                assert!(
+                    config.contains(&format!("path = \"{owner}::{name}\"")),
+                    "clippy.toml does not disallow {owner}::{name}"
+                );
+            }
+        }
     }
 }

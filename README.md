@@ -50,6 +50,14 @@ The library has no public items yet, and the program exits without output
 
 ## Rules the library is built to
 
+`cargo xtask check`, which continuous integration runs, enforces the parts of
+these rules that can be checked mechanically: forbidden `unsafe` code and
+floating-point arithmetic, the interfaces and functions the library may not
+use, the standard library interfaces it may use, and its dependencies and
+license. It does so with the compiler, Clippy and a guard over the source,
+the lock file and the manifest; [CONTRIBUTING](CONTRIBUTING.md#checks)
+describes the checks and their limits.
+
 - Values stay exact unless an operation explicitly computes an enclosure or an
   approximation; the library code forbids `unsafe` code and denies
   floating-point arithmetic until the machine floating-point path is added.
@@ -57,8 +65,9 @@ The library has no public items yet, and the program exits without output
   checked cooperatively; the library uses no threads, hash containers,
   wall-clock time, thread-local state or unwinding recovery, and no
   transcendental functions of the platform math library.
-- The library has no third-party dependencies; adding one is a reviewed
-  change of its own.
+- Library code uses only the standard library interfaces listed in
+  [guard/std-paths.txt](guard/std-paths.txt). It has no third-party
+  dependencies; adding one is a reviewed change of its own.
 - Code taken over from the earlier implementation is recorded in
   [PORTING.md](PORTING.md) and tested again here; its tests, proofs and
   results are not evidence for kalyx.

@@ -1,0 +1,60 @@
+# The std paths that the non-test code in src/ may use, checked by the guard
+# step of `cargo xtask check`.
+#
+# One entry per line; blank lines and lines that start with `#` are skipped.
+# An entry is a path of at least two segments. It permits a path that equals
+# it or lies below it: `std::fmt` permits `std::fmt::Display`, and
+# `std::io::Write` permits `std::io::Write::flush` but not other names that
+# merely start with `Write`. The guard checks every path that starts with
+# `std` in a `use` declaration, an expression, a type, a pattern, a macro or
+# an attribute; a `use` tree is expanded first, and a glob such as
+# `use std::fmt::*;` names its module, `std::fmt`. Importing a module, as in
+# `use std::io;`, therefore needs the module itself in this list.
+#
+# Never listed, and rejected by the guard even if listed: std::thread,
+# std::thread_local, HashMap, HashSet and the rest of hash_map and hash_set,
+# RandomState, SystemTime, UNIX_EPOCH and catch_unwind. Extending this list
+# is a reviewed change of its own.
+
+# The process interface of the command-line program: arguments, standard
+# streams, the exit code and the monotonic clock.
+std::env::args_os
+std::ffi::OsString
+std::io::BufRead
+std::io::IsTerminal
+std::io::Stdin
+std::io::Write
+std::io::stderr
+std::io::stdin
+std::io::stdout
+std::process::ExitCode
+std::time::Instant
+
+# The std re-exports of the basic types and traits of core and alloc.
+std::borrow
+std::boxed
+std::char
+std::cmp
+std::collections::BTreeMap
+std::collections::BTreeSet
+std::collections::VecDeque
+std::convert
+std::default
+std::error::Error
+std::fmt
+std::hash::Hash
+std::iter
+std::marker
+std::mem
+std::num
+std::ops
+std::option
+std::rc
+std::result
+std::slice
+std::str
+std::string
+std::sync::Arc
+std::sync::atomic::AtomicBool
+std::sync::atomic::Ordering
+std::vec

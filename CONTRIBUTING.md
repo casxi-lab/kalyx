@@ -3,17 +3,14 @@
 kalyx is built from its foundations in this repository. The Rust package
 `kalyx` at the repository root holds the library and the command-line
 program. The Rust workspace `xtask/` holds the repository checks, with the
-`xtask` alias in `.cargo/config.toml`, `rust-toolchain.toml` and the CI
-workflow `.github/workflows/check.yml`. These are the commands that apply
-today, run from the repository root:
+`xtask` alias in `.cargo/config.toml`, `rust-toolchain.toml`, the allow lists
+of the guard in `guard/` and the CI workflow `.github/workflows/check.yml`.
+These are the commands that apply today, run from the repository root:
 
 ```sh
 git config --local core.hooksPath .githooks
 rustup toolchain install
 cargo build --locked
-cargo test --locked
-cargo fmt --check
-cargo clippy --locked --all-targets -- -D warnings
 cargo xtask check
 git diff --check
 git diff --cached --check
@@ -21,15 +18,18 @@ git diff --cached --check
 
 The first command enables the commit message hook in `.githooks/commit-msg`.
 The second installs the Rust toolchain that `rust-toolchain.toml` pins. The
-next four build, test, format-check and lint the library, and
-`cargo xtask check` runs the [checks](#checks), which do not cover the library
-package yet. The last two report whitespace errors in unstaged and
-staged changes.
+third builds the library and the program, and `cargo xtask check` runs the
+[checks](#checks), which format-check, lint and test both the package and the
+checks and run the guard. The last two report whitespace errors in unstaged
+and staged changes.
 
 ## Library rules
 
 [AGENTS](AGENTS.md) lists the rules that library code follows: interfaces,
-panics and dependencies, the porting record, and documentation.
+panics and dependencies, the porting record, and documentation. The
+`kalyx-clippy` and `guard` steps of the [checks](#checks) enforce the rules
+for code, dependencies, the release profile and the license, within the
+limits that the [guard](#guard) section states.
 
 ## Porting record
 
@@ -58,17 +58,95 @@ fails:
    `pull_request_target` in any letter case, not even in a comment or
    through an escape; every job sets its own `permissions`; and in a
    workflow that runs on `pull_request`, or whose `on` is missing, empty or
-   unreadable, no job requests write access or references `secrets`.
+   unreadable, no job requests write access or references `secrets`;
+5. `kalyx-fmt`, `kalyx-clippy` with warnings as errors, and `kalyx-test`
+   (`cargo test --locked`), on the kalyx package at the repository root.
+   For every target of the package, `Cargo.toml` forbids `unsafe` code and
+   denies floating-point arithmetic, `unwrap`, `expect`, `panic!`,
+   `unreachable!`, `todo!`, `unimplemented!` and an `#[allow]` without a
+   `reason`; `clippy.toml` allows `unwrap`, `expect` and `panic!` in tests,
+   and disallows the transcendental functions of the platform math library
+   (listed [below](#guard)) as methods of `f32` and `f64` and of the `Float`
+   and `Real` traits of num-traits. Clippy resolves the type, so a call
+   through a type alias or a generic parameter is caught too; this applies
+   to tests as well;
+6. `guard`: the rules of the package that the compiler and Clippy do not
+   check, described [below](#guard).
 
-The `docs` and `workflows` steps read only files that Git tracks, so build
-output and ignored files do not change the result; add a new file to the index
-with `git add` before running the check.
+The `docs`, `workflows` and `guard` steps read only files that Git tracks, so
+build output and ignored files do not change the result; add a new file to the
+index with `git add` before running the check.
+
+### Guard
+
+The guard reads every tracked `.rs` file outside `xtask/`, `tests/`,
+`benches/` and `examples/`, such as the files below `src/` and a build
+script; such a file that is a symbolic link, a submodule or not UTF-8 is a
+finding. It skips test code: an item, module, associated item, `let`
+statement or macro statement marked `#[test]` or with a `#[cfg(...)]` that
+holds only in test builds, such as `#[cfg(test)]`, and the file of a module
+that only test code declares, as `#[cfg(test)] mod name;`, with the files of
+its submodules. A `#[cfg(test)]` on an expression, field, variant or match
+arm does not exempt it, and a file that scanned code also declares as
+`mod name;` is scanned. The files are parsed as Rust, so comments and string
+literals never count; the bodies of macros are read token by token. The step
+fails, listing every finding with its file and line, when non-test code
+holds:
+
+- `std::thread` or a path below it; the identifiers `HashMap`, `HashSet`,
+  `RandomState`, `SystemTime`, `thread_local` and `catch_unwind` wherever
+  they appear, including names that the package defines; or a `static mut`
+  item;
+- a call `.name(` or a path `f32::name` or `f64::name`, where `name` is a
+  transcendental function of the platform math library: `sin`, `cos`, `tan`,
+  `sin_cos`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`,
+  `asinh`, `acosh`, `atanh`, `exp`, `exp2`, `exp_m1`, `ln`, `log`, `log2`,
+  `log10`, `ln_1p`, `powf`, `cbrt` or `hypot`. The guard matches names, so
+  `.log(` on any value counts; a call through a type alias, a generic
+  parameter or a trait is left to Clippy, as step 5 describes;
+- outside `src/main.rs`, `src/command.rs` and `src/command/`, a path
+  `Context::name` or `<Context as Trait>::name` with any `name`, so every
+  associated function counts as constructing the context; a struct
+  expression `Context { .. }`; an import that renames `Context`; or a type
+  alias of `Context`. Inside the impl blocks of the context type, its
+  constructors build the value as `Self`. The guard does not see a value
+  built as `Self`, through an inferred `Default::default()` or through a
+  conversion such as `From`; review keeps those to the command entry and
+  the program;
+- a path that starts with `std` and that
+  [guard/std-paths.txt](guard/std-paths.txt) does not permit.
+
+An entry of `guard/std-paths.txt` is a `std` path of at least two segments
+and permits that path and every path below it: `std::fmt` permits
+`std::fmt::Display`, and `std::io::Write` permits `std::io::Write::flush` but
+not `std::io::WriteFmt`. The guard checks the paths in `use` declarations,
+expressions, types, patterns, macros and attributes, and expands `use` trees
+first: `use std::{fmt, io::Write};` names `std::fmt` and `std::io::Write`,
+and a glob `use std::fmt::*;` names `std::fmt`. Importing a module, as in
+`use std::io;`, therefore needs the module itself in the list. The list holds
+the process interface of the program (arguments, standard streams, the exit
+code and `std::time::Instant`) and the std re-exports of basic types and
+traits of core and alloc. It never holds, and the guard rejects an entry that
+would permit, `std::thread`, `std::thread_local`, `HashMap`, `HashSet`, the
+rest of `hash_map` and `hash_set`, `RandomState`, `SystemTime`,
+`UNIX_EPOCH` or `catch_unwind`.
+
+`Cargo.lock` may hold only the package itself and the packages named in
+[guard/crates.txt](guard/crates.txt), one name per line: today the `num-*`
+packages for arbitrary-precision integers and rationals and their build
+dependency `autocfg`, none of which the package uses yet. `getrandom` and the
+`rand`, `rayon` and `crossbeam` families (`rand_core`, `crossbeam-utils` and
+the like) are rejected even if listed. The `license` field of the package in
+`Cargo.toml` must be exactly `MIT`, and its `[profile.release]` table must
+set `overflow-checks = true`. Extending either list is a reviewed change of
+its own.
 
 `cargo xtask check --receipt <path>` also writes a JSON receipt of the run to
 `<path>`, whether the check passes or fails. It records the commit, whether
 the working tree was clean before and after the run, the `rustc` version, each
 step with its status, duration and what it read (such as the base and the
-number of commits that the commits step checked), the runner image
+number of commits that the commits step checked, or the source files that the
+guard read and the number of entries in each allow list), the runner image
 (`ImageOS`, `ImageVersion`) and the GitHub Actions run (`GITHUB_RUN_ID`,
 `GITHUB_RUN_ATTEMPT`, `GITHUB_EVENT_NAME`, `GITHUB_REF`, `GITHUB_SHA`); a
 value the environment does not provide is `null`.

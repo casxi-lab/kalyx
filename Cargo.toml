@@ -10,12 +10,21 @@ rust-version = "1.99"
 [dependencies]
 
 # The rules hold for every target of the package: the library, the program
-# and the tests.
+# and the tests. Explicit panics are denied in non-test code; clippy.toml
+# allows `unwrap`, `expect` and `panic!` in tests. Every `#[allow]` states
+# its reason.
 [lints.rust]
 unsafe_code = "forbid"
 
 [lints.clippy]
 float_arithmetic = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unreachable = "deny"
+todo = "deny"
+unimplemented = "deny"
+allow_attributes_without_reason = "deny"
 
 # The release profile keeps integer overflow checks: an overflow is a
 # panic, never a silently wrapped value.
