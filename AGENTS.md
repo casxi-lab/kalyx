@@ -6,8 +6,8 @@
   which CI runs as `cargo xtask check`.
 - The library is an ordinary Rust `std` library for 64-bit targets. Keep exact
   values exact. Pass a request-local context through parsing and computation,
-  and check limits, the deadline and cancellation before potentially
-  expensive work; these checks are cooperative.
+  and check limits, the deadline and cancellation before potentially expensive
+  work; these checks are cooperative.
 - Library code follows these rules. `unsafe` code is forbidden, and
   floating-point arithmetic is denied until the machine floating-point path is
   added; the release profile keeps overflow checks. Non-test code uses no
@@ -16,26 +16,25 @@
   math library, and constructs the context only in the command entry and the
   program. Non-test code makes no explicit panic (`unwrap`, `expect`,
   `panic!`, `unreachable!`, `todo!`, `unimplemented!`), and every `#[allow]`
-  states its reason. The standard-library interfaces and third-party packages
-  that the library uses are limited to reviewed lists; extending a list is a
-  reviewed change of its own.
+  states its reason. The library has no third-party dependencies; adding one
+  is a reviewed change of its own.
 - Code that is to become a proof target is written in the subset of Rust that
-  the proof toolchain translates. The subset and the proof workflow are
-  documented when the first proof target is registered.
+  Charon and Aeneas translate into Lean 4. The subset, the proof workflow and
+  the register of proof targets are added with the first proof target.
 - Code taken over from the earlier implementation of the casξ computer algebra
   system is ported module by module, never copied wholesale. Each port adds a
   row to [PORTING.md](PORTING.md) in the same change, with its source written
-  as `cas-project@<full commit SHA>:<path>`. A known deviation of the source
-  is either corrected, with a test that rejects it, or recorded as a
-  limitation; it is never carried over silently. Ported code is tested again
-  here: tests, proofs and results of the earlier implementation are not
-  evidence for kalyx.
+  as `cas-project@<full commit SHA>:<path>`, where `cas-project` names the
+  earlier implementation. A known deviation of the source is either corrected,
+  with a test that rejects it, or recorded as a limitation; it is never
+  carried over silently. Ported code is tested again here: tests, proofs and
+  results of the earlier implementation are not evidence for kalyx.
 - Write all documentation and code comments in English, for a person who uses
   or builds on the library: what it does, how to run it, its limits, and
-  commands that actually run. Describe only capabilities that the library
-  ships today. Call the device casξ; use `casxi` where only ASCII is allowed,
-  such as identifiers and paths. Write mathematics in Markdown as LaTeX:
-  `$...$` inline and `math` fenced blocks for display.
+  commands that actually run. Present as available only what the library ships
+  today, and mark plans as plans. Call the device casξ; use `casxi` where only
+  ASCII is allowed, such as identifiers and paths. Write mathematics in
+  Markdown as LaTeX: `$...$` inline and `math` fenced blocks for display.
 - Requirement identifiers that label requirements within a component may
   appear in documents and code. Milestone, task, proposal and decision
   numbers, stage codes, agent narratives, review histories and evidence
@@ -50,7 +49,9 @@
   rustfmt and free of Clippy warnings, with unit tests in `#[cfg(test)]`
   modules next to the code. A change to a check adds tests for the cases it
   rejects.
-- Before committing, run `cargo xtask check` from the repository root; it
-  must pass. [CONTRIBUTING](CONTRIBUTING.md#checks) describes its steps. Also
-  run `git diff --check` and `git diff --cached --check` and review the
+- Before committing, run these from the repository root; they must pass:
+  `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`,
+  `cargo test --locked` and `cargo xtask check`.
+  [CONTRIBUTING](CONTRIBUTING.md#checks) describes the steps of the last one.
+  Also run `git diff --check` and `git diff --cached --check` and review the
   staged diff.

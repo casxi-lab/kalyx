@@ -12,6 +12,8 @@ git config --local core.hooksPath .githooks
 rustup toolchain install
 cargo build --locked
 cargo test --locked
+cargo fmt --check
+cargo clippy --locked --all-targets -- -D warnings
 cargo xtask check
 git diff --check
 git diff --cached --check
@@ -19,8 +21,9 @@ git diff --cached --check
 
 The first command enables the commit message hook in `.githooks/commit-msg`.
 The second installs the Rust toolchain that `rust-toolchain.toml` pins. The
-next two build and test the library, and `cargo xtask check` runs the
-[checks](#checks). The last two report whitespace errors in unstaged and
+next four build, test, format-check and lint the library, and
+`cargo xtask check` runs the [checks](#checks), which do not cover the library
+package yet. The last two report whitespace errors in unstaged and
 staged changes.
 
 ## Library rules
@@ -89,10 +92,12 @@ global Git configuration.
 ## Documentation
 
 Documentation is English and written for a person who uses or builds on the
-library. It describes only what the library ships today and shows only
-commands that run from this repository. Milestone, task, proposal and decision
-numbers, agent narratives and evidence ledgers belong in the project's
-coordination records outside this repository and appear in no document here.
+library. It presents as available only what the library ships today, marks
+plans as plans and shows only commands that run from this repository. Code
+comments are English too, and mathematics is written as LaTeX. Milestone,
+task, proposal and decision numbers, stage codes, agent narratives, review
+histories and evidence ledgers belong in the project's coordination records
+outside this repository and appear in no document here.
 
 ## License
 

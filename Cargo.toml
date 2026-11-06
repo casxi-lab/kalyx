@@ -9,6 +9,14 @@ rust-version = "1.99"
 
 [dependencies]
 
+# The rules hold for every target of the package: the library, the program
+# and the tests.
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+float_arithmetic = "deny"
+
 # The release profile keeps integer overflow checks: an overflow is a
 # panic, never a silently wrapped value.
 [profile.release]

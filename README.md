@@ -6,11 +6,11 @@
 # kalyx
 
 kalyx is the computer algebra library of casξ, a portable workstation for
-mathematics, science and programming built on the Raspberry Pi 5. It computes
-exact symbolic algebra, controlled-precision numerics and typed continuous
-calculation for the casξ applications: kosmo, the casξ user interface, will
-send it what you type and show what it computes. The name comes from the Greek
-κάλυξ.
+mathematics, science and programming built on the Raspberry Pi 5. It is being
+built to compute exact symbolic algebra, controlled-precision numerics and
+typed continuous calculation for the casξ applications: kosmo, the casξ user
+interface, will send it what you type and show what it computes. The name
+comes from the Greek κάλυξ.
 
 ## Status
 
@@ -18,10 +18,10 @@ kalyx is being built from its foundations, and it has no usable capabilities
 yet. The repository holds a Rust package named `kalyx` with an empty library
 and a command-line program that has no commands, the repository checks that
 continuous integration runs on every pull request to `main` and on every push
-to `main`, and the [porting record](PORTING.md) of code taken over from an
-earlier implementation of the casξ computer algebra system. That earlier
-implementation is not public; it serves as a reference and as the source of
-answer vectors that kalyx is tested against.
+to `main`, and the [porting record](PORTING.md), still empty, of code taken
+over from an earlier implementation of the casξ computer algebra system. That
+earlier implementation is not public; it serves as a reference, and its
+answers are to be used as test vectors for kalyx.
 
 The first release, 0.1, is planned to provide the base of the library and a
 small slice of algebra on it: an exact rational number type, a parser, an
@@ -45,19 +45,20 @@ cargo build --locked
 cargo test --locked
 ```
 
-The library has no public items yet, and `cargo run` exits without output.
+The library has no public items yet, and the program exits without output
+(`cargo run --quiet` prints nothing).
 
 ## Rules the library is built to
 
 - Values stay exact unless an operation explicitly computes an enclosure or an
-  approximation; the library code forbids `unsafe` code and floating-point
-  arithmetic until the machine floating-point path is added.
+  approximation; the library code forbids `unsafe` code and denies
+  floating-point arithmetic until the machine floating-point path is added.
 - Every request will run under explicit limits, a deadline and cancellation,
   checked cooperatively; the library uses no threads, hash containers,
   wall-clock time, thread-local state or unwinding recovery, and no
   transcendental functions of the platform math library.
-- The standard-library interfaces and the third-party packages the library
-  uses are limited to reviewed lists.
+- The library has no third-party dependencies; adding one is a reviewed
+  change of its own.
 - Code taken over from the earlier implementation is recorded in
   [PORTING.md](PORTING.md) and tested again here; its tests, proofs and
   results are not evidence for kalyx.
@@ -91,7 +92,8 @@ domain starts.
 
 Shared components that several domains build on, such as the context budget,
 coefficient fields, the function registry, numerical evaluators, rewriting,
-collections, binary64, stable encoding and fast arithmetic, are built first;
+collections, the machine floating-point path, stable encoding and fast
+arithmetic, are built first;
 each gets its requirements, contract, specification and proof path when it is
 added.
 
@@ -130,7 +132,7 @@ domains, and natural-language input.
   casξ user interface and shell. It will turn what you type into expressions
   for kalyx and show the results it computes, with formula editing,
   typesetting, graphs and documents. kalyx has no GUI and does not depend on
-  kosmo. kosmo is newly initialized as well.
+  kosmo. kosmo is at an early stage as well.
 
 | Repository | Role |
 | --- | --- |
