@@ -1,0 +1,27 @@
+[package]
+name = "kalyx"
+version = "0.1.0-dev.1"
+description = "The computer algebra library of casξ"
+edition = "2024"
+license = "MIT"
+publish = false
+rust-version = "1.99"
+
+[dependencies]
+
+# The rules hold for every target of the package: the library, the program
+# and the tests.
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+float_arithmetic = "deny"
+
+# The release profile keeps integer overflow checks: an overflow is a
+# panic, never a silently wrapped value.
+[profile.release]
+overflow-checks = true
+
+# The repository checks in xtask/ are a workspace of their own.
+[workspace]
+exclude = ["xtask"]

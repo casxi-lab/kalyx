@@ -1,43 +1,57 @@
 # Repository instructions
 
-- kalyx is the computer algebra library of casξ. Until its code moves here,
-  the library is developed in a separate repository that is not public, and
-  this repository holds only the skeleton: `README.md`, `AGENTS.md`,
-  `CONTRIBUTING.md`, `LICENSE`, `AUTHORS`, `.gitignore`,
-  `.githooks/commit-msg`, the logo files in `.github/assets/` and the
-  repository checks.
-- The repository checks are the Rust workspace `xtask/` with its
-  `Cargo.lock`, the `xtask` alias in `.cargo/config.toml`,
-  `rust-toolchain.toml` and the workflow `.github/workflows/check.yml` that
-  runs them in CI. They check this repository and contain no library code.
-- Make no other code changes here before the move. Do not add library code:
-  source files, tests, fixtures, benchmarks, proofs, registries, feature
-  documents, domain pages or another Cargo package. Changes to the library
-  are made in its development repository, under its own rules.
-- Do not copy library files into this repository. The move brings the library
-  here with its complete Git history. It is a separate, authorized change, and
-  that change also replaces these instructions with the rules for the library.
-- Changes allowed before the move are corrections to the skeleton files,
-  including the repository checks. Describe only capabilities that the
-  library ships today, and show no command that cannot be run from this
-  repository.
-- Write all documentation in English, for a person who uses or builds on the
-  library: what it does, how to run it, its limits, and commands that actually
-  run. Call the device casξ; use `casxi` where only ASCII is allowed, such as
-  identifiers and paths.
-- Keep milestone, task, proposal and decision numbers, stage codes, agent
-  narratives, review histories and evidence ledgers in the project's
-  coordination records outside this repository. They appear in no document
-  here.
+- kalyx is the computer algebra library of casξ: the Rust package `kalyx` at
+  the repository root, with a library and a command-line program, built from
+  its foundations. The Rust workspace `xtask/` holds the repository checks,
+  which CI runs as `cargo xtask check`.
+- The library is an ordinary Rust `std` library for 64-bit targets. Keep exact
+  values exact. Pass a request-local context through parsing and computation,
+  and check limits, the deadline and cancellation before potentially expensive
+  work; these checks are cooperative.
+- Library code follows these rules. `unsafe` code is forbidden, and
+  floating-point arithmetic is denied until the machine floating-point path is
+  added; the release profile keeps overflow checks. Non-test code uses no
+  threads, hash containers, `RandomState`, `SystemTime`, `thread_local!`,
+  `catch_unwind`, `static mut` or the transcendental functions of the platform
+  math library, and constructs the context only in the command entry and the
+  program. Non-test code makes no explicit panic (`unwrap`, `expect`,
+  `panic!`, `unreachable!`, `todo!`, `unimplemented!`), and every `#[allow]`
+  states its reason. The library has no third-party dependencies; adding one
+  is a reviewed change of its own.
+- Code that is to become a proof target is written in the subset of Rust that
+  Charon and Aeneas translate into Lean 4. The subset, the proof workflow and
+  the register of proof targets are added with the first proof target.
+- Code taken over from the earlier implementation of the casξ computer algebra
+  system is ported module by module, never copied wholesale. Each port adds a
+  row to [PORTING.md](PORTING.md) in the same change, with its source written
+  as `cas-project@<full commit SHA>:<path>`, where `cas-project` names the
+  earlier implementation. A known deviation of the source is either corrected,
+  with a test that rejects it, or recorded as a limitation; it is never
+  carried over silently. Ported code is tested again here: tests, proofs and
+  results of the earlier implementation are not evidence for kalyx.
+- Write all documentation and code comments in English, for a person who uses
+  or builds on the library: what it does, how to run it, its limits, and
+  commands that actually run. Present as available only what the library ships
+  today, and mark plans as plans. Call the device casξ; use `casxi` where only
+  ASCII is allowed, such as identifiers and paths. Write mathematics in
+  Markdown as LaTeX: `$...$` inline and `math` fenced blocks for display.
+- Requirement identifiers that label requirements within a component may
+  appear in documents and code. Milestone, task, proposal and decision
+  numbers, stage codes, agent narratives, review histories and evidence
+  ledgers are kept in the project's coordination records outside this
+  repository and appear in no document here.
 - Use English Conventional Commit subjects of at most 72 characters and the
   local `.githooks/commit-msg` hook; the check applies the same header rules
   to every commit of a change. Preserve history. Do not change global Git
   configuration, create remotes, tags or releases, or publish without
   authorization.
-- Write the repository checks in Rust 2024, formatted with rustfmt and free
-  of Clippy warnings, with unit tests in `#[cfg(test)]` modules next to the
-  code. A change to a check adds tests for the cases it rejects.
-- Before committing, run `cargo xtask check` from the repository root; it
-  must pass. [CONTRIBUTING](CONTRIBUTING.md#checks) describes its steps. Also
-  run `git diff --check` and `git diff --cached --check` and review the
+- Write the library and the repository checks in Rust 2024, formatted with
+  rustfmt and free of Clippy warnings, with unit tests in `#[cfg(test)]`
+  modules next to the code. A change to a check adds tests for the cases it
+  rejects.
+- Before committing, run these from the repository root; they must pass:
+  `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`,
+  `cargo test --locked` and `cargo xtask check`.
+  [CONTRIBUTING](CONTRIBUTING.md#checks) describes the steps of the last one.
+  Also run `git diff --check` and `git diff --cached --check` and review the
   staged diff.
