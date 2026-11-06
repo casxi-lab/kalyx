@@ -15,11 +15,12 @@ comes from the Greek κάλυξ.
 ## Status
 
 kalyx is being built from its foundations, and it has no usable capabilities
-yet. The repository holds a Rust package named `kalyx` with an empty library
-and a command-line program that has no commands, the repository checks that
-continuous integration runs on every pull request to `main` and on every push
-to `main`, the [porting record](PORTING.md), still empty, of code taken over
-from an earlier implementation of the casξ computer algebra system, and the
+yet. The repository holds a Rust package named `kalyx` with a library that so
+far holds only the types of its errors and result states and a command-line
+program that has no commands, the repository checks that continuous
+integration runs on every pull request to `main` and on every push to `main`,
+the [porting record](PORTING.md) of code taken over from an earlier
+implementation of the casξ computer algebra system, and the
 58 [answer vectors](vectors/README.md) for the planned first release, 0.1,
 converted from that earlier implementation's fixtures; only their format is
 checked so far. The earlier
@@ -35,7 +36,8 @@ deadline and cancellation, with a minimal command-line program. Later
 releases complete the shared foundations (coefficient fields, the function
 registry, numerical evaluators with rigorous enclosures, collection values,
 stable value encoding and a machine floating-point path) and then build the
-subject domains below on them. None of this is available yet.
+subject domains below on them. Apart from the types of the errors and
+result states, none of this is available yet.
 
 ## Build
 
@@ -48,7 +50,8 @@ cargo build --locked
 cargo test --locked
 ```
 
-The library has no public items yet, and the program exits without output
+The library's public items so far are the types of its errors and result
+states, and no entry computes yet; the program exits without output
 (`cargo run --quiet` prints nothing).
 
 ## Rules the library is built to

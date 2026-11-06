@@ -7,10 +7,12 @@ representation, the coefficient-field trait, the context and the error
 kinds. The interface conventions that all public items follow are in
 [the public API conventions](conventions/public-api.md).
 
-**Status.** kalyx ships an empty library, a command-line program without
-commands and the repository checks. None of the library components below is
-implemented yet. The component tables are the plan, and the design rules are
-the rules that the code of each component follows when it lands; each
+**Status.** kalyx ships the errors and result states, a command-line
+program without commands and the repository checks. The errors and result
+states are implemented, with their
+[contract](components/errors/contract.md); no other library component below
+is implemented yet. For the other components, the tables are the plan and the
+design rules are the rules that their code follows when it lands; each
 component also gets its own `contract.md` with its requirements at that time.
 Where a rule is already enforced by `cargo xtask check`, the text says so.
 
@@ -74,7 +76,7 @@ at once in 0.2.
 | --- | --- | --- | --- |
 | Repository checks and guard (available today) | A0 | none | not applicable: they check the repository |
 | Answer vectors taken from the earlier implementation | A0 | none | not applicable: test infrastructure |
-| Errors and result states (`Error`, `Settled<T>`) | A1 | 0.2, for the result-state core | the context, in 0.1 |
+| Errors and result states (`Error`, `Settled<T>`; implemented, [contract](components/errors/contract.md)) | A1 | 0.2, for the result-state core | the context, in 0.1 |
 | Context and limits (`Context`, `Limits`) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
 | Exact numbers and the coefficient-field trait over $\mathbb{Q}$ | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
 | Term core and canonical forms | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
@@ -583,8 +585,11 @@ single value, with no scope.
 
 ## Error kinds
 
-**Status:** planned for 0.1; not implemented. The rules below are those of
-the error component and of every function that returns its types.
+**Status:** implemented in `src/error.rs`; its
+[contract](components/errors/contract.md) states the requirements, the place
+of every error kind of the earlier implementation and the tests. The rules
+below are those of the error component and of every function that returns
+its types.
 
 ### Error and `Settled<T>`
 
