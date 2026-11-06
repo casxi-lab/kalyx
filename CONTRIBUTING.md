@@ -26,7 +26,11 @@ and staged changes.
 ## Library rules
 
 [AGENTS](AGENTS.md) lists the rules that library code follows: interfaces,
-panics and dependencies, the porting record, and documentation. The
+panics and dependencies, the porting record, and documentation. Public
+interfaces follow the
+[public API conventions](docs/conventions/public-api.md), and components
+follow the verification tiers and the foundation design rules of the
+[architecture](docs/architecture.md). The
 `kalyx-clippy` and `guard` steps of the [checks](#checks) enforce the rules
 for code, dependencies, the release profile and the license, within the
 limits that the [guard](#guard) section states.
