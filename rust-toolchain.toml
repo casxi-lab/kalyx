@@ -1,0 +1,5 @@
+# The exact Rust toolchain of the repository tasks in xtask/.
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

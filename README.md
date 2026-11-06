@@ -15,15 +15,17 @@ send it what you type and show what it computes. The name comes from the Greek
 ## Status
 
 This repository is newly initialized. It holds this README, the kalyx logo,
-the contribution rules, a `.gitignore` and a commit-message hook. There is no
-code here, and nothing in this repository builds or runs yet.
+the contribution rules, a `.gitignore`, a commit-message hook and the
+repository checks, which continuous integration runs on every pull request to
+`main` and on every push to `main`. There is no library code here, and the
+library does not build or run from this repository yet.
 
 The library is developed today in a separate repository that is not public.
 Its code, tests, documentation and Lean proofs will move into this repository
 together with their complete history. The move is planned for the close of the
 library's current development stage, which covers the 0.5 releases; the
 project owner may set a different time. Until the move, this repository
-accepts no code, and after it development continues here.
+accepts no library code, and after it development continues here.
 
 ## What the library provides
 
@@ -80,8 +82,8 @@ documents arrive with the code.
 ## Examples
 
 These are results of the library's command-line program. The program and an
-interactive session arrive here with the code; nothing in this repository runs
-yet.
+interactive session arrive here with the code; neither runs from this
+repository yet.
 
 | Input | Result |
 | --- | --- |
