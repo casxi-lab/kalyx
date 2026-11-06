@@ -5,14 +5,15 @@ library: functions, methods, types and the crate root. They also apply to
 crate-internal interfaces that a public entry reaches, wherever the
 convention is about behavior (limits, determinism, panics, depth).
 
-**Status.** The library has no public items yet, so no code follows these
-conventions today. They are the rules that each component follows when it
-lands, and review holds every change to them. Names such as `Context`,
-`Limits`, `Error`, `Settled<T>`, `LimitId` and `MathState` are the names that
-the code is planned to use; their full rules are in
-[the architecture](../architecture.md). `cargo xtask check` already enforces
-the parts that it can check mechanically, as each convention below states:
-see [CONTRIBUTING](../../CONTRIBUTING.md#checks).
+**Status.** The library's only public items so far are the types of its
+errors and result states, which follow these conventions. They are the rules
+that each further component follows when it lands, and review holds every
+change to them. `Error`, `Settled<T>`, `LimitId` and `MathState` exist today;
+names such as `Context` and `Limits` are the names that the code is planned
+to use. Their full rules are in [the architecture](../architecture.md).
+`cargo xtask check` already enforces the parts that it can check
+mechanically, as each convention below states: see
+[CONTRIBUTING](../../CONTRIBUTING.md#checks).
 
 Each convention ends with a counterexample from the earlier implementation of
 the casξ computer algebra system, which is not public. A counterexample is
@@ -265,13 +266,15 @@ partial output.
 ## 11. No unchecked constructors
 
 Every public way to build a value establishes the invariants of its type:
-constructors validate and normalize their inputs and return `Result`. There
-are no public `new_unchecked` or `new_raw` constructors, no public fields that
-carry an invariant, and no re-exported third-party types whose own interface
-offers such constructors. This includes errors: `Error::new` accepts only a
-`FaultKind`, so `Cancelled`, `DeadlineExceeded` and `ResourceLimit` are built
-only by the context, and the limit record of a `ResourceLimit` has no public
-constructor.
+constructors validate and normalize their inputs and return `Result`, or
+`Option` when the only failure is an invalid combination of arguments for
+which no error kind applies, as for `Span::new` when `end` is less than
+`start`. There are no public `new_unchecked` or `new_raw` constructors, no
+public fields that carry an invariant, and no re-exported third-party types
+whose own interface offers such constructors. This includes errors:
+`Error::new` accepts only a `FaultKind`, so `Cancelled`, `DeadlineExceeded`
+and `ResourceLimit` are built only by the context, and the limit record of a
+`ResourceLimit` has no public constructor.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/lib.rs:123`.
