@@ -16,11 +16,11 @@ every public interface follows; conventions
 concern errors and states and are not restated here.
 
 **Status.** Implemented in `src/error.rs`, at tier A1 (tested with a written
-contract). No entry of the library computes yet, so no public entry returns an
-error or a state today: the request context is the first code that constructs
-request failures, and the first public method with result states comes with a
-later release. The crate-internal channel and its boundaries are exercised by
-the unit tests of `src/error.rs`.
+contract). The request context, the only code that constructs request
+failures, returns them from its charge points and checks; no entry of the
+library computes yet, and the first public method with result states comes
+with a later release. The crate-internal channel and its boundaries are
+exercised by the unit tests of `src/error.rs`.
 
 ## Interface
 
@@ -96,9 +96,11 @@ request context takes precedence over every result state.
   a request failure returns it, whatever state it would otherwise have
   reached, and `settle` and `evaluation_stop` never turn an error into a
   state.
-- **Owned elsewhere.** That every operation and every series step charges the
-  context belongs to the request context, planned for 0.1, and to the
-  numerical kernel and evaluation framework, planned for 0.3.
+- **Owned elsewhere.** The charges themselves belong to the
+  [request context](../context/contract.md); that every operation and every
+  series step charges the context belongs to the components that perform
+  them, such as the numerical kernel and evaluation framework, planned for
+  0.3.
 - **Evidence.** `faults_are_never_of_the_context_class_and_errors_never_states`
   in `src/error.rs`.
 
@@ -120,14 +122,16 @@ state, while the point zero is a `DivisionByZero` error.
 ### CTX-R02
 
 **Priority of request failures.** When one charge of the request context
-meets several request failures, it reports cancellation, then a passed
-deadline, then an exhausted limit. The error carries the span that the caller
-of the charge gave; its message is not part of the requirement.
+meets several request failures, it reports cancellation, then a deadline
+that the context has observed to pass, then an exhausted limit; when the
+context reads its clock is part of its contract. The error carries the span
+that the caller of the charge gave; its message is not part of the
+requirement.
 
 - **Implemented here.** The three request kinds, and their crate-internal
   constructors, which take the caller's span.
-- **Owned elsewhere.** The order of the checks belongs to the request context,
-  planned for 0.1.
+- **Owned elsewhere.** The order of the checks belongs to the request
+  context, whose [contract](../context/contract.md#ctx-r02) states it.
 - **Evidence.** `request_failures_are_errors_of_the_context_class` in
   `src/error.rs`.
 

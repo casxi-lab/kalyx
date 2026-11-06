@@ -6,11 +6,12 @@ crate-internal interfaces that a public entry reaches, wherever the
 convention is about behavior (limits, determinism, panics, depth).
 
 **Status.** The library's only public items so far are the types of its
-errors and result states, which follow these conventions. They are the rules
-that each further component follows when it lands, and review holds every
-change to them. `Error`, `Settled<T>`, `LimitId` and `MathState` exist today;
-names such as `Context` and `Limits` are the names that the code is planned
-to use. Their full rules are in [the architecture](../architecture.md).
+errors and result states and the request context with its limits, which
+follow these conventions. They are the rules that each further component
+follows when it lands, and review holds every change to them. `Error`,
+`Settled<T>`, `LimitId`, `MathState`, `Context` and `Limits` exist today;
+other names used here, such as `parse`, are the names that the code is
+planned to use. Their full rules are in [the architecture](../architecture.md).
 `cargo xtask check` already enforces the parts that it can check
 mechanically, as each convention below states: see
 [CONTRIBUTING](../../CONTRIBUTING.md#checks).

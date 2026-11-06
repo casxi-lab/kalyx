@@ -7,10 +7,11 @@ representation, the coefficient-field trait, the context and the error
 kinds. The interface conventions that all public items follow are in
 [the public API conventions](conventions/public-api.md).
 
-**Status.** kalyx ships the errors and result states, a command-line
-program without commands and the repository checks. The errors and result
-states are implemented, with their
-[contract](components/errors/contract.md); no other library component below
+**Status.** kalyx ships the errors and result states, the context and
+limits, a command-line program without commands and the repository checks.
+The errors and result states and the context and limits are implemented,
+each with its contract ([errors](components/errors/contract.md),
+[context](components/context/contract.md)); no other library component below
 is implemented yet. For the other components, the tables are the plan and the
 design rules are the rules that their code follows when it lands; each
 component also gets its own `contract.md` with its requirements at that time.
@@ -77,7 +78,7 @@ at once in 0.2.
 | Repository checks and guard (available today) | A0 | none | not applicable: they check the repository |
 | Answer vectors taken from the earlier implementation | A0 | none | not applicable: test infrastructure |
 | Errors and result states (`Error`, `Settled<T>`; implemented, [contract](components/errors/contract.md)) | A1 | 0.2, for the result-state core | the context, in 0.1 |
-| Context and limits (`Context`, `Limits`) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
+| Context and limits (`Context`, `Limits`; implemented, [contract](components/context/contract.md)) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
 | Exact numbers and the coefficient-field trait over $\mathbb{Q}$ | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
 | Term core and canonical forms | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
 | Parser | A1 | none | the command entry, in 0.1 |
@@ -391,10 +392,13 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
 
 ## Context API
 
-**Status:** planned for 0.1; not implemented. Today the guard of
-`cargo xtask check` already rejects constructing the context outside
-`src/main.rs`, `src/command.rs` and `src/command/`, and every path that
-starts with `Context::` elsewhere.
+**Status:** implemented in `src/context.rs`; its
+[contract](components/context/contract.md) states the requirements, the
+reading interval of the clock, the overrun bound after a deadline and the
+tests. The guard of `cargo xtask check` rejects constructing the context
+outside `src/main.rs`, `src/command.rs` and `src/command/`, and every path
+that starts with `Context::` elsewhere. `mark` and `restore`, described
+below, are not part of this release.
 
 ### Limits
 

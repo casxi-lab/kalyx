@@ -217,13 +217,6 @@ impl Error {
 
     /// The request failure of an exhausted limit, reported by the request
     /// context at the check that failed, with the span that its caller gave.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the request context, which reports exhausted limits, is not implemented yet"
-        )
-    )]
     pub(crate) fn resource_limit(exceeded: LimitExceeded, span: Option<Span>) -> Self {
         let mut message = String::from("resource limit exceeded: ");
         message.push_str(exceeded.id().name());
@@ -236,13 +229,6 @@ impl Error {
 
     /// The request failure of a cancelled request, reported by the request
     /// context with the span that its caller gave.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the request context, which observes cancellation, is not implemented yet"
-        )
-    )]
     pub(crate) fn cancelled(span: Option<Span>) -> Self {
         Self {
             cause: ErrorCause::Cancelled,
@@ -253,13 +239,6 @@ impl Error {
 
     /// The request failure of a passed deadline, reported by the request
     /// context with the span that its caller gave.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the request context, which reads the deadline, is not implemented yet"
-        )
-    )]
     pub(crate) fn deadline_exceeded(span: Option<Span>) -> Self {
         Self {
             cause: ErrorCause::DeadlineExceeded,
@@ -337,14 +316,9 @@ impl LimitExceeded {
     /// The record of an exceeded limit. Callers pass a `scope` that is `Some`
     /// exactly for [`LimitField::Nodes`] and [`LimitField::StorageBytes`], and
     /// `None` for every other field and for a parameter, as the contract
-    /// states; this constructor does not check it.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the request context, which checks the limits, is not implemented yet"
-        )
-    )]
+    /// states; this constructor does not check it. In the request context,
+    /// only the retained totals are reported with a scope, through a helper
+    /// that takes one of those two fields.
     pub(crate) const fn new(
         id: LimitId,
         scope: Option<LimitScope>,
@@ -407,12 +381,8 @@ impl LimitId {
     }
 }
 
-/// A field of `Limits`, the limits of a request. Each variant corresponds to
-/// one field, named by [`name`](LimitField::name).
-///
-/// `Limits`, the record of a request's limits, comes with the request context
-/// and is not part of the library yet; the variants and names here are those
-/// of its planned fields.
+/// A field of [`Limits`](crate::Limits), the limits of a request. Each
+/// variant corresponds to one field, named by [`name`](LimitField::name).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum LimitField {
