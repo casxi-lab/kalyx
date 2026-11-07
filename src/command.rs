@@ -239,42 +239,131 @@ impl Outcome {
 /// creates a context and never charges output.
 ///
 /// A host that runs the requests of a job one after another creates a
-/// context for each and checks the cancellation flag of the job between two
-/// of them:
+/// context for each, on one clock of the job and with the deadline of the
+/// job, and checks the cancellation flag and the deadline of the job between
+/// two of them, since a request that fails before its first charge point
+/// reports its own error and not the cancellation. It publishes a line for
+/// every request that ran: the line under the context of the request, or,
+/// when that fails and the outcome is an error, of any kind, the line under a
+/// fresh context, with a fresh flag and no deadline; a value or a state is
+/// never written again. The job stops at a cancellation or a passed
+/// deadline, goes on after a fault or a `ResourceLimit`, and ends in one
+/// terminal state, as the contract of the command entry states for a job of
+/// several requests:
 ///
 /// ```
 /// use kalyx::command::serialize;
-/// use kalyx::context::CancelFlag;
-/// use kalyx::{Context, Limits, Request, execute};
+/// use kalyx::context::{CancelFlag, Clock, MonotonicClock};
+/// use kalyx::{Context, ErrorKind, Limits, Outcome, Request, execute};
 ///
-/// /// The lines of `requests`, run one after another until `flag` is set.
-/// fn run_job(requests: &[Request], flag: &CancelFlag) -> Vec<kalyx::Result<Vec<u8>>> {
-///     let mut lines = Vec::new();
-///     for request in requests {
-///         // Between two requests, the host checks the flag itself.
-///         if flag.is_cancelled() {
-///             break;
-///         }
-///         // One context per request: the budget, a deadline one second away
-///         // on the monotonic clock, and the flag of the job.
-///         let mut context =
-///             Context::new(Limits::new(), flag.clone()).with_timeout(1_000_000_000);
-///         let outcome = execute(request, &mut context);
-///         lines.push(serialize(&outcome, &mut context));
-///     }
-///     lines
+/// /// The terminal states of a job.
+/// #[derive(Debug, PartialEq, Eq)]
+/// enum JobState {
+///     Completed,
+///     Failed,
+///     Cancelled,
+///     ResourceExhausted,
 /// }
 ///
+/// /// The line that the job publishes for `outcome`, if any, and the errors
+/// /// of its request: the error of the outcome, and the error of `serialize`
+/// /// when the line fails under `context`, the context of the request.
+/// fn publish(outcome: &Outcome, context: &mut Context) -> (Option<Vec<u8>>, Vec<ErrorKind>) {
+///     let mut errors = Vec::new();
+///     if let Err(error) = outcome.result() {
+///         errors.push(error.kind());
+///     }
+///     let line = match serialize(outcome, context) {
+///         Ok(line) => Some(line),
+///         Err(error) => {
+///             errors.push(error.kind());
+///             match outcome.result() {
+///                 // The fallback step, for an error of any kind: a fresh
+///                 // flag and no deadline.
+///                 Err(_) => {
+///                     let mut fresh = Context::new(Limits::new(), CancelFlag::new());
+///                     serialize(outcome, &mut fresh).ok()
+///                 }
+///                 // A value or a state is never written again.
+///                 Ok(_) => None,
+///             }
+///         }
+///     };
+///     (line, errors)
+/// }
+///
+/// /// Runs `requests` one after another on `clock`, the clock of the job,
+/// /// until `deadline`, a reading of that clock, or until `flag` is set, and
+/// /// returns the lines that the job publishes and its terminal state.
+/// fn run_job(
+///     requests: &[Request],
+///     mut clock: MonotonicClock,
+///     deadline: u64,
+///     flag: &CancelFlag,
+/// ) -> (Vec<Vec<u8>>, JobState) {
+///     let mut lines = Vec::new();
+///     let mut failed = false;
+///     for request in requests {
+///         // Between two requests, the host checks cancellation, then the
+///         // deadline of the job, itself.
+///         if flag.is_cancelled() {
+///             return (lines, JobState::Cancelled);
+///         }
+///         if clock.now() >= deadline {
+///             return (lines, JobState::ResourceExhausted);
+///         }
+///         // One context per request: its budget, a copy of the clock of the
+///         // job, which keeps its origin, the deadline of the job and the
+///         // flag of the job.
+///         let mut context =
+///             Context::with_observers(Limits::new(), Box::new(clock), Box::new(flag.clone()))
+///                 .with_deadline(deadline);
+///         let outcome = execute(request, &mut context);
+///         let (line, errors) = publish(&outcome, &mut context);
+///         lines.extend(line);
+///         let cancelled = errors.contains(&ErrorKind::Cancelled);
+///         if cancelled || errors.contains(&ErrorKind::DeadlineExceeded) {
+///             // The job stops; once its cancellation is requested, it ends
+///             // cancelled, whatever stopped it.
+///             let state = if cancelled || flag.is_cancelled() {
+///                 JobState::Cancelled
+///             } else {
+///                 JobState::ResourceExhausted
+///             };
+///             return (lines, state);
+///         }
+///         // A fault or a `ResourceLimit` fails the job and does not stop it.
+///         failed |= !errors.is_empty();
+///     }
+///     let state = if failed { JobState::Failed } else { JobState::Completed };
+///     (lines, state)
+/// }
+///
+/// let mut clock = MonotonicClock::new();
+/// // The deadline of the job, a minute after its start, on the clock of the job.
+/// let deadline = clock.now().saturating_add(60_000_000_000);
 /// let requests = [
 ///     Request::new("eval", "x", "1/3 + 1/6"),
-///     Request::new("diff", "x", "x^2").with_input_version(2),
+///     Request::new("eval", "x", "1/0").with_input_version(2),
+///     Request::new("diff", "x", "x^2").with_input_version(3),
 /// ];
 /// let flag = CancelFlag::new();
-/// let lines = run_job(&requests, &flag);
-/// assert_eq!(lines[0].as_ref().unwrap(), b"value\t0\t0\t0\t1/2\n");
-/// assert_eq!(lines[1].as_ref().unwrap(), b"value\t2\t0\t0\t2*x\n");
+/// // The division by zero fails the job, and the next request still runs.
+/// let (lines, state) = run_job(&requests, clock, deadline, &flag);
+/// assert_eq!(state, JobState::Failed);
+/// assert_eq!(lines.len(), 3);
+/// assert_eq!(lines[0], b"value\t0\t0\t0\t1/2\n");
+/// assert!(lines[1].starts_with(b"error\t2\t0\t0\tDivisionByZero\t"));
+/// assert_eq!(lines[2], b"value\t3\t0\t0\t2*x\n");
+/// let (lines, state) = run_job(&requests[2..], clock, deadline, &flag);
+/// assert_eq!((lines.len(), state), (1, JobState::Completed));
+/// // A deadline of the job that has passed stops it before its next request.
+/// let (lines, state) = run_job(&requests, clock, 0, &flag);
+/// assert_eq!((lines.len(), state), (0, JobState::ResourceExhausted));
+/// // So does a cancellation.
 /// flag.cancel();
-/// assert!(run_job(&requests, &flag).is_empty());
+/// let (lines, state) = run_job(&requests, clock, deadline, &flag);
+/// assert_eq!((lines.len(), state), (0, JobState::Cancelled));
 /// ```
 ///
 /// # Errors

@@ -23,8 +23,8 @@ contract ([errors](components/errors/contract.md),
 [terms](components/terms/contract.md),
 [syntax](components/syntax/contract.md),
 [polynomials](components/polynomials/contract.md),
-[command entry](components/command/contract.md), a draft for the
-co-signature of krepi); no other library component below is implemented
+[command entry](components/command/contract.md), co-signed with
+krepi); no other library component below is implemented
 yet. For the other components, the tables are
 the plan and the design rules are the rules that their code follows when it
 lands; each component also gets its own `contract.md` with its requirements
@@ -781,9 +781,10 @@ The command entry maps an outcome to the state of the job that runs it:
 `ResourceLimit` and every `Fault` to failed, `Settled::State` to completed,
 with the state attached, and `Cancelled` and `DeadlineExceeded` to the
 terminal states that the contract of the command entry defines together with
-krepi; its
+krepi: its
 [Table 1](components/command/contract.md#table-1-outcomes-and-the-terminal-states-of-a-job)
-proposes `cancelled` and `resource_exhausted` for them. In 0.1,
+maps them to `cancelled` and `resource_exhausted`, and the contract states
+the terminal state of a job of several requests. In 0.1,
 function-call syntax, the reserved names `pi`, `i` and `undefined`, an
 unknown operation and a non-default setting fail with `Unsupported`, and a
 missing operand fails with `Syntax`.

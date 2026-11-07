@@ -1,12 +1,14 @@
 # Command entry
 
-**Draft.** This contract is a draft for review and co-signature by krepi,
-whose job service runs the command entry: the shapes of the request and the
-outcome, the output lines and the two tables, of the
+**Co-signed.** krepi, whose job service runs the command entry, has
+co-signed this contract: the shapes of the request and the outcome, the
+output lines, the two tables, of the
 [terminal states of a job](#table-1-outcomes-and-the-terminal-states-of-a-job)
 and of [who enforces each limit](#table-2-the-limits-and-who-enforces-them),
-are written for that review, and the rows of the first table marked as
-proposals are open until krepi has co-signed them.
+the rule for [a job of several requests](#a-job-of-several-requests) and
+the [fallback step](#the-fallback-line) for the line of a failed request.
+After the first release, a change to Table 1, Table 2, the rule for a job of
+several requests or the fallback step needs krepi's co-signature again.
 
 This contract states the command entry of kalyx: the request that a caller
 gives it, the one dispatch table of its operations and what each operation
@@ -43,8 +45,9 @@ built from a pinned commit of the library.
   and `diff`; the outcome, which echoes the versions of its request and holds
   its result or error; `serialize`, which writes an outcome as one line; the
   order of the failures of a request; the mapping of outcomes to the
-  terminal states of a job and the division of the limits between kalyx and
-  the host; the list of the public names of the crate root with its test;
+  terminal states of a job, the rule for a job of several requests and the
+  fallback step for the line of a failed request, and the division of the
+  limits between kalyx and the host; the list of the public names of the crate root with its test;
   and the allocation check of repeated requests.
 - **Excluded, with their owners.**
   - Arguments, standard streams, line mode and process exit codes: the
@@ -62,7 +65,8 @@ built from a pinned commit of the library.
     parents that can differ.
   - The job service of krepi: its states and their transitions, its worker,
     its resource scope, which bounds real memory, CPU time and the time of a
-    job, and the forced stop of a job after a grace period.
+    job, the forced stop of a job after a grace period, and the race of
+    completion and cancellation, which krepi's Job contract fixes.
   - Reading input text, canonical forms, display text, expansion and
     differentiation: the [parser](../syntax/contract.md), the
     [term core](../terms/contract.md) and the
@@ -247,23 +251,53 @@ callers as text only through it, never through `Display`.
 - **Cumulative output.** `max_output_bytes` bounds all the output of the
   request: every line that is written under its context and every display
   of a term.
-- **A failed line.** When `serialize` fails, the request has no line. Its
-  error is a request failure of the same request, `ResourceLimit` naming
-  `max_output_bytes` or `max_work`, `Cancelled` or `DeadlineExceeded`, or an
-  error of the display of a term, such as `ResourceLimit` naming
-  `max_integer_bits` of the context; it maps to the state of a job as the
-  outcome with that error would, and the caller reports it by its own means.
-- **Request failures have no line under their own context.** An outcome that
-  ended with `Cancelled`, `DeadlineExceeded` or `ResourceLimit` on
-  `max_work` cannot be written under the context of its request: `serialize`
-  polls the same probe, which keeps reporting the cancellation, observes the
-  same expiry, which is final, and has less work left than the line needs.
-  So it fails with the same error, and the job ends in the state of that
-  row of [Table 1](#table-1-outcomes-and-the-terminal-states-of-a-job)
-  without a line. Under a context of its own, such as
-  `Context::new(Limits::new(), CancelFlag::new())`, the outcome has its
-  line; whether a host writes it there, so that the job publishes it, is a
-  proposal for the co-signature.
+- **A failed line.** When `serialize` fails, the outcome has no line under
+  that context. The error is a request failure of the same request,
+  `ResourceLimit` naming `max_output_bytes` or `max_work`, `Cancelled` or
+  `DeadlineExceeded`, or an error of the display of a term, such as
+  `ResourceLimit` naming `max_integer_bits` of the context. Written under
+  the context of the request, it is one of the errors of the request, which
+  decide the terminal state of a job as
+  [a job of several requests](#a-job-of-several-requests) states.
+- **Which outcomes have no line under their own context.** An outcome that
+  ended with `Cancelled` or `DeadlineExceeded` never has a line under the
+  context of its request: `serialize` polls the same probe, which keeps
+  reporting the cancellation, and observes the same expiry, which is final,
+  so it fails with the same error. Any other outcome has no line there when
+  the work or the output that the request has left is less than its line
+  needs. A failed charge does not change the work charged so far, so an
+  outcome of `ResourceLimit` on `max_work` has its line when the work left
+  is enough: `diff` in a variable of 300 letters `a` with the input `x`,
+  under `max_work = 200`, fails at the charge of 301 units for its
+  variable with nothing charged, and its error line of 98 bytes is written
+  under the context of the request. A fault may have no line: `eval` of
+  `0*(1/0)` under `max_work = 24` charges all 24 units before its
+  `DivisionByZero`, and its line fails there with `ResourceLimit` naming
+  `max_work`.
+
+### The fallback line
+
+A host writes the line of each request that ran in a prescribed step:
+
+1. It writes the line under the context of the request.
+2. When that fails and the outcome is an `Err`, of any kind, faults
+   included, it writes the line again under
+   `Context::new(Limits::new(), CancelFlag::new())`, with a fresh flag and
+   no deadline, and the job publishes that line.
+
+An outcome of `Settled::Value` or `Settled::State` is never written again:
+under another context its line would escape the request's
+`max_output_bytes` and `max_integer_bits`, so it has no line. The fallback
+line is only published; the terminal state of the job still follows the
+errors of the request, the failure of the line under the request's context
+included, as [a job of several requests](#a-job-of-several-requests)
+states. The same outcome gives the same bytes under every context, so the
+bytes that the job publishes do not depend on where the line was written.
+An error line holds no display text: its message is fixed text, to which
+`ResourceLimit` adds only the name of a field or a parameter, so in this
+release it is far shorter than the default `max_work` of 100,000 units and
+`max_output_bytes` of 65,536 bytes allow, and under a fresh flag without a
+deadline its writing reports neither `Cancelled` nor `DeadlineExceeded`.
 
 ### Determinism
 
@@ -275,6 +309,10 @@ numbers of a line are written in decimal, and the display text of a term
 depends only on the term
 ([convention 8](../../conventions/public-api.md#8-determinism)). Only the
 outcome of cancellation and of a deadline depends on the injected probe and
+clock. The line of a `DeadlineExceeded` outcome depends on the charge point
+where the deadline was observed, so byte-identical lines on different hosts
+for an outcome of a deadline need an injected clock; requests that are
+compared across hosts run without a deadline that can pass, or on such a
 clock.
 
 ### The deadline and cancellation
@@ -296,12 +334,29 @@ clock.
   [context](../context/contract.md#reading-the-clock) states. A primitive
   operation, such as a multiplication of large integers, an allocation or
   the formatting of a number, is not interrupted.
-- **Between requests** the host checks cancellation: a worker that runs
-  several requests checks its flag between two of them and does not start
-  the next one once it is cancelled. A request whose context holds a
-  cancelled flag fails at its first charge point with `Cancelled`, before
-  any charged work; the variable of `expand` and `diff` is read once by the
-  rule of symbol names before that charge point.
+- **Between requests** the host checks cancellation, then the deadline of
+  the job: a worker that runs several requests checks its flag between two
+  of them and does not start the next one once it is cancelled or the
+  deadline of the job has passed. A request whose context holds a cancelled
+  flag fails at its first charge point with `Cancelled`, before any charged
+  work; the variable of `expand` and `diff` is read once by the rule of
+  symbol names before that charge point. A request that fails before its
+  first charge point returns that error and not `Cancelled`: settings other
+  than the default, an unknown operation, a malformed or reserved variable,
+  and an input over `max_input_bytes`, which the parser checks before it
+  reads the input and which is not a charge point. This is why the host
+  checks cancellation between two requests itself.
+- **The deadline of a job** belongs to the job, not to one request. A
+  deadline is a reading of the clock of the context, and `Context::new`
+  creates a `MonotonicClock` whose origin is the creation of the context, so
+  `with_deadline(at)` on such a context is a deadline of that request only.
+  A host that runs several requests converts the deadline of the job to the
+  clock of their contexts, in one of two ways: it shares one clock among the
+  requests, with
+  `Context::with_observers(limits, Box::new(job_clock), Box::new(flag.clone()))`
+  and then `with_deadline(job_deadline)`, where `MonotonicClock` is `Copy`
+  and its copies share their origin; or it gives each request
+  `with_timeout(remaining)`, the time left until the deadline of the job.
 - **What the host enforces.** The context bounds work and logical sizes, not
   memory, CPU time or the time of a primitive. A host that needs a hard stop
   runs requests in a process that it can stop as a whole, as krepi stops a
@@ -309,31 +364,102 @@ clock.
   outcome.
 
 A host that runs the requests of a job one after another can do so as
-follows, where `flag` is the cancellation flag of the job, which the host may
-set from any thread; the documentation of `execute` holds this function as a
-tested example:
+follows, where `clock` is the clock of the job, `deadline` the deadline of
+the job as a reading of that clock, and `flag` the cancellation flag of the
+job, which the host may set from any thread. The function implements the
+[fallback step](#the-fallback-line) and, as far as an example can, the rule
+for [a job of several requests](#a-job-of-several-requests): it stops at a
+cancellation or a passed deadline seen between two requests or reported by
+a request, and goes on after a fault or a `ResourceLimit`; a forced stop and
+the race of completion and cancellation belong to krepi. The documentation
+of `execute` holds these functions as a tested example:
 
 ```rust
 use kalyx::command::serialize;
-use kalyx::context::CancelFlag;
-use kalyx::{Context, Limits, Request, execute};
+use kalyx::context::{CancelFlag, Clock, MonotonicClock};
+use kalyx::{Context, ErrorKind, Limits, Outcome, Request, execute};
 
-/// The lines of `requests`, run one after another until `flag` is set.
-fn run_job(requests: &[Request], flag: &CancelFlag) -> Vec<kalyx::Result<Vec<u8>>> {
-    let mut lines = Vec::new();
-    for request in requests {
-        // Between two requests, the host checks the flag itself.
-        if flag.is_cancelled() {
-            break;
-        }
-        // One context per request: the budget, a deadline one second away on
-        // the monotonic clock, and the flag of the job.
-        let mut context =
-            Context::new(Limits::new(), flag.clone()).with_timeout(1_000_000_000);
-        let outcome = execute(request, &mut context);
-        lines.push(serialize(&outcome, &mut context));
+/// The terminal states of a job.
+#[derive(Debug, PartialEq, Eq)]
+enum JobState {
+    Completed,
+    Failed,
+    Cancelled,
+    ResourceExhausted,
+}
+
+/// The line that the job publishes for `outcome`, if any, and the errors
+/// of its request: the error of the outcome, and the error of `serialize`
+/// when the line fails under `context`, the context of the request.
+fn publish(outcome: &Outcome, context: &mut Context) -> (Option<Vec<u8>>, Vec<ErrorKind>) {
+    let mut errors = Vec::new();
+    if let Err(error) = outcome.result() {
+        errors.push(error.kind());
     }
-    lines
+    let line = match serialize(outcome, context) {
+        Ok(line) => Some(line),
+        Err(error) => {
+            errors.push(error.kind());
+            match outcome.result() {
+                // The fallback step, for an error of any kind: a fresh
+                // flag and no deadline.
+                Err(_) => {
+                    let mut fresh = Context::new(Limits::new(), CancelFlag::new());
+                    serialize(outcome, &mut fresh).ok()
+                }
+                // A value or a state is never written again.
+                Ok(_) => None,
+            }
+        }
+    };
+    (line, errors)
+}
+
+/// Runs `requests` one after another on `clock`, the clock of the job,
+/// until `deadline`, a reading of that clock, or until `flag` is set, and
+/// returns the lines that the job publishes and its terminal state.
+fn run_job(
+    requests: &[Request],
+    mut clock: MonotonicClock,
+    deadline: u64,
+    flag: &CancelFlag,
+) -> (Vec<Vec<u8>>, JobState) {
+    let mut lines = Vec::new();
+    let mut failed = false;
+    for request in requests {
+        // Between two requests, the host checks cancellation, then the
+        // deadline of the job, itself.
+        if flag.is_cancelled() {
+            return (lines, JobState::Cancelled);
+        }
+        if clock.now() >= deadline {
+            return (lines, JobState::ResourceExhausted);
+        }
+        // One context per request: its budget, a copy of the clock of the
+        // job, which keeps its origin, the deadline of the job and the
+        // flag of the job.
+        let mut context =
+            Context::with_observers(Limits::new(), Box::new(clock), Box::new(flag.clone()))
+                .with_deadline(deadline);
+        let outcome = execute(request, &mut context);
+        let (line, errors) = publish(&outcome, &mut context);
+        lines.extend(line);
+        let cancelled = errors.contains(&ErrorKind::Cancelled);
+        if cancelled || errors.contains(&ErrorKind::DeadlineExceeded) {
+            // The job stops; once its cancellation is requested, it ends
+            // cancelled, whatever stopped it.
+            let state = if cancelled || flag.is_cancelled() {
+                JobState::Cancelled
+            } else {
+                JobState::ResourceExhausted
+            };
+            return (lines, state);
+        }
+        // A fault or a `ResourceLimit` fails the job and does not stop it.
+        failed |= !errors.is_empty();
+    }
+    let state = if failed { JobState::Failed } else { JobState::Completed };
+    (lines, state)
 }
 ```
 
@@ -343,39 +469,84 @@ krepi's job service is planned with the states `queued`, `running` and
 `cancel_requested` and the terminal states `completed`, `failed`,
 `cancelled` and `resource_exhausted`. The outcome of a request maps to them
 as follows; the job publishes the line of the outcome, when it has one, with
-its state.
+its state. "None under the request's context" means that the line fails
+under the context of the request; the job then publishes the
+[fallback line](#the-fallback-line) of the error.
 
-| Outcome | Line | Terminal state of the job | Status |
-| --- | --- | --- | --- |
-| `Ok(Settled::Value(term))` | `value` | `completed`, with the line | fixed |
-| `Ok(Settled::State(state))`, such as `IterationLimit` | `state` | `completed`, with the state attached: the line names it | fixed |
-| `Err` of kind `Fault(_)`: invalid or unsupported input, a domain error or an internal defect | `error` | `failed`, with the line | fixed |
-| `Err` of kind `ResourceLimit` | `error`, with the limit; none under the request's context when the limit is `max_work` or the rest of the output does not fit | `failed`, with the line if it has one: the limit is a limit of the request, which a larger value of the named field or parameter lifts, not the resource scope of the job | fixed |
-| `Err` of kind `Cancelled` | none under the request's context | `cancelled`, after `cancel_requested`: the request stopped at the charge point where the probe of its context reported the cancellation | proposal for the co-signature |
-| `Err` of kind `DeadlineExceeded` | none under the request's context | `resource_exhausted`, as for a job whose time is exhausted | proposal for the co-signature |
-| `serialize` fails | none | the state of an outcome with the error of `serialize` | as the row of that error |
+| Outcome | Line | Terminal state of the job |
+| --- | --- | --- |
+| `Ok(Settled::Value(term))` | `value` | `completed`, with the line |
+| `Ok(Settled::State(state))`, such as `IterationLimit` | `state` | `completed`, with the state attached: the line names it |
+| `Err` of kind `Fault(_)`: invalid or unsupported input, a domain error or an internal defect | `error`; none under the request's context when the work or the output that the request has left is less than the line needs | `failed`, with the line |
+| `Err` of kind `ResourceLimit` | `error`, with the limit; none under the request's context when the work or the output that the request has left is less than the line needs | `failed`, with the line: the limit is a limit of the request, which a larger value of the named field or parameter lifts, not the resource scope of the job, and it never stops the job |
+| `Err` of kind `Cancelled` | none under the request's context | `cancelled`, after `cancel_requested`: the request stopped at the charge point where the probe of its context reported the cancellation |
+| `Err` of kind `DeadlineExceeded` | none under the request's context | `resource_exhausted`, as for a job whose time is exhausted; `cancelled` for a job that has entered `cancel_requested`, as [cancellation first](#cancellation-first) states |
+| `serialize` fails under the request's context | the fallback line for an `Err`; none for a value or a state | the error of `serialize` is an error of the request, as [a job of several requests](#a-job-of-several-requests) states |
 
 - **No other states.** A request never ends in `queued`, `running` or
   `cancel_requested`, which belong to the job service, and kalyx itself
-  never reports `resource_exhausted` except, as proposed, for a passed
-  deadline: that state is also the state of a job whose resource scope, such
-  as its CPU time or its memory, is exhausted.
+  never reports `resource_exhausted` except for a passed deadline: that
+  state is also the state of a job whose CPU budget is exhausted, and the
+  terminal states of the other exhaustions of its resource scope are fixed
+  by krepi's Job contract.
+- **Cancelled requests in krepi.** krepi's worker, as first planned, runs
+  one request at a time on one thread and does not poll the job service
+  during a request, so the probe of a request does not report a
+  cancellation that arrives in its middle: the worker handles it at the
+  next request boundary, or krepi stops the job by force after its grace
+  period. There the `Cancelled` row is reached only by the tests of kalyx.
 - **Forced stop.** A job that krepi stops by force ends without an outcome.
   A job stopped after `cancel_requested` and its grace period is
-  `cancelled`, marked as forced. A job stopped by force because its deadline
-  passed, after the grace period, or because its CPU time ran out is
-  `resource_exhausted`, marked as forced; for the deadline this is a
-  proposal for the co-signature, as in the `DeadlineExceeded` row, so that a
-  passed deadline gives the same terminal state whether kalyx observes it or
-  krepi stops the job.
-- **A job of several requests.** Table 1 maps the outcome of one request. A
-  job that runs several requests, as in the example above, publishes the
-  line of each request that ran and has one, and ends in one terminal
-  state: a request that ends with `Cancelled`, `DeadlineExceeded` or
-  `ResourceLimit` ends the job in the state of its row, and no request
-  starts after it; otherwise the job is `failed` when a request ended with a
-  fault and `completed` when none did. This rule is a proposal for the
-  co-signature; the rows for single outcomes stay as they are.
+  `cancelled`, marked as forced. A job without a cancel request that is
+  stopped by force because its deadline passed, after the grace period, or
+  because its CPU budget ran out is `resource_exhausted`, marked as forced,
+  and one that has entered `cancel_requested` is `cancelled`, as
+  [cancellation first](#cancellation-first) states, so that a passed
+  deadline gives the same terminal state whether kalyx observes it or krepi
+  stops the job.
+
+#### Cancellation first
+
+krepi's Job contract fixes this rule, and this contract cites it: a job
+that has entered `cancel_requested` always ends `cancelled`, whether it
+stopped at a request boundary, at a `DeadlineExceeded` that kalyx reported,
+or by force, in which case it is marked as forced. The deadline decides the
+terminal state only of a job without a cancel request. The rule takes
+precedence over the `DeadlineExceeded` row of Table 1, and it agrees with
+the order of every charge point, which polls cancellation before it
+observes the deadline. Whether a cancel request or the report of a stop
+comes first is decided by the race rule of krepi's Job contract.
+
+#### A job of several requests
+
+Table 1 maps the outcome of one request, and that mapping stays as it is. A
+job that runs several requests, as in the example above, follows this rule:
+
+- **Lines.** The job publishes the line of every request that ran and has
+  one, the [fallback line](#the-fallback-line) included, and ends in one
+  terminal state.
+- **The errors of a request** are the error of its outcome and, when its
+  line fails under the request's own context, the error of `serialize`.
+- **Stop.** The job stops, and no further request starts, when one of
+  these happens:
+  - the host sees cancellation between two requests: `cancelled`;
+  - the host sees between two requests that the deadline of the job has
+    passed: `resource_exhausted`;
+  - the errors of a request include `Cancelled`: `cancelled`; otherwise,
+    when they include `DeadlineExceeded`: `resource_exhausted`;
+  - krepi stops the job by force: the state of the
+    [forced stop](#table-1-outcomes-and-the-terminal-states-of-a-job).
+
+  A job that has entered `cancel_requested` when it stops ends `cancelled`,
+  as [cancellation first](#cancellation-first) states. The terminal state
+  of a stop takes precedence over every earlier fault and `ResourceLimit`.
+- **Without a stop** the job is `failed` when the errors of some request
+  include a fault or a `ResourceLimit`, and `completed` otherwise, with the
+  state lines attached. A `ResourceLimit` never stops the job: it is a
+  limit of its request, whose own context and limits the next request does
+  not share.
+- **Completion and cancellation.** When every request has run, the race of
+  completion and a cancel request is decided by krepi's Job contract.
 
 ### Table 2: the limits and who enforces them
 
@@ -396,8 +567,8 @@ bound.
 | `max_exponent` | kalyx | every exponent of the input and of the term core, and the degree of every polynomial |
 | `max_frames` | kalyx | `enter_frame`; no operation of this release opens a frame |
 | Real memory: the heap and the stack of the worker | krepi's resource scope | the allocations of the job; the logical sizes of kalyx bound what a request retains, not the bytes it allocates |
-| CPU time | krepi's resource scope | the budget of the job |
-| The deadline | both: kalyx observes it at its charge points, within the overrun bound; krepi sets it and stops a job by force after its grace period (as `resource_exhausted`, proposed) | every charge point of the request |
+| CPU time | krepi's resource scope | the budget of the job: this CPU budget is the total budget of the job, and its exhaustion ends the job `resource_exhausted`. A host that derives `max_work` from it still gets `failed` for the `ResourceLimit` of a request, by Table 1 |
+| The deadline | both: kalyx observes it at its charge points, within the overrun bound; krepi sets the deadline of the job, which the host converts to the clock of the context of every request, checks it between two requests and stops a job by force after its grace period (as `resource_exhausted`, or `cancelled` after a cancel request) | every charge point of the request |
 | Cancellation | both: kalyx observes it at the next charge point; krepi checks it between two requests and stops a job by force after its grace period | every charge point of the request |
 | The request fields `operation` and `variable` | kalyx and the host: kalyx compares the operation on at most the bytes of its longest name and reads the variable once by the rule of symbol names before charging one unit per byte; the host bounds the size of a request that it accepts | the charge of the variable, after it is read |
 
@@ -584,11 +755,49 @@ charge points, and a request after a cancellation does no work.
   `serialize`.
 - **Evidence.** `cancellation_is_observed_at_the_next_charge_point`, at every
   poll of a request and of a line; `a_flag_cancelled_between_two_requests_stops_the_second`;
-  and `a_deadline_on_an_injected_clock_ends_the_request`, with a deadline
+  `a_request_that_fails_before_its_first_charge_reports_its_own_error`, for
+  an unknown operation, a malformed variable and an input over
+  `max_input_bytes` under a cancelled flag; and
+  `a_deadline_on_an_injected_clock_ends_the_request`, with a deadline
   that passed before the request, one that passes in the middle of it, one
-  that passes before a line, and a far deadline on the monotonic clock; and
-  `a_request_failure_has_no_line_under_its_own_context`, for a cancelled
-  request, a passed deadline and an exhausted `max_work`.
+  that passes before a line, and a far deadline on the monotonic clock.
+
+### The fallback line
+
+`Cancelled` and `DeadlineExceeded` have no line under the context of their
+request, and other outcomes have none there when the work or the output
+left is less than the line needs; the host writes the line of an `Err`
+outcome again under a fresh context and never writes a value or a state
+again.
+
+- **Implemented here.** The rule of the host; `serialize` in
+  `src/command/line.rs` writes the same bytes under every context.
+- **Evidence.** Positive, the fallback line of each kind:
+  `cancelled_and_expired_outcomes_have_no_line_under_their_own_context`, for
+  `Cancelled` and `DeadlineExceeded`, and
+  `an_outcome_has_no_line_under_its_own_context_when_too_little_is_left`,
+  for `ResourceLimit` on `max_work` (`expand` of `(x+1)^5` under every
+  `max_work` below 400 that it exhausts), for a fault (`eval` of `0*(1/0)`
+  under `max_work = 24`) and for a line over `max_output_bytes`; and
+  `an_exhausted_max_work_has_its_line_when_the_work_left_is_enough`, the
+  98-byte line of `diff` in a variable of 300 letters `a` under
+  `max_work = 200`, written under its own context. Negative:
+  `a_value_is_never_written_again_under_another_context`.
+
+### A job of several requests
+
+A job publishes the line of every request that ran and ends in one terminal
+state by the rule of [a job of several requests](#a-job-of-several-requests).
+
+- **Implemented here.** The rule of the host, which the example `run_job`
+  shows.
+- **Evidence.** `a_job_of_several_requests_ends_by_the_stop_rule`, with a
+  host of the rule on injected clocks: a completed job; a failed job whose
+  faults and `ResourceLimit` outcomes do not stop it; a cancellation and a
+  passed deadline of the job seen between two requests; a deadline that
+  passes in a request after a fault; and a cancel request during that
+  request, polled and not polled by its context, which ends the job
+  `cancelled`. The documentation test of `execute` runs `run_job`.
 
 ### The answer vectors
 
@@ -661,7 +870,10 @@ The public names of the crate root are those of `api/root-names.txt`.
 3. **Lines.** One negative case over `max_output_bytes`, and the property
    test of determinism from a fixed seed, with at least 1,000 cases.
 4. **Deadline and cancellation.** With an injected clock and an injected
-   probe, never the speed of a clock.
+   probe, never the speed of a clock. The fallback line has a positive case
+   for `Cancelled`, `DeadlineExceeded`, `ResourceLimit` on `max_work` and a
+   fault, and the rule for a job of several requests a case for each way to
+   stop and to end without a stop.
 5. **Vectors.** Every case of `vectors/r02.tsv`, compared by canonical form or
    by kind and limit, never by text.
 6. **Names of the crate root.** One positive and one negative case.

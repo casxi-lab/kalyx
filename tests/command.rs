@@ -981,36 +981,88 @@ fn cancellation_is_observed_at_the_next_charge_point() {
     }
 }
 
-// The outcome of a request that ended with `Cancelled`, `DeadlineExceeded` or
-// `ResourceLimit` on `max_work` has no line under the request's own context:
-// `serialize` polls the same probe, which keeps reporting the cancellation,
-// observes the same expiry, which is final, and has less work left than the
-// line needs, so it fails with the same error.
+/// The line that a host publishes for `outcome` by the fallback step of the
+/// contract, and the errors of its request. The line is written under `own`,
+/// the context of the request; when that fails and the outcome is an error,
+/// of any kind, it is written again under a fresh context, with a fresh flag
+/// and no deadline. A value or a state is never written again. The errors are
+/// the error of the outcome and the error of `serialize` under `own`.
+fn publish(outcome: &Outcome, own: &mut Context) -> (Option<Vec<u8>>, Vec<ErrorKind>) {
+    let mut errors = Vec::new();
+    if let Err(e) = outcome.result() {
+        errors.push(e.kind());
+    }
+    let line = match serialize(outcome, own) {
+        Ok(bytes) => Some(bytes),
+        Err(e) => {
+            errors.push(e.kind());
+            match outcome.result() {
+                Err(_) => {
+                    let fresh = &mut Context::new(Limits::new(), CancelFlag::new());
+                    Some(serialize(outcome, fresh).expect("an error line fits a fresh context"))
+                }
+                Ok(_) => None,
+            }
+        }
+    };
+    (line, errors)
+}
+
+/// Asserts that `outcome` has no line under `own`, the context of its
+/// request, failing there with `kind`, and that the host publishes its line
+/// under a fresh context: the bytes of its line under wide limits.
+fn assert_fallback_line(outcome: &Outcome, own: &mut Context, kind: ErrorKind) -> String {
+    let full = line(outcome);
+    let output = own.output_used();
+    let (published, errors) = publish(outcome, own);
+    assert!(own.output_used() < output + full.len() as u64);
+    assert_eq!(errors, [error(outcome).kind(), kind], "{full:?}");
+    assert_eq!(published.unwrap(), full.as_bytes());
+    full
+}
+
+// The outcome of a request that ended with `Cancelled` or `DeadlineExceeded`
+// never has a line under the request's own context: `serialize` polls the
+// same probe, which keeps reporting the cancellation, and observes the same
+// expiry, which is final, so it fails with the same error. The host publishes
+// the line that it writes under a fresh context, with a fresh flag and no
+// deadline.
 #[test]
-fn a_request_failure_has_no_line_under_its_own_context() {
+fn cancelled_and_expired_outcomes_have_no_line_under_their_own_context() {
     let flag = CancelFlag::new();
     flag.cancel();
     let c = &mut Context::new(Limits::new(), flag);
     let outcome = execute(&Request::new("eval", "x", "1"), c);
     assert_eq!(error(&outcome).kind(), ErrorKind::Cancelled);
-    assert_eq!(
-        serialize(&outcome, c).unwrap_err().kind(),
-        ErrorKind::Cancelled
-    );
+    let text = assert_fallback_line(&outcome, c, ErrorKind::Cancelled);
+    assert_eq!(fields(&text)[4], "Cancelled");
     assert_eq!(c.output_used(), 0);
 
     let probe = CountingProbe::never();
     let clock = FakeClock::at(0);
     let c = &mut observed(Limits::new(), clock.clone(), &probe).with_deadline(10);
     clock.set(10);
-    let outcome = execute(&Request::new("expand", "x", "(x+1)^5"), c);
+    let outcome = execute(
+        &Request::new("expand", "x", "(x+1)^5").with_input_version(4),
+        c,
+    );
     assert_eq!(error(&outcome).kind(), ErrorKind::DeadlineExceeded);
+    let text = assert_fallback_line(&outcome, c, ErrorKind::DeadlineExceeded);
     assert_eq!(
-        serialize(&outcome, c).unwrap_err().kind(),
-        ErrorKind::DeadlineExceeded
+        fields(&text)[..5],
+        ["error", "4", "0", "0", "DeadlineExceeded"]
     );
     assert_eq!(c.output_used(), 0);
+}
 
+// Any other outcome has no line under the request's own context when the
+// work or the output that the request has left is less than its line needs.
+// The outcomes of `expand` of `(x+1)^5` that exhaust `max_work` below 400
+// have too little work left; so has the fault of `eval` of `0*(1/0)` under
+// `max_work = 24`, which charged all 24 units before its division by zero.
+// The host publishes the line of each under a fresh context.
+#[test]
+fn an_outcome_has_no_line_under_its_own_context_when_too_little_is_left() {
     let mut exhausted = 0;
     for max_work in 1..400 {
         let (outcome, mut c) = run(
@@ -1022,11 +1074,361 @@ fn a_request_failure_has_no_line_under_its_own_context() {
         };
         assert_limit(e, LimitField::Work);
         assert_limit(&serialize(&outcome, &mut c).unwrap_err(), LimitField::Work);
+        let (outcome, mut c) = run(
+            &Request::new("expand", "x", "(x+1)^5"),
+            Limits::new().with_max_work(max_work),
+        );
+        let text = assert_fallback_line(&outcome, &mut c, ErrorKind::ResourceLimit);
+        assert_eq!(fields(&text)[6], "Field(max_work)");
         exhausted += 1;
     }
     assert!(exhausted > 100, "{exhausted}");
-    // Under a context of its own, such an outcome has its line.
-    assert_eq!(fields(&line(&outcome))[4], "DeadlineExceeded");
+
+    let (outcome, mut c) = run(
+        &Request::new("eval", "x", "0*(1/0)"),
+        Limits::new().with_max_work(24),
+    );
+    assert_fault(error(&outcome), FaultKind::DivisionByZero, Span::new(3, 6));
+    assert_eq!(c.work_used(), 24);
+    let (outcome_again, mut again) = run(
+        &Request::new("eval", "x", "0*(1/0)"),
+        Limits::new().with_max_work(24),
+    );
+    assert_limit(
+        &serialize(&outcome_again, &mut again).unwrap_err(),
+        LimitField::Work,
+    );
+    let text = assert_fallback_line(&outcome, &mut c, ErrorKind::ResourceLimit);
+    assert_eq!(fields(&text)[4..6], ["DivisionByZero", "3..6"]);
+
+    // A line over the output left fails as well, and falls back.
+    let (outcome, _) = run(&Request::new("eval", "x", "1/0"), Limits::new());
+    let c = &mut context(Limits::new().with_max_output_bytes(10));
+    assert_fallback_line(&outcome, c, ErrorKind::ResourceLimit);
+}
+
+// A failed charge does not change the work charged so far, so an outcome of
+// `ResourceLimit` on `max_work` has its line under its own context when the
+// work left is enough: `diff` in a variable of 300 letters `a` needs 301
+// units for the variable, fails under `max_work = 200` with nothing charged,
+// and its line of 98 bytes is written under the context of the request.
+#[test]
+fn an_exhausted_max_work_has_its_line_when_the_work_left_is_enough() {
+    let variable = "a".repeat(300);
+    let (outcome, mut c) = run(
+        &Request::new("diff", &variable, "x"),
+        Limits::new().with_max_work(200),
+    );
+    let e = error(&outcome);
+    assert_limit(e, LimitField::Work);
+    let exceeded = e.exceeded().unwrap();
+    assert_eq!(
+        (exceeded.allowed(), exceeded.amount()),
+        (200, LimitAmount::Required(301))
+    );
+    assert_eq!(c.work_used(), 0);
+    let full = line(&outcome);
+    assert_eq!(full.len(), 98);
+    assert_eq!(
+        fields(&full)[..10].join("\t"),
+        "error\t0\t0\t0\tResourceLimit\t-\tField(max_work)\t-\t200\tRequired(301)"
+    );
+    let (published, errors) = publish(&outcome, &mut c);
+    assert_eq!(published.unwrap(), full.as_bytes());
+    assert_eq!(errors, [ErrorKind::ResourceLimit]);
+    assert_eq!((c.work_used(), c.output_used()), (98, 98));
+}
+
+// The fallback step rewrites only errors: a value whose line does not fit
+// the output or the integer bits of its request has no line, since its line
+// under another context would escape those limits, and the failure of its
+// line is an error of the request.
+#[test]
+fn a_value_is_never_written_again_under_another_context() {
+    let (outcome, _) = run(&Request::new("eval", "x", "2^100"), Limits::new());
+    for limits in [
+        Limits::new().with_max_output_bytes(12),
+        Limits::new().with_max_integer_bits(64),
+    ] {
+        let c = &mut context(limits);
+        let (published, errors) = publish(&outcome, c);
+        assert_eq!(published, None);
+        assert_eq!(errors, [ErrorKind::ResourceLimit]);
+    }
+}
+
+/// The terminal states of a job of krepi.
+#[derive(Debug, PartialEq, Eq)]
+enum JobState {
+    Completed,
+    Failed,
+    Cancelled,
+    ResourceExhausted,
+}
+
+/// A host that runs `requests` as one job, by the rule of the contract for a
+/// job of several requests: one `clock` shared by the contexts of all its
+/// requests with the deadline `deadline` of the job, cancellation and the
+/// deadline checked between two requests, the line of every request that ran
+/// published with the fallback step, and one terminal state. `flag` is the
+/// cancel request of the job; when `poll` is false the contexts of the
+/// requests poll a probe that never reports it, as a worker that does not
+/// poll the job service during a request.
+fn host_job<C: Clock + Clone + 'static>(
+    requests: &[(Request, Limits)],
+    clock: &C,
+    deadline: u64,
+    flag: &CancelFlag,
+    poll: bool,
+) -> (Vec<Vec<u8>>, JobState) {
+    let mut lines = Vec::new();
+    let mut failed = false;
+    for (request, limits) in requests {
+        if flag.is_cancelled() {
+            return (lines, JobState::Cancelled);
+        }
+        if clock.clone().now() >= deadline {
+            return (lines, JobState::ResourceExhausted);
+        }
+        let probe: Box<dyn CancelProbe> = if poll {
+            Box::new(flag.clone())
+        } else {
+            Box::new(CountingProbe::never())
+        };
+        let mut c = Context::with_observers(*limits, Box::new(clock.clone()), probe)
+            .with_deadline(deadline);
+        let outcome = execute(request, &mut c);
+        let (line, errors) = publish(&outcome, &mut c);
+        lines.extend(line);
+        let cancelled = errors.contains(&ErrorKind::Cancelled);
+        if cancelled || errors.contains(&ErrorKind::DeadlineExceeded) {
+            let state = if cancelled || flag.is_cancelled() {
+                JobState::Cancelled
+            } else {
+                JobState::ResourceExhausted
+            };
+            return (lines, state);
+        }
+        failed |= !errors.is_empty();
+    }
+    let state = if failed {
+        JobState::Failed
+    } else {
+        JobState::Completed
+    };
+    (lines, state)
+}
+
+/// A ticking clock that cancels `flag` from its reading `at` on, as a cancel
+/// request that arrives during a request.
+#[derive(Clone)]
+struct CancellingClock {
+    ticking: TickingClock,
+    flag: CancelFlag,
+    at: u64,
+}
+
+impl Clock for CancellingClock {
+    fn now(&mut self) -> u64 {
+        let now = self.ticking.now();
+        if now >= self.at {
+            self.flag.cancel();
+        }
+        now
+    }
+
+    fn fork(&self) -> Box<dyn Clock> {
+        Box::new(self.clone())
+    }
+}
+
+/// The kinds of the lines `lines`: the first field of a value line, the kind
+/// of an error line.
+fn kinds(lines: &[Vec<u8>]) -> Vec<String> {
+    lines
+        .iter()
+        .map(|bytes| {
+            let text = std::str::from_utf8(bytes).unwrap();
+            let found = fields(text);
+            if found[0] == "error" {
+                found[4]
+            } else {
+                found[0]
+            }
+            .to_owned()
+        })
+        .collect()
+}
+
+// A job of several requests publishes the line of every request that ran,
+// fallback lines included, and ends in one terminal state. A fault and a
+// `ResourceLimit` fail the job without stopping it; cancellation and a passed
+// deadline stop it, seen between two requests or reported by a request, and
+// the stop decides the terminal state over every earlier fault; a job whose
+// cancellation was requested ends cancelled even when a request reported
+// `DeadlineExceeded`.
+#[test]
+fn a_job_of_several_requests_ends_by_the_stop_rule() {
+    let eval = |input: &str| (Request::new("eval", "x", input), Limits::new());
+    let far = u64::MAX;
+
+    // Values only: completed.
+    let flag = CancelFlag::new();
+    let (lines, state) = host_job(&[eval("1"), eval("2")], &FakeClock::at(0), far, &flag, true);
+    assert_eq!(
+        (kinds(&lines), state),
+        (vec!["value".into(), "value".into()], JobState::Completed)
+    );
+
+    // Faults and request limits, the counterexamples of the fallback step
+    // among them, fail the job, and every request runs and has its line.
+    let requests = [
+        eval("1/0"),
+        (
+            Request::new("diff", &"a".repeat(300), "x"),
+            Limits::new().with_max_work(200),
+        ),
+        (
+            Request::new("eval", "x", "0*(1/0)"),
+            Limits::new().with_max_work(24),
+        ),
+        (
+            Request::new("expand", "x", "(x+1)^5"),
+            Limits::new().with_max_work(100),
+        ),
+        eval("1/2"),
+    ];
+    let (lines, state) = host_job(&requests, &FakeClock::at(0), far, &flag, true);
+    assert_eq!(state, JobState::Failed);
+    assert_eq!(
+        kinds(&lines),
+        [
+            "DivisionByZero",
+            "ResourceLimit",
+            "DivisionByZero",
+            "ResourceLimit",
+            "value"
+        ]
+    );
+
+    // Cancelled before the job starts: no request runs.
+    let cancelled = CancelFlag::new();
+    cancelled.cancel();
+    let (lines, state) = host_job(&requests, &FakeClock::at(0), far, &cancelled, true);
+    assert_eq!((lines.len(), state), (0, JobState::Cancelled));
+
+    // The deadline of the job passes between the first request and the
+    // second: the clock reads the deadline at the check before the second.
+    let one = TickingClock::default();
+    host_job(&[eval("1/3")], &one, far, &flag, true);
+    let deadline = one.reads.load(Ordering::SeqCst) + 1;
+    let (lines, state) = host_job(
+        &[eval("1/3"), eval("1/0")],
+        &TickingClock::default(),
+        deadline,
+        &flag,
+        true,
+    );
+    assert_eq!(
+        (kinds(&lines), state),
+        (vec!["value".into()], JobState::ResourceExhausted)
+    );
+
+    // The deadline passes in the middle of the second request: the job stops
+    // there, after the fault of the first, with the fallback line of the
+    // second, and the third does not run.
+    let one = TickingClock::default();
+    host_job(&[eval("1/0")], &one, far, &flag, true);
+    let deadline = one.reads.load(Ordering::SeqCst) + 21;
+    let requests = [
+        eval("1/0"),
+        (Request::new("expand", "x", "(x+1)^60"), Limits::new()),
+        eval("1"),
+    ];
+    let (lines, state) = host_job(&requests, &TickingClock::default(), deadline, &flag, true);
+    assert_eq!(state, JobState::ResourceExhausted);
+    assert_eq!(kinds(&lines), ["DivisionByZero", "DeadlineExceeded"]);
+
+    // The same, with a cancel request that arrives during the second request
+    // and that its context does not poll: the job ends cancelled.
+    let late = CancelFlag::new();
+    let clock = CancellingClock {
+        ticking: TickingClock::default(),
+        flag: late.clone(),
+        at: deadline - 10,
+    };
+    let (lines, state) = host_job(&requests, &clock, deadline, &late, false);
+    assert_eq!(state, JobState::Cancelled);
+    assert_eq!(kinds(&lines), ["DivisionByZero", "DeadlineExceeded"]);
+
+    // A cancellation that the context of the second request polls ends it
+    // with `Cancelled`, and the job is cancelled.
+    let late = CancelFlag::new();
+    let clock = CancellingClock {
+        ticking: TickingClock::default(),
+        flag: late.clone(),
+        at: deadline - 10,
+    };
+    let (lines, state) = host_job(&requests, &clock, far, &late, true);
+    assert_eq!(state, JobState::Cancelled);
+    assert_eq!(kinds(&lines), ["DivisionByZero", "Cancelled"]);
+
+    // A cancel request that arrives during the first request, which its
+    // context does not poll, is seen between the first request and the
+    // second: the job stops cancelled, over the fault of the first, with the
+    // line of the first only.
+    let between = CancelFlag::new();
+    let clock = CancellingClock {
+        ticking: TickingClock::default(),
+        flag: between.clone(),
+        at: 2,
+    };
+    let (lines, state) = host_job(
+        &[eval("1/0"), eval("1"), eval("2")],
+        &clock,
+        far,
+        &between,
+        false,
+    );
+    assert_eq!(
+        (kinds(&lines), state),
+        (vec!["DivisionByZero".into()], JobState::Cancelled)
+    );
+}
+
+// A request that fails before its first charge point reports that error and
+// not the cancellation of its context: an unknown operation, a malformed
+// variable and an input over `max_input_bytes`. So a host checks
+// cancellation between two requests itself.
+#[test]
+fn a_request_that_fails_before_its_first_charge_reports_its_own_error() {
+    let flag = CancelFlag::new();
+    flag.cancel();
+    for (request, limits, kind) in [
+        (
+            Request::new("simplify", "x", "1"),
+            Limits::new(),
+            ErrorKind::Fault(FaultKind::Unsupported),
+        ),
+        (
+            Request::new("diff", "1x", "x"),
+            Limits::new(),
+            ErrorKind::Fault(FaultKind::Syntax),
+        ),
+        (
+            Request::new("eval", "x", "12345"),
+            Limits::new().with_max_input_bytes(4),
+            ErrorKind::ResourceLimit,
+        ),
+    ] {
+        let c = &mut Context::new(limits, flag.clone());
+        let outcome = execute(&request, c);
+        assert_eq!(error(&outcome).kind(), kind, "{request:?}");
+        assert_eq!(c.work_used(), 0);
+    }
+    let c = &mut Context::new(Limits::new().with_max_input_bytes(4), flag);
+    let outcome = execute(&Request::new("eval", "x", "12345"), c);
+    assert_limit(error(&outcome), LimitField::InputBytes);
 }
 
 // The display of a value is charged to the context of the line: its steps as
