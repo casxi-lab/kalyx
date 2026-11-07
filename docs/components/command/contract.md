@@ -1,14 +1,14 @@
 # Command entry
 
-**Co-signed.** krepi, whose job service runs the command entry, has
-co-signed this contract: the shapes of the request and the outcome, the
+**Co-signed.** krepi, whose job service runs the command entry, co-signed
+this contract on 2026-11-07: the shapes of the request and the outcome, the
 output lines, the two tables, of the
 [terminal states of a job](#table-1-outcomes-and-the-terminal-states-of-a-job)
 and of [who enforces each limit](#table-2-the-limits-and-who-enforces-them),
 the rule for [a job of several requests](#a-job-of-several-requests) and
 the [fallback step](#the-fallback-line) for the line of a failed request.
-After the first release, a change to Table 1, Table 2, the rule for a job of
-several requests or the fallback step needs krepi's co-signature again.
+After the release `v0.1.0`, a change to Table 1, Table 2, the rule for a job
+of several requests or the fallback step needs krepi's co-signature again.
 
 This contract states the command entry of kalyx: the request that a caller
 gives it, the one dispatch table of its operations and what each operation
@@ -756,8 +756,8 @@ charge points, and a request after a cancellation does no work.
 - **Evidence.** `cancellation_is_observed_at_the_next_charge_point`, at every
   poll of a request and of a line; `a_flag_cancelled_between_two_requests_stops_the_second`;
   `a_request_that_fails_before_its_first_charge_reports_its_own_error`, for
-  an unknown operation, a malformed variable and an input over
-  `max_input_bytes` under a cancelled flag; and
+  an unknown operation, a malformed variable, a reserved name as the
+  variable and an input over `max_input_bytes` under a cancelled flag; and
   `a_deadline_on_an_injected_clock_ends_the_request`, with a deadline
   that passed before the request, one that passes in the middle of it, one
   that passes before a line, and a far deadline on the monotonic clock.

@@ -1416,6 +1416,11 @@ fn a_request_that_fails_before_its_first_charge_reports_its_own_error() {
             ErrorKind::Fault(FaultKind::Syntax),
         ),
         (
+            Request::new("expand", "pi", "x"),
+            Limits::new(),
+            ErrorKind::Fault(FaultKind::Unsupported),
+        ),
+        (
             Request::new("eval", "x", "12345"),
             Limits::new().with_max_input_bytes(4),
             ErrorKind::ResourceLimit,
