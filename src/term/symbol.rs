@@ -4,7 +4,8 @@
 //! digits and `_`: the identifiers of the input syntax. The names `pi`, `i`
 //! and `undefined` are reserved for constants of a later release, so that an
 //! input accepted today keeps its meaning and its canonical form when the
-//! constants arrive.
+//! constants arrive. The parser reads identifiers and rejects the reserved
+//! names with the same functions, so the two rules cannot drift apart.
 
 use crate::{Error, FaultKind, Result, Span};
 
@@ -53,7 +54,12 @@ fn first_invalid(name: &[u8]) -> Option<Span> {
     let mut index = 0;
     while index < name.len() {
         let byte = name[index];
-        if !(is_letter(byte) || byte == b'_' || (index > 0 && is_digit(byte))) {
+        let allowed = if index == 0 {
+            starts_name(byte)
+        } else {
+            continues_name(byte)
+        };
+        if !allowed {
             // Every byte before is ASCII, so `index` starts a character.
             return Span::new(index, index + character_length(byte));
         }
@@ -62,18 +68,29 @@ fn first_invalid(name: &[u8]) -> Option<Span> {
     None
 }
 
+/// Whether `byte` starts a symbol name: an ASCII letter or `_`.
+pub(crate) const fn starts_name(byte: u8) -> bool {
+    is_letter(byte) || byte == b'_'
+}
+
+/// Whether `byte` continues a symbol name: an ASCII letter, an ASCII digit
+/// or `_`.
+pub(crate) const fn continues_name(byte: u8) -> bool {
+    is_letter(byte) || is_digit(byte) || byte == b'_'
+}
+
 /// Whether `byte` is an ASCII letter.
 const fn is_letter(byte: u8) -> bool {
     (byte >= b'a' && byte <= b'z') || (byte >= b'A' && byte <= b'Z')
 }
 
 /// Whether `byte` is an ASCII digit.
-const fn is_digit(byte: u8) -> bool {
+pub(crate) const fn is_digit(byte: u8) -> bool {
     byte >= b'0' && byte <= b'9'
 }
 
 /// The length in bytes of the UTF-8 character that starts with `byte`.
-const fn character_length(byte: u8) -> usize {
+pub(crate) const fn character_length(byte: u8) -> usize {
     if byte < 0x80 {
         1
     } else if byte >= 0xF0 {
@@ -87,7 +104,7 @@ const fn character_length(byte: u8) -> usize {
 
 /// Whether `name` is reserved for a constant of a later release: `pi`, `i`
 /// or `undefined`.
-fn is_reserved(name: &[u8]) -> bool {
+pub(crate) fn is_reserved(name: &[u8]) -> bool {
     same_bytes(name, b"pi") || same_bytes(name, b"i") || same_bytes(name, b"undefined")
 }
 

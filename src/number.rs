@@ -43,7 +43,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use num_bigint::BigInt;
-use num_traits::{One, Signed, Zero};
+use num_traits::{One, Signed, ToPrimitive, Zero};
 
 use crate::context::{Storage, StorageCost};
 use crate::{Context, Error, FaultKind, LimitField, Result, Span};
@@ -93,6 +93,12 @@ impl Integer {
     #[must_use]
     pub fn is_negative(&self) -> bool {
         self.0.is_negative()
+    }
+
+    /// The absolute value as a `u64`, or `None` when it has more than 64
+    /// bits. The parser reads an integer exponent through it.
+    pub(crate) fn magnitude_u64(&self) -> Option<u64> {
+        ToPrimitive::to_u64(self.0.magnitude())
     }
 }
 

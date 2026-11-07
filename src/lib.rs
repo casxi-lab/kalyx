@@ -10,7 +10,9 @@
 //! exact integers and rationals, the [`coefficient`] module the
 //! coefficient-field trait with the field of rationals, and the [`term`]
 //! module the term core: one immutable representation of numbers, symbols,
-//! sums, products and integer powers, kept in canonical form.
+//! sums, products and integer powers, kept in canonical form. The [`syntax`]
+//! module holds the one grammar of the library's input, and [`parse`] reads
+//! an expression in it into a term.
 
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
@@ -22,6 +24,7 @@ pub mod coefficient;
 pub mod context;
 mod error;
 pub mod number;
+pub mod syntax;
 pub mod term;
 
 pub use context::{Context, Limits};
@@ -29,3 +32,4 @@ pub use error::{
     Error, ErrorClass, ErrorKind, FaultKind, LimitAmount, LimitExceeded, LimitField, LimitId,
     LimitScope, MathState, Result, Settled, Span,
 };
+pub use syntax::parse;

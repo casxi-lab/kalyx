@@ -5,8 +5,12 @@ release: parsing, exact rational arithmetic, and expansion and differentiation
 in $\mathbb{Q}[x]$. They were converted mechanically from two fixtures of the
 earlier implementation, without running any of its code (see
 [Sources](#sources)). The vectors are test data: `tests/vectors.rs` checks
-their format today; replaying them against the library is planned together
-with the command entry.
+their format, and `tests/syntax.rs` replays the 32 cases that the parser
+decides alone: the 31 evaluations, among them the depth, bit, syntax,
+division and exponent cases, and the exponent limit of the expansion
+`degree_limit_1`, which fails as its input is read; every error among them is
+checked with its span. Replaying all of them against the library is planned
+together with the command entry.
 
 ## Format
 
