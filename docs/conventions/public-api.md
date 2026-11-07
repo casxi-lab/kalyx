@@ -8,12 +8,13 @@ convention is about behavior (limits, determinism, panics, depth).
 **Status.** The library's only public items so far are the types of its
 errors and result states, the request context with its limits, the exact
 numbers with the coefficient-field trait over $\mathbb{Q}$, the terms of the
-term core, the parser and the univariate polynomials, which follow these
-conventions. They are the rules that each further component follows when it
-lands, and review holds every change to them. `Error`, `Settled<T>`,
-`LimitId`, `MathState`, `Context`, `Limits`, `Integer`, `Rational`,
-`ZeroTest`, `CoefficientRing`, `CoefficientField`, `Rationals`, `Term`,
-`TermKind`, `parse`, `PolynomialRing` and `Polynomial` exist today;
+term core, the parser, the univariate polynomials and the command entry,
+which follow these conventions. They are the rules that each further
+component follows when it lands, and review holds every change to them.
+`Error`, `Settled<T>`, `LimitId`, `MathState`, `Context`, `Limits`,
+`Integer`, `Rational`, `ZeroTest`, `CoefficientRing`, `CoefficientField`,
+`Rationals`, `Term`, `TermKind`, `parse`, `PolynomialRing`, `Polynomial`,
+`Request`, `Settings`, `Outcome`, `execute` and `serialize` exist today;
 other names used here are the names that the code is planned to use. Their
 full rules are in [the architecture](../architecture.md). `cargo xtask check`
 already enforces the parts that it can check mechanically, as each convention
@@ -51,11 +52,17 @@ states ([convention 2](#2-errors-separate-from-result-states)). A method of a
 parent structure, such as a coefficient field or a polynomial ring, takes the
 structure as `&self` and the context last as well.
 
-A library function never creates a context in place of the caller's. Only the
-command entry and the command-line program construct a `Context`; the guard
-of `cargo xtask check` rejects every other construction path that it can see.
+A library function never creates a context in place of the caller's. Within
+the package, only the command entry and the command-line program may
+construct a `Context`, and the guard of `cargo xtask check` rejects every
+other construction path that it can see; in this release neither does: the
+caller of `execute` creates one context per request, and library code
+charges the context that it is given.
 Library interfaces return library types: parsing command-line options and
-choosing process exit codes belong to the program.
+choosing process exit codes belong to the program. The command entry is the
+one exception to the return type: `execute` returns an `Outcome`, which
+holds the `Result<Settled<T>>` of the request together with its versions, so
+that the versions come back with every error as well.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/command.rs:555` and
@@ -99,12 +106,16 @@ mathematically complete. Every public record with public fields is
 `#[non_exhaustive]`; other structs keep their fields private.
 
 The crate root re-exports only request-level items: the context and its
-limits, errors and result states, the request and outcome types, and `parse`.
+limits, errors and result states, the request and outcome types, the command
+entry `execute`, and `parse`.
 Component types are reached through their component's module. The root
-re-exports neither command-language types nor third-party types. When the
-command entry lands, its public names are listed in a tracked file, and a
-test fails when a public name is added to the crate root without the list
-being changed.
+re-exports neither command-language types nor third-party types. The public
+names of the crate root are listed in the tracked file `api/root-names.txt`,
+and the test `the_crate_root_has_exactly_the_listed_public_names` in
+`tests/root_names.rs` fails when a public name is added to the crate root,
+removed or renamed without the list being changed. A macro exported with
+`#[macro_export]` would land in the crate root from any module, so the test
+`no_file_under_src_exports_a_macro` rejects one in every file under `src/`.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/lib.rs:41-147`.
@@ -255,9 +266,10 @@ per byte. Exceeding a limit fails with `ResourceLimit` and produces no partial
 output: bytes are written only after every charge for them has succeeded.
 
 `impl Display` exists only as a debugging convenience and is never the path
-by which results reach callers. The command entry is planned to have one
-serialization function that writes an outcome as line bytes; it is the only
-output format, and the command-line program only calls it.
+by which results reach callers. The command entry has one serialization
+function, `kalyx::command::serialize`, that writes an outcome as line bytes;
+it is the only output format, and the command-line program is to call only
+it.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/symbolic/display.rs:9-13`.
@@ -311,8 +323,9 @@ error.
 A request carries `settings`, a non-exhaustive record whose default is the
 current semantics, and `settings_version`; the outcome echoes the version that
 was used. Settings never live in the context or in global state. In release
-0.1 the settings record is planned to be empty, and a request with a
-non-default value fails with `Unsupported`.
+0.1 the settings record, `kalyx::command::Settings`, is empty, so its default
+is its only value, and a request with a non-default value fails with
+`Unsupported`.
 
 A streaming entry takes its progress receiver as a separate parameter.
 Progress is never reported through the context or through global hooks.

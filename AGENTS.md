@@ -3,7 +3,9 @@
 - kalyx is the computer algebra library of casξ: the Rust package `kalyx` at
   the repository root, with a library and a command-line program, built from
   its foundations. The Rust workspace `xtask/` holds the repository checks,
-  which CI runs as `cargo xtask check`.
+  which CI runs as `cargo xtask check`; one of them, the allocation check in
+  `checks/allocation/`, is a workspace of its own whose counting allocator is
+  the only `unsafe` code of the repository.
 - The library is an ordinary Rust `std` library for 64-bit targets. Keep exact
   values exact. Pass a request-local context through parsing and computation,
   and check limits, the deadline and cancellation before potentially expensive

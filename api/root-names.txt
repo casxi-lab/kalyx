@@ -1,0 +1,35 @@
+# The public names of the crate root of kalyx: its public modules and the
+# items that src/lib.rs re-exports.
+#
+# One name per line, in byte order; blank lines and lines that start with
+# `#` are skipped. tests/root_names.rs derives the public names of the crate
+# root from src/lib.rs and fails when they differ from this list, so a name
+# added to the crate root, removed from it or renamed changes this file in
+# the same change. The public API conventions say which names belong here.
+
+Context
+Error
+ErrorClass
+ErrorKind
+FaultKind
+LimitAmount
+LimitExceeded
+LimitField
+LimitId
+LimitScope
+Limits
+MathState
+Outcome
+Request
+Result
+Settled
+Span
+coefficient
+command
+context
+execute
+number
+parse
+polynomial
+syntax
+term

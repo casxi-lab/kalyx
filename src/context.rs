@@ -129,9 +129,11 @@ struct FrameEntry {
 /// charged so far, the deadline, the injected clock and cancellation probe,
 /// and the frame table with the reserved temporaries. It holds no settings
 /// and no progress receiver: those are inputs of the request and parameters
-/// of its entry. Only the command entry and the command-line program create a
-/// context; library code charges the context that it was given, and a
-/// sub-computation charges the same context as its caller.
+/// of its entry. Within the package, only the command entry and the
+/// command-line program may create a context, and in this release neither
+/// does: the caller of `execute` creates one context per request. Library
+/// code charges the context that it was given, and a sub-computation charges
+/// the same context as its caller.
 ///
 /// A context cannot be cloned, so its accounting is never shared by two
 /// copies.

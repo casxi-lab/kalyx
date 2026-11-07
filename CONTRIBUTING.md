@@ -4,7 +4,9 @@ kalyx is built from its foundations in this repository. The Rust package
 `kalyx` at the repository root holds the library and the command-line
 program. The Rust workspace `xtask/` holds the repository checks, with the
 `xtask` alias in `.cargo/config.toml`, `rust-toolchain.toml`, the allow lists
-of the guard in `guard/` and the CI workflow `.github/workflows/check.yml`.
+of the guard in `guard/` and the CI workflow `.github/workflows/check.yml`;
+the package `checks/allocation/`, a workspace of its own, holds the
+[allocation check](#allocation-check) that the checks run.
 These are the commands that apply today, run from the repository root:
 
 ```sh
@@ -74,19 +76,40 @@ fails:
    and `Real` traits of num-traits. Clippy resolves the type, so a call
    through a type alias or a generic parameter is caught too; this applies
    to tests as well;
-6. `guard`: the rules of the package that the compiler and Clippy do not
+6. `kalyx-allocation`: `cargo fmt --all --check`, `cargo clippy
+   --all-targets --locked` with warnings as errors, `cargo test --locked`,
+   which tests the verdict of the check on the runs that it rejects, and
+   `cargo run --locked` on the [allocation check](#allocation-check) in
+   `checks/allocation/`;
+7. `guard`: the rules of the package that the compiler and Clippy do not
    check, described [below](#guard).
 
 The `docs`, `workflows` and `guard` steps read only files that Git tracks, so
 build output and ignored files do not change the result; add a new file to the
 index with `git add` before running the check.
 
+### Allocation check
+
+The allocation check runs one request of the command entry 100 times under a
+counting global allocator and fails unless every run leaves the live bytes of
+the process at their baseline, as the
+[contract of the command entry](docs/components/command/contract.md#the-allocation-check)
+states. A global allocator implements the unsafe trait `GlobalAlloc`, and
+the kalyx package forbids `unsafe` code in every target, so the check is the
+package `checks/allocation/`, a workspace of its own outside the package that
+depends on it by path, like `xtask/`. Its allocator wrapper is the only
+`unsafe` code of the repository: the manifest of the check denies `unsafe`
+code and undocumented unsafe blocks, and only the wrapper allows `unsafe`
+code, with its reason, and states why each unsafe block is sound. The guard
+does not scan the check, which is not code of the package, and checks its
+lock file as [below](#guard).
+
 ### Guard
 
-The guard reads every tracked `.rs` file outside `xtask/`, `tests/`,
-`benches/` and `examples/`, such as the files below `src/` and a build
-script; such a file that is a symbolic link, a submodule or not UTF-8 is a
-finding. It skips test code: an item, module, associated item, `let`
+The guard reads every tracked `.rs` file outside `xtask/`,
+`checks/allocation/`, `tests/`, `benches/` and `examples/`, such as the files
+below `src/`, a build script and any other file under `checks/`; such a file that is a symbolic link, a submodule or not UTF-8
+is a finding. It skips test code: an item, module, associated item, `let`
 statement or macro statement marked `#[test]` or with a `#[cfg(...)]` that
 holds only in test builds, such as `#[cfg(test)]`, and the file of a module
 that only test code declares, as `#[cfg(test)] mod name;`, with the files of
@@ -138,7 +161,10 @@ rest of `hash_map` and `hash_set`, `RandomState`, `SystemTime`,
 `Cargo.lock` may hold only the package itself and the packages named in
 [guard/crates.txt](guard/crates.txt), one name per line: today the `num-*`
 packages for arbitrary-precision integers and rationals, which the `number`
-module uses, and their build dependency `autocfg`. `getrandom` and the
+module uses, and their build dependency `autocfg`. The lock file of the
+allocation check, `checks/allocation/Cargo.lock`, may hold only the same
+packages, the package itself and the check crate, and a `Cargo.toml` or
+`Cargo.lock` elsewhere under `checks/` is a finding. `getrandom` and the
 `rand`, `rayon` and `crossbeam` families (`rand_core`, `crossbeam-utils` and
 the like) are rejected even if listed. The `license` field of the package in
 `Cargo.toml` must be exactly `MIT`, and its `[profile.release]` table must
