@@ -20,7 +20,7 @@ use std::convert::Infallible;
 use std::fmt;
 
 use kalyx::coefficient::{CoefficientField, CoefficientRing, Rationals, ZeroTest};
-use kalyx::context::CancelFlag;
+use kalyx::context::{CancelFlag, Storage, StorageCost};
 use kalyx::number::{Integer, Rational};
 use kalyx::{Context, ErrorKind, FaultKind, Limits};
 
@@ -678,4 +678,37 @@ fn rationals_check_and_charge_new_elements() {
     );
     assert_eq!(none.work_used(), 0);
     assert_eq!(q, <Rationals as Default>::default());
+}
+
+// `measure` of `Rationals` is the storage cost of a rational, one node and
+// |n| + |d| + 3 bytes for n/d, the value of `StorageCost`. Its signature
+// takes the parent and the element and no context, so it neither charges
+// nor fails: the work used after the samples are built does not change.
+#[test]
+fn rationals_measure_their_elements_by_the_storage_formula() {
+    let measure: fn(&Rationals, &Rational) -> Storage = <Rationals as CoefficientRing>::measure;
+    let q = Rationals;
+    let mut context = Context::new(Limits::new(), CancelFlag::new());
+    let huge = Integer::from(u64::MAX);
+    let wide = q.from_integer(&huge, &mut context).unwrap();
+    let wide = q.multiply(&wide, &wide, &mut context).unwrap();
+    let small = Rational::new(Integer::from(-3_i64), Integer::from(4_i64), &mut context).unwrap();
+    let tiny = q.inverse(&wide, &mut context).unwrap();
+    let samples = [
+        (Rational::from(0_i64), Storage::new(1, 4)),
+        (Rational::from(1_i64), Storage::new(1, 5)),
+        (Rational::from(-1_i64), Storage::new(1, 5)),
+        (small, Storage::new(1, 2 + 3 + 3)),
+        (Rational::from(i64::MIN), Storage::new(1, 64 + 1 + 3)),
+        (wide.clone(), Storage::new(1, 128 + 1 + 3)),
+        (tiny, Storage::new(1, 1 + 128 + 3)),
+    ];
+    let used = context.work_used();
+    for (value, expected) in &samples {
+        assert_eq!(measure(&q, value), *expected, "{value}");
+        assert_eq!(q.measure(value), value.storage(), "{value}");
+    }
+    assert_eq!(context.work_used(), used);
+    let sum = q.add(&wide, &Rational::from(1_i64), &mut context).unwrap();
+    assert_eq!(q.measure(&sum), sum.storage());
 }

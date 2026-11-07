@@ -11,15 +11,17 @@
 //! There are two layers. [`CoefficientRing`] holds the ring operations and the
 //! zero test; [`CoefficientField`] adds the inverse and the quotient, so a
 //! division algorithm bounded by `CoefficientField` cannot be called on a ring
-//! that is not a field. Every method takes the parent as `&self` and the
-//! request context last, and returns a `Result`. Both traits are sealed: only
-//! this library implements them, so later releases can add required methods
-//! without breaking callers, and callers cannot define their own coefficient
-//! fields yet. Neither trait has a default method.
+//! that is not a field. Every method takes the parent as `&self`, and every
+//! method but [`measure`](CoefficientRing::measure) takes the request context
+//! last and returns a `Result`; `measure`, the storage cost of an element,
+//! takes no context and charges nothing. Both traits are
+//! sealed: only this library implements them, so later releases can add
+//! required methods without breaking callers, and callers cannot define their
+//! own coefficient fields yet. Neither trait has a default method.
 //!
 //! ```
 //! use kalyx::coefficient::{CoefficientField, CoefficientRing, Rationals, ZeroTest};
-//! use kalyx::context::CancelFlag;
+//! use kalyx::context::{CancelFlag, Storage};
 //! use kalyx::number::Integer;
 //! use kalyx::{Context, Limits};
 //!
@@ -31,6 +33,8 @@
 //! assert_eq!(one, q.one(&mut context)?);
 //! let zero = q.subtract(&one, &one, &mut context)?;
 //! assert_eq!(q.zero_test(&zero, &mut context)?, ZeroTest::Zero);
+//! // 1/3 costs one node and |1| + |3| + 3 = 6 bytes.
+//! assert_eq!(q.measure(&third), Storage::new(1, 6));
 //! # Ok::<(), kalyx::Error>(())
 //! ```
 //!
@@ -39,6 +43,7 @@
 
 use std::convert::Infallible;
 
+use crate::context::{Storage, StorageCost};
 use crate::number::{Integer, Rational};
 use crate::{Context, LimitField, Result};
 
@@ -72,13 +77,16 @@ pub enum ZeroTest<U> {
 /// [`same_parent`](CoefficientRing::same_parent) only where a parent and an
 /// element are stored together. Each operation checks the sizes of its
 /// result before it works, charges the context for itself, and charges an
-/// amount that depends only on its operands.
+/// amount that depends only on its operands. Code generic over the trait
+/// takes the storage cost of an element only from
+/// [`measure`](CoefficientRing::measure).
 ///
 /// The trait is sealed: a type outside this library cannot implement it, even
 /// with every method, since the seal is in a private module.
 ///
 /// ```compile_fail,E0603
 /// use kalyx::coefficient::{CoefficientRing, ZeroTest};
+/// use kalyx::context::Storage;
 /// use kalyx::number::Integer;
 /// use kalyx::{Context, Result};
 ///
@@ -100,6 +108,7 @@ pub enum ZeroTest<U> {
 ///     fn zero_test(&self, _: &(), _: &mut Context) -> Result<ZeroTest<()>> {
 ///         Ok(ZeroTest::Zero)
 ///     }
+///     fn measure(&self, _: &()) -> Storage { Storage::new(1, 0) }
 /// }
 /// ```
 pub trait CoefficientRing: sealed::Sealed {
@@ -199,6 +208,19 @@ pub trait CoefficientRing: sealed::Sealed {
         a: &Self::Element,
         context: &mut Context,
     ) -> Result<ZeroTest<Self::Undecided>>;
+
+    /// The storage cost of `a` as a value of its own: its nodes and logical
+    /// bytes by the storage rules of the context. The storage formula of a
+    /// value that holds coefficients, such as a polynomial, adds this cost for
+    /// each of them.
+    ///
+    /// The cost depends only on the parent and the element. The method takes
+    /// no context, charges nothing and cannot fail, as
+    /// [`StorageCost::storage`] does; an element whose cost cannot be
+    /// computed in constant time keeps its cost from when it was built, and
+    /// this method reads it. Code generic over the trait, such as the
+    /// polynomials, takes the cost of a coefficient only from here.
+    fn measure(&self, a: &Self::Element) -> Storage;
 }
 
 /// The element operations of a field beyond those of its ring: the inverse
@@ -243,7 +265,10 @@ pub trait CoefficientField: CoefficientRing {
 /// [`same_parent`](CoefficientRing::same_parent) and
 /// [`zero_test`](CoefficientRing::zero_test) take constant time and charge
 /// nothing: there is only one $\mathbb{Q}$, and its zero test reads the
-/// numerator.
+/// numerator. [`measure`](CoefficientRing::measure) is the storage cost of
+/// a rational, one node and $\lvert n \rvert + \lvert d \rvert + 3$ bytes
+/// for $n/d$, where $\lvert k \rvert$ is the bit length of $k$: the value
+/// of [`StorageCost`] for [`Rational`], in constant time.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Rationals;
 
@@ -312,6 +337,12 @@ impl CoefficientRing for Rationals {
         } else {
             Ok(ZeroTest::Nonzero)
         }
+    }
+
+    /// One node and $\lvert n \rvert + \lvert d \rvert + 3$ bytes for
+    /// $n/d$, saturating at `u64::MAX`.
+    fn measure(&self, a: &Rational) -> Storage {
+        a.storage()
     }
 }
 

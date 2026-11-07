@@ -19,17 +19,19 @@ yet. The repository holds a Rust package named `kalyx`, with a library that
 so far holds only the types of its errors and result states, the request
 context with its limits, exact integers and rationals with the
 coefficient-field trait over $\mathbb{Q}$, the term core, which keeps
-numbers, symbols, sums, products and integer powers in canonical form, and
-the parser of its [input syntax](docs/semantics.md), and a command-line
-program that has no commands;
+numbers, symbols, sums, products and integer powers in canonical form, the
+parser of its [input syntax](docs/semantics.md), and the univariate
+polynomials over $\mathbb{Q}$ with the expansion of terms and
+differentiation, and a command-line program that has no commands;
 the repository checks, which continuous integration runs on every pull
 request to `main` and on every push to `main`; the
 [porting record](PORTING.md) of code taken over from an earlier
 implementation of the casξ computer algebra system; and the
 58 [answer vectors](vectors/README.md) for the planned first release, 0.1,
 converted from that earlier implementation's fixtures, whose format is
-checked and whose cases that concern parsing alone are replayed against the
-parser so far. The earlier
+checked and whose cases that concern parsing alone, and whose expansions and
+derivatives, are replayed against the parser and the polynomials so far. The
+earlier
 implementation is not public; it serves as a reference and as a source of
 test vectors.
 
@@ -45,7 +47,9 @@ stable value encoding and a machine floating-point path) and then build the
 subject domains below on them. Apart from the types of the errors and
 result states, the request context, the exact rational number type with the
 coefficient-field trait over $\mathbb{Q}$, the expression core with
-canonical forms and the parser, none of this is available yet.
+canonical forms, the parser and the univariate polynomials over
+$\mathbb{Q}$ with expansion and differentiation, none of this is available
+yet.
 
 ## Build
 
@@ -62,8 +66,10 @@ The library's public items so far are the types of its errors and result
 states, the request context, the exact numbers with the coefficient-field
 trait over $\mathbb{Q}$, whose operations compute exact rational arithmetic
 under a context, the terms of the term core, which build canonical
-expressions under a context, and `parse`, which reads an expression into a
-term under a context; the program exits without output
+expressions under a context, `parse`, which reads an expression into a term
+under a context, and the polynomial rings and polynomials, which expand
+terms into polynomials over $\mathbb{Q}$, compute with them and
+differentiate them under a context; the program exits without output
 (`cargo run --quiet` prints nothing).
 
 ## Rules the library is built to
@@ -175,7 +181,8 @@ domains, and natural-language input.
   foundations: term representation, coefficient fields, the context and
   error kinds. Of the library components, only the errors and result
   states, the context and limits, the exact numbers with the
-  coefficient-field trait, the term core and the parser are implemented yet.
+  coefficient-field trait, the term core, the parser and the univariate
+  polynomials are implemented yet.
 - [Input syntax](docs/semantics.md): the one grammar of the library's input,
   its precedence and lexical rules, and how an expression becomes a term.
 - [Public API conventions](docs/conventions/public-api.md): the rules that
