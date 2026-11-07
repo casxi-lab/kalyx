@@ -9,8 +9,10 @@ their format, and `tests/syntax.rs` replays the 32 cases that the parser
 decides alone: the 31 evaluations, among them the depth, bit, syntax,
 division and exponent cases, and the exponent limit of the expansion
 `degree_limit_1`, which fails as its input is read; every error among them is
-checked with its span. Replaying all of them against the library is planned
-together with the command entry.
+checked with its span. `tests/polynomials.rs` replays the 27 expansions and
+derivatives, each as one request of the parser and the polynomials under its
+limits, and compares its result with the answer by canonical form. Replaying
+all of them through the command entry is planned together with that entry.
 
 ## Format
 

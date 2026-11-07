@@ -92,9 +92,12 @@ use crate::{Context, Result};
 use node::{TermNode, TermShape};
 
 // The parser reads identifiers by the rule of symbol names, rejects the
-// reserved names and reads the exponent of a power through these.
+// reserved names and reads the exponent of a power through these; the
+// polynomial rings check the name of their variable with `check_name`.
 pub(crate) use exponent::integer_exponent;
-pub(crate) use symbol::{character_length, continues_name, is_digit, is_reserved, starts_name};
+pub(crate) use symbol::{
+    character_length, check_name, continues_name, is_digit, is_reserved, starts_name,
+};
 
 /// A canonical term: a shared handle to an immutable node.
 ///

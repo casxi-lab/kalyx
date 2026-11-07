@@ -28,8 +28,10 @@ and `max_exponent` and charge work. The term core (`kalyx::term`) checks
 new term with `check_storage` at scope `Value`, and charges work and output.
 The parser (`kalyx::syntax`) checks `max_input_bytes` and `max_depth`, checks
 the count of its syntax nodes with `check_storage` at scope `Value`, and
-charges work; the command entry is a planned caller. The command-line program
-does not create a context yet.
+charges work. The polynomials (`kalyx::polynomial`) check `max_depth` and
+`max_exponent`, check the cost of every polynomial with `check_storage` at
+scope `Value`, and charge work; the command entry is a planned caller. The
+command-line program does not create a context yet.
 
 ## Interface
 
@@ -305,15 +307,20 @@ field or by a machine width that no field names.
 ### Storage costs
 
 - **Interface.** The cost of a retained value is a `Storage { nodes, bytes }`.
-  Each value kind implements `StorageCost` with one formula. The context takes
-  the computed `Storage` and never computes a formula or calls back.
+  Each value kind has one formula: a value that carries everything the
+  formula needs implements `StorageCost`, and a value whose formula needs
+  its parent structure takes its cost from a method of the parent, a
+  coefficient from `measure` of its coefficient ring and a polynomial from
+  `storage` of its polynomial ring. The context takes the computed `Storage`
+  and never computes a formula or calls back.
 - **Arithmetic.** `Storage::saturating_add` and `saturating_sub` are for the
   formulas and for reported amounts. The totals that the context compares
   with `max_nodes` and `max_storage_bytes` are exact sums with checked
   additions; a sum that does not fit in a `u64` exceeds the limit of its
   component and is reported with the amount `LimitAmount::Bound(u64::MAX)`.
-- **Formulas.** Each formula depends only on the value, never on the platform
-  or the memory layout. A rational $n/d$ costs
+- **Formulas.** Each formula depends only on the value and, for a coefficient
+  or a polynomial, its parent structure, never on the platform or the memory
+  layout. A rational $n/d$ costs
   $(1, \lvert n \rvert + \lvert d \rvert + 3)$ wherever it occurs, where
   $\lvert x \rvert$ is the bit length of $x$. The formulas of terms and of
   univariate polynomials are fixed by the contracts of the term core and of

@@ -15,8 +15,9 @@ charges belong to the [context](../context/contract.md), and the errors to the
 **Status.** Implemented in `src/number.rs` and `src/coefficient.rs`, at tier
 A0 (tested); the trait is planned for tier A2 in release 0.2. The first
 caller in the library is the [term core](../terms/contract.md), whose numbers,
-coefficients and constants are rationals; the polynomials over $\mathbb{Q}$
-are a planned caller.
+coefficients and constants are rationals; the
+[polynomials](../polynomials/contract.md) over $\mathbb{Q}$ reach their
+coefficients through the coefficient-field trait.
 
 ## Scope
 
@@ -35,8 +36,8 @@ are a planned caller.
   - The prime fields $\mathbb F_p$, the ring $\mathbb{Z}$ as a coefficient
     ring, $\mathbb{Q}(a)$, the result-state subtraits of rings that are not
     fields and maps between structures: the coefficient fields of release 0.2.
-  - `PolynomialRing` and `Polynomial`: the univariate polynomials over
-    $\mathbb{Q}$, later in release 0.1.
+  - `PolynomialRing` and `Polynomial`: the
+    [polynomials](../polynomials/contract.md).
   - Expressions and symbols: the [term core](../terms/contract.md). Spans
     of parsed expressions and the decimal literal syntax beyond one literal:
     the [parser](../syntax/contract.md), which reads each literal through
@@ -219,7 +220,9 @@ charged; only the exponent check of a power comes first.
 `StorageCost` for a rational $n/d$ is one node and
 $\lvert n \rvert + \lvert d \rvert + 3$ bytes, the formula of the
 [context](../context/contract.md#storage-costs), saturating at `u64::MAX`.
-Zero costs $(1, 4)$.
+Zero costs $(1, 4)$. The `measure` of `Rationals` is the same formula; it
+takes constant time, since the bit lengths are read from the stored
+integers.
 
 ### Display, order and equality
 
@@ -248,12 +251,25 @@ Zero costs $(1, 4)$.
 - **Shape.** As the [architecture](../../architecture.md#coefficient-field-trait)
   states: `CoefficientRing` with the associated types `Element: Clone` and
   `Undecided` and the methods `same_parent`, `zero`, `one`, `from_integer`,
-  `negate`, `add`, `subtract`, `multiply` and `zero_test`, and
+  `negate`, `add`, `subtract`, `multiply`, `zero_test` and `measure`, and
   `CoefficientField: CoefficientRing` with `inverse` and `divide`. Every
-  method takes the parent structure as `&self` and the context last, and
-  returns a `Result`.
+  method takes the parent structure as `&self`; every method but `measure`
+  takes the context last and returns a `Result`.
+- **Storage cost.** `measure(&self, a)` returns the cost of the element `a`
+  as a `Storage`, its nodes and logical bytes by the storage rules of the
+  [context](../context/contract.md#storage-costs). The cost depends only on
+  the parent and the element; `measure` takes no context, charges nothing
+  and cannot fail, as `StorageCost` does. An element whose cost cannot be
+  computed in constant time keeps its cost from when it was built, and
+  `measure` reads it. Code generic over the trait, such as the shared
+  algorithms of the [polynomials](../polynomials/contract.md), takes the
+  costs of coefficients only from `measure`, and every later coefficient
+  field implements it with a formula of its own.
 - **Sealing.** Both traits have the supertrait `Sealed` of a private module,
-  so only kalyx implements them, until 1.0.
+  so only kalyx implements them, until 1.0, and later releases can add
+  required methods without breaking callers. The `compile_fail` documentation
+  test of `CoefficientRing` checks that a type outside the library cannot
+  implement it even with every method (`E0603`).
 - **No default methods.** Neither trait has a default method, so no
   implementation calls a default method on `self`; the parents have no
   lifetime parameters, and no method takes a closure.
@@ -286,6 +302,9 @@ Zero costs $(1, 4)$.
 - `same_parent` is always `true`, and `zero_test` reads the numerator and
   always decides. Both take constant time, allocate nothing and charge
   nothing.
+- `measure` is the storage cost of a rational, one node and
+  $\lvert n \rvert + \lvert d \rvert + 3$ bytes for $n/d$, the value of
+  `StorageCost` of `Rational`, which `Rational` keeps implementing.
 
 ## Requirements
 
@@ -409,7 +428,8 @@ cancellation, the value is returned.
   `integer_paths_still_observe_work_cancellation_and_errors`,
   `literals_charge_one_unit_per_digit_after_the_bit_check`,
   `rationals_are_ordered_by_value`, `rationals_check_and_charge_new_elements`
-  in `tests/coefficient.rs`, and in `src/number/positive_compare_tests.rs`
+  and `rationals_measure_their_elements_by_the_storage_formula` in
+  `tests/coefficient.rs`, and in `src/number/positive_compare_tests.rs`
   `positive_comparison_matches_an_independent_small_integer_oracle`,
   `equal_adjacent_and_disjoint_product_bit_ranges_remain_exact`,
   `hundred_thousand_bit_widths_preserve_the_subtraction_bound` and

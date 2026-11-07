@@ -40,8 +40,7 @@ planned for later in release 0.1.
     [parser](../syntax/contract.md), whose grammar is stated in
     [the input syntax](../../semantics.md).
   - Expansion, differentiation and the conversion between terms and
-    polynomials: the univariate polynomials over $\mathbb{Q}$, later in
-    release 0.1.
+    polynomials: the [polynomials](../polynomials/contract.md).
   - The serialization of outcomes as output lines: the command entry, later
     in release 0.1.
   - Function calls (their constructor, their simplification and the function
@@ -106,7 +105,9 @@ and, for the [parser](../syntax/contract.md), the rule of symbol names
 (`starts_name`, `continues_name`, `is_digit` and `character_length`),
 `is_reserved`, and `integer_exponent`, which reads an integer as an exponent
 under the same check, so the parser and the term core cannot disagree on a
-name or an exponent.
+name or an exponent; and, for the [polynomials](../polynomials/contract.md),
+`check_name`, the check of a whole name that `Term::symbol` makes, with
+which a polynomial ring checks its variable.
 
 The crate root re-exports nothing of the component.
 

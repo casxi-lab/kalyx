@@ -561,3 +561,28 @@ fn scaling_keeps_the_cores_and_the_primitive_part_has_the_content_1() {
     assert_eq!(content, Rational::from(-4));
     assert_eq!(show(&part, c), "1 + 0*x^(-1)");
 }
+
+// ---------------------------------------------------------------------------
+// Calls and the polynomials
+
+// The expansion into polynomials fails with `NotPolynomial` as soon as it
+// enters a call, before its arguments, wherever the call stands; no term of
+// this release is a call, so only this test can build one.
+#[test]
+fn the_expansion_into_polynomials_rejects_a_call() {
+    let c = &mut context();
+    let ring =
+        crate::polynomial::PolynomialRing::new(crate::coefficient::Rationals, "x", c).unwrap();
+    let x = symbol("x", c);
+    let f = call("f", CallClass::Registered, std::slice::from_ref(&x), c);
+    let not_polynomial = ErrorKind::Fault(FaultKind::NotPolynomial);
+    assert_eq!(ring.expand(&f, c).unwrap_err().kind(), not_polynomial);
+    let sum = Term::sum(&[x.clone(), f.clone()], c).unwrap();
+    assert_eq!(ring.expand(&sum, c).unwrap_err().kind(), not_polynomial);
+    let product = Term::product(&[x, f], c).unwrap();
+    assert_eq!(ring.expand(&product, c).unwrap_err().kind(), not_polynomial);
+    // An argument that is not the variable is never reached.
+    let y = symbol("y", c);
+    let g = call("g", CallClass::Formal, &[y], c);
+    assert_eq!(ring.expand(&g, c).unwrap_err().kind(), not_polynomial);
+}

@@ -5,7 +5,8 @@
 //! and `undefined` are reserved for constants of a later release, so that an
 //! input accepted today keeps its meaning and its canonical form when the
 //! constants arrive. The parser reads identifiers and rejects the reserved
-//! names with the same functions, so the two rules cannot drift apart.
+//! names with the same functions, and the polynomial rings check the name of
+//! their variable with [`check_name`], so the rules cannot drift apart.
 
 use crate::{Error, FaultKind, Result, Span};
 
@@ -18,7 +19,7 @@ use crate::{Error, FaultKind, Result, Span};
 /// `Fault(Syntax)` with the span of the first character that a name does not
 /// allow, or an empty span at 0 for the empty name; `Fault(Unsupported)` with
 /// the span of the whole name for a reserved name.
-pub(super) fn check_name(name: &str) -> Result<()> {
+pub(crate) fn check_name(name: &str) -> Result<()> {
     match invalid_span(name.as_bytes()) {
         Some(span) => Err(Error::new(
             FaultKind::Syntax,

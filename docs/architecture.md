@@ -9,20 +9,24 @@ kinds. The interface conventions that all public items follow are in
 
 **Status.** kalyx ships the errors and result states, the context and
 limits, the exact numbers with the coefficient-field trait over
-$\mathbb{Q}$, the term core, the parser, a command-line program without
-commands and the repository checks. The errors and result states, the
-context and limits, the exact numbers with the two layers of the
-coefficient-field trait and `Rationals`, the term core with its canonical
-forms and the parser of the [input syntax](semantics.md) are implemented,
-each with its contract ([errors](components/errors/contract.md),
+$\mathbb{Q}$, the term core, the parser, the univariate polynomials over
+$\mathbb{Q}$, a command-line program without commands and the repository
+checks. The errors and result states, the context and limits, the exact
+numbers with the two layers of the coefficient-field trait and `Rationals`,
+the term core with its canonical forms, the parser of the
+[input syntax](semantics.md) and the univariate polynomials with expansion
+and differentiation are implemented, each with its contract
+([errors](components/errors/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
 [terms](components/terms/contract.md),
-[syntax](components/syntax/contract.md)); no other library component below
-is implemented yet. For the other components, the tables are the plan and the
-design rules are the rules that their code follows when it lands; each
-component also gets its own `contract.md` with its requirements at that time.
-Where a rule is already enforced by `cargo xtask check`, the text says so.
+[syntax](components/syntax/contract.md),
+[polynomials](components/polynomials/contract.md)); no other library
+component below is implemented yet. For the other components, the tables are
+the plan and the design rules are the rules that their code follows when it
+lands; each component also gets its own `contract.md` with its requirements
+at that time. Where a rule is already enforced by `cargo xtask check`, the
+text says so.
 
 ## Verification tiers
 
@@ -86,10 +90,10 @@ at once in 0.2.
 | Answer vectors taken from the earlier implementation | A0 | none | not applicable: test infrastructure |
 | Errors and result states (`Error`, `Settled<T>`; implemented, [contract](components/errors/contract.md)) | A1 | 0.2, for the result-state core | the context, in 0.1 |
 | Context and limits (`Context`, `Limits`; implemented, [contract](components/context/contract.md)) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
-| Exact numbers and the coefficient-field trait over $\mathbb{Q}$ (`number`, `coefficient`; implemented, with the polynomial ring still planned, [contract](components/numbers/contract.md)) | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
+| Exact numbers and the coefficient-field trait over $\mathbb{Q}$ (`number`, `coefficient`; implemented, [contract](components/numbers/contract.md)) | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
 | Term core and canonical forms (`term`; implemented, [contract](components/terms/contract.md)) | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
 | Parser (`syntax`; implemented, [contract](components/syntax/contract.md), grammar in [the input syntax](semantics.md)) | A1 | none | the command entry, in 0.1 |
-| Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
+| Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation (`polynomial`; implemented, [contract](components/polynomials/contract.md)) | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
 | Command entry and output serialization | A1 | none | the command-line program, in 0.1; the calculator job of krepi, built from a pinned 0.1 commit |
 | Command-line program | A0 | none | none: it is the top level |
 
@@ -322,8 +326,12 @@ are taken only from this list or from spellings that are errors in 0.1.
 `ZeroTest` and `Rationals` are implemented in
 `src/coefficient.rs`, over the exact numbers of `src/number.rs`; their
 [contract](components/numbers/contract.md) states the checks, the charges and
-the tests. `PolynomialRing` and `Polynomial` are planned for 0.1, with the
-polynomials over $\mathbb{Q}$. `Context` and `Result` are those of
+the tests. `PolynomialRing` and `Polynomial` are implemented in
+`src/polynomial.rs`, with the polynomials over $\mathbb{Q}$; their
+[contract](components/polynomials/contract.md) states the operations, the
+limits, the storage cost, the expansion of terms and the tests, and that the
+operations exist for coefficient rings whose zero test always decides.
+`Context` and `Result` are those of
 [the context](#context-api) and [the errors](#error-kinds), and `Integer` is
 the library's exact integer, `kalyx::number::Integer`.
 
@@ -343,6 +351,7 @@ pub trait CoefficientRing: sealed::Sealed {
     // subtract and multiply have the shape of add
     fn zero_test(&self, a: &Self::Element, context: &mut Context)
         -> Result<ZeroTest<Self::Undecided>>;
+    fn measure(&self, a: &Self::Element) -> Storage;   // no context, no charge
 }
 
 pub trait CoefficientField: CoefficientRing {
@@ -379,22 +388,35 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   enum that is not `#[non_exhaustive]`, since its three cases are complete.
   A field whose zero test cannot always decide names its reason as the
   associated type `Undecided`.
+- **The storage cost is required.** `measure` returns the cost of an
+  element as a `Storage`, its nodes and logical bytes by the rules of
+  [storage bytes](#storage-bytes). It depends only on the parent and the
+  element, takes no context and charges nothing, as `StorageCost` does. An
+  element whose cost cannot be computed in constant time keeps its cost from
+  when it was built, and `measure` reads it. For $\mathbb{Q}$ it is the cost
+  of a rational, $(1, \lvert n \rvert + \lvert d \rvert + 3)$. Shared
+  algorithms take the costs of coefficients only from `measure`, so they
+  need no bound beyond the trait on the elements, also when the elements are
+  themselves polynomials.
 - **Closed until 1.0.** The trait is sealed, so required methods can be added
   in later releases without breaking callers. Until 1.0, users cannot define
-  their own coefficient fields.
-- **Charging.** Each method takes the context last. Element operations check
-  sizes before they work and charge for themselves. Shared algorithms
-  (multiplication, powers by repeated squaring, differentiation, evaluation,
-  and later division with remainder, GCD and modular powers) charge only for
-  their own loop steps. Every amount depends only on the operands.
+  their own coefficient fields. No method of either trait has a default
+  body.
+- **Charging.** Each method but `measure` takes the context last. Element
+  operations check sizes before they work and charge for themselves. Shared
+  algorithms (multiplication, powers by repeated squaring, differentiation,
+  evaluation, and later division with remainder, GCD and modular powers)
+  charge only for their own loop steps. Every amount depends only on the
+  operands.
 - **Division by zero.** In every field, `inverse` and `divide` fail with
   `DivisionByZero` on zero. A field with a structural zero test checks the
   divisor before any charge of the operation, and a field whose zero test is
   charged pays for the test first.
 - **One shared implementation.** Differentiation, evaluation, powers and
-  modular powers exist once, bounded by the trait. Shared code obtains
-  integers only as $n \cdot 1$ and never divides by an integer, so it stays
-  correct in characteristic $p$.
+  modular powers exist once, bounded by the trait. Shared code reaches the
+  coefficients, their zero test and their storage cost only through the
+  methods of the trait, obtains integers only as $n \cdot 1$ and never
+  divides by an integer, so it stays correct in characteristic $p$.
 - **The parent is the receiver.** Polynomial operations take
   `PolynomialRing<K>`, which holds the coefficient structure and the
   variable, as `&self`. A `Polynomial<K>` stores neither, and its type is
@@ -408,7 +430,8 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   `PolynomialRing<Rationals>`. So a parent parametrized at runtime, such as
   $\mathbb F_p$, needs no change of signature, and polynomial operations do
   not compare parents.
-- **Later structures** take the same shape: a prime field
+- **Later structures** take the same shape, and each implements `measure`
+  with a formula of its own: a prime field
   `PrimeField { modulus }` whose constructor checks primality; number fields,
   including $\mathbb{Q}(a)$, whose `same_parent` compares the defining data
   and is charged; `FractionField<K>` with
@@ -487,9 +510,14 @@ memory.
 ### Storage bytes
 
 The cost of a retained value is a `Storage { nodes, bytes }`. Each value kind
-implements `StorageCost` with one formula that depends only on the value,
-never on the platform or the memory layout; the context receives computed
-costs and never computes a formula or calls back. Write $\lvert x \rvert$ for
+has one formula that depends only on the value and, where the formula needs
+it, its parent structure, never on the platform or the memory layout. A
+value that carries everything its formula needs implements `StorageCost`; a
+value whose formula needs its parent structure takes its cost from a method
+of the parent: a coefficient from `measure` of its coefficient ring, and a
+polynomial from `storage` of its polynomial ring, which holds the variable
+name. The context receives computed costs and never computes a formula or
+calls back. Write $\lvert x \rvert$ for
 the bit length of an integer $x$ and $\ell$ for the length in bytes of a
 symbol name.
 
@@ -513,7 +541,9 @@ symbol name.
   $(5, \mathrm{rb}(c) + \ell + \lvert k \rvert + 12)$, each addition between
   terms $(1, 4)$, and, when no term has positive degree, the variable name
   once more $(0, \ell)$. The variable is the one of its `PolynomialRing`.
-  The number of terms of a polynomial is bounded through this cost.
+  The number of terms of a polynomial is bounded through this cost. Over a
+  coefficient ring other than $\mathbb{Q}$, a coefficient $c$ costs the
+  `measure` $(n_c, b_c)$ of the ring in place of $(1, \mathrm{rb}(c))$.
 - The formulas for integer results and number-field elements are fixed with
   them in 0.2; strings, lists, records and session bindings in 0.3, where the
   value encoding uses the same formulas; matrices in 0.4.

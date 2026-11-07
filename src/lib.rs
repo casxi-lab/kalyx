@@ -12,7 +12,10 @@
 //! module the term core: one immutable representation of numbers, symbols,
 //! sums, products and integer powers, kept in canonical form. The [`syntax`]
 //! module holds the one grammar of the library's input, and [`parse`] reads
-//! an expression in it into a term.
+//! an expression in it into a term. The [`polynomial`] module holds the
+//! univariate polynomials over a coefficient ring, with the expansion of
+//! terms into polynomials over $\mathbb{Q}$, the conversion back to terms and
+//! differentiation.
 
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
@@ -24,6 +27,7 @@ pub mod coefficient;
 pub mod context;
 mod error;
 pub mod number;
+pub mod polynomial;
 pub mod syntax;
 pub mod term;
 
