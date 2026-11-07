@@ -7,8 +7,10 @@
 //! [`Limits`], which charges work, observes the deadline and cancellation,
 //! bounds output and accounts for frames and temporaries. The rest of the
 //! context is in the [`context`] module. The [`number`] module holds the
-//! exact integers and rationals, and the [`coefficient`] module the
-//! coefficient-field trait with the field of rationals.
+//! exact integers and rationals, the [`coefficient`] module the
+//! coefficient-field trait with the field of rationals, and the [`term`]
+//! module the term core: one immutable representation of numbers, symbols,
+//! sums, products and integer powers, kept in canonical form.
 
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
@@ -20,6 +22,7 @@ pub mod coefficient;
 pub mod context;
 mod error;
 pub mod number;
+pub mod term;
 
 pub use context::{Context, Limits};
 pub use error::{

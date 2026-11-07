@@ -23,9 +23,11 @@ the [errors and result states](../errors/contract.md).
 **Status.** Implemented in `src/context.rs`, at tier A1 (tested with a written
 contract). Its first caller in the library is the exact numbers
 (`kalyx::number` and `kalyx::coefficient`), which check `max_integer_bits`
-and `max_exponent` and charge work; the term core, the parser and the command
-entry are planned callers. The command-line program does not create a context
-yet.
+and `max_exponent` and charge work. The term core (`kalyx::term`) checks
+`max_depth`, `max_integer_bits` and `max_exponent`, checks the cost of every
+new term with `check_storage` at scope `Value`, and charges work and output;
+the parser and the command entry are planned callers. The command-line program
+does not create a context yet.
 
 ## Interface
 
@@ -57,8 +59,15 @@ The crate root re-exports `Context` and `Limits`. The module
 Crate-internal: `charge_at`, `check_at` and `check_storage_at`, which put the
 caller's span on the error; `check_bound_at`, which is `check_at` for an
 amount that may not fit in a `u64` and rejects such an amount under every
-limit with `LimitAmount::Bound(u64::MAX)`; and the `Observer` adapter that
-holds the clock and the probe.
+limit with `LimitAmount::Bound(u64::MAX)`; `check_width_at`, which is
+`check_bound_at` for a quantity that a machine width bounds as well as a
+field, such as an exponent stored as an `i64`: it checks the amount against
+the smaller of the field and the width, and an excess names the field with
+that effective value as `allowed`, as the
+[errors](../errors/contract.md#bounds-set-by-a-machine-width) state, while
+`Nodes` and `StorageBytes` keep the exact retained totals of
+`check_bound_at`; and the `Observer` adapter that holds the clock and the
+probe.
 
 Every charge point and check returns `Result<_>` with the library's `Error`.
 A request failure is built only here, through the crate-internal constructors
@@ -515,9 +524,9 @@ that Charon and Aeneas translate into Lean 4. It is, all in
   `set_frame_cost`, `write_frame_cost`, `leave_frame`, `truncate_frames`,
   `without_frames`, `frame_cost`, `frame_count`, `retained`, `reserve` and
   `release`;
-- the checks: `check`, `check_at`, `check_bound_at`, `check_parameter`,
-  `check_storage`, `check_storage_at`, `admit`, `fit`, `retained_exceeded`
-  and `field_exceeded`.
+- the checks: `check`, `check_at`, `check_bound_at`, `check_width_at`,
+  `check_parameter`, `check_storage`, `check_storage_at`, `admit`, `fit`,
+  `retained_exceeded` and `field_exceeded`.
 
 The core uses `match` instead of combinators with closures and instead of
 `if let`, no iterators and no closures, one index loop in a helper of its

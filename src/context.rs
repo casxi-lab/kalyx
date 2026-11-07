@@ -493,6 +493,46 @@ impl Context {
         }
     }
 
+    /// [`check_bound_at`](Context::check_bound_at) for a quantity that a
+    /// machine width bounds as well as the field, such as an exponent that is
+    /// stored as an `i64`: the amount is checked against the smaller of the
+    /// field and `width`, the effective value of the field, and an excess
+    /// names the field with that effective value as `allowed`. `None` is an
+    /// amount beyond `u64::MAX`. For `Nodes` and `StorageBytes`, whose
+    /// retained totals are exact `u64` sums, this is `check_bound_at`, and
+    /// `width` does not apply. Charges, reads and changes nothing.
+    pub(crate) fn check_width_at(
+        &self,
+        field: LimitField,
+        width: u64,
+        value: Option<u64>,
+        span: Option<Span>,
+    ) -> Result<()> {
+        match field {
+            LimitField::Nodes | LimitField::StorageBytes => self.check_bound_at(field, value, span),
+            LimitField::Work
+            | LimitField::InputBytes
+            | LimitField::OutputBytes
+            | LimitField::Depth
+            | LimitField::IntegerBits
+            | LimitField::Exponent
+            | LimitField::Frames => {
+                let limit = self.limits.get(field);
+                let allowed = if width < limit { width } else { limit };
+                let amount = match value {
+                    Some(value) => {
+                        if value <= allowed {
+                            return Ok(());
+                        }
+                        LimitAmount::Required(value)
+                    }
+                    None => LimitAmount::Bound(u64::MAX),
+                };
+                Err(field_exceeded(field, allowed, amount, span))
+            }
+        }
+    }
+
     /// Checks `value` against the explicit request parameter `name`, whose
     /// value is `allowed`; charges, reads and changes nothing.
     ///
@@ -839,9 +879,10 @@ fn retained_exceeded(
 }
 
 /// The error of an exceeded field without a scope. Its callers pass `Work`,
-/// `OutputBytes` and `Frames`, and in [`Context::check`] and
-/// [`Context::check_bound_at`] the seven fields other than `Nodes` and
-/// `StorageBytes`, which go through [`retained_exceeded`] instead.
+/// `OutputBytes` and `Frames`, and in [`Context::check`],
+/// [`Context::check_bound_at`] and [`Context::check_width_at`] the seven
+/// fields other than `Nodes` and `StorageBytes`, which go through
+/// [`retained_exceeded`] instead.
 fn field_exceeded(
     field: LimitField,
     allowed: u64,

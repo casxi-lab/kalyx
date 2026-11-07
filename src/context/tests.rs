@@ -537,6 +537,59 @@ fn an_unbounded_amount_is_reported_as_check_at_reports_the_largest() {
     }
 }
 
+// A machine width below the field is the effective value of the field: the
+// amount is checked against the smaller of the two, and an excess names the
+// field with that value as `allowed`. The retained totals ignore the width.
+#[test]
+fn a_machine_width_is_reported_as_the_effective_value_of_its_field() {
+    let wide = Context::new(Limits::new().with_max_exponent(u64::MAX), CancelFlag::new());
+    let width = i64::MAX as u64;
+    assert!(
+        wide.check_width_at(LimitField::Exponent, width, Some(width), None)
+            .is_ok()
+    );
+    let over = wide
+        .check_width_at(LimitField::Exponent, width, Some(width + 1), None)
+        .unwrap_err();
+    let over = over.exceeded().unwrap();
+    assert_eq!(over.id(), &LimitId::Field(LimitField::Exponent));
+    assert_eq!(over.allowed(), width);
+    assert_eq!(over.amount(), LimitAmount::Required(width + 1));
+    assert_eq!(over.scope(), None);
+    let beyond = wide
+        .check_width_at(LimitField::Exponent, width, None, None)
+        .unwrap_err();
+    let beyond = beyond.exceeded().unwrap();
+    assert_eq!(beyond.allowed(), width);
+    assert_eq!(beyond.amount(), LimitAmount::Bound(u64::MAX));
+
+    // Below the width, the field decides, as `check_at` does.
+    let narrow = Context::new(Limits::new().with_max_exponent(10), CancelFlag::new());
+    assert!(
+        narrow
+            .check_width_at(LimitField::Exponent, width, Some(10), None)
+            .is_ok()
+    );
+    let span = Span::new(1, 2);
+    let error = narrow
+        .check_width_at(LimitField::Exponent, width, Some(11), span)
+        .unwrap_err();
+    let expected = narrow.check_at(LimitField::Exponent, 11, span).unwrap_err();
+    assert_eq!(error.exceeded(), expected.exceeded());
+    assert_eq!(error.span(), span);
+
+    // The retained totals keep their scope and ignore the width.
+    assert!(
+        narrow
+            .check_width_at(LimitField::Nodes, 1, Some(2), None)
+            .is_ok()
+    );
+    let nodes = narrow
+        .check_width_at(LimitField::Nodes, 1, None, None)
+        .unwrap_err();
+    assert_eq!(nodes.exceeded().unwrap().scope(), Some(LimitScope::Value));
+}
+
 // The invariants of the frame table hold through entering, recording,
 // reserving and leaving: frames_total is the sum of the costs in the table,
 // and the generation of the next frame never exceeds the work charged.

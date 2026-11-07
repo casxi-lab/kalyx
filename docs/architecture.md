@@ -9,14 +9,15 @@ kinds. The interface conventions that all public items follow are in
 
 **Status.** kalyx ships the errors and result states, the context and
 limits, the exact numbers with the coefficient-field trait over
-$\mathbb{Q}$, a command-line program without commands and the repository
-checks. The errors and result states, the context and limits, and the exact
-numbers with the two layers of the coefficient-field trait and `Rationals`
-are implemented, each with its contract
-([errors](components/errors/contract.md),
+$\mathbb{Q}$, the term core, a command-line program without commands and the
+repository checks. The errors and result states, the context and limits, the
+exact numbers with the two layers of the coefficient-field trait and
+`Rationals`, and the term core with its canonical forms are implemented, each
+with its contract ([errors](components/errors/contract.md),
 [context](components/context/contract.md),
-[numbers](components/numbers/contract.md)); no other library component below
-is implemented yet. For the other components, the tables are the plan and the
+[numbers](components/numbers/contract.md),
+[terms](components/terms/contract.md)); no other library component below is
+implemented yet. For the other components, the tables are the plan and the
 design rules are the rules that their code follows when it lands; each
 component also gets its own `contract.md` with its requirements at that time.
 Where a rule is already enforced by `cargo xtask check`, the text says so.
@@ -84,7 +85,7 @@ at once in 0.2.
 | Errors and result states (`Error`, `Settled<T>`; implemented, [contract](components/errors/contract.md)) | A1 | 0.2, for the result-state core | the context, in 0.1 |
 | Context and limits (`Context`, `Limits`; implemented, [contract](components/context/contract.md)) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
 | Exact numbers and the coefficient-field trait over $\mathbb{Q}$ (`number`, `coefficient`; implemented, with the polynomial ring still planned, [contract](components/numbers/contract.md)) | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
-| Term core and canonical forms | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
+| Term core and canonical forms (`term`; implemented, [contract](components/terms/contract.md)) | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
 | Parser | A1 | none | the command entry, in 0.1 |
 | Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
 | Command entry and output serialization | A1 | none | the command-line program, in 0.1; the calculator job of krepi, built from a pinned 0.1 commit |
@@ -115,8 +116,9 @@ when each release is planned, except where the plan already fixes them.
 
 ## Term representation
 
-**Status:** planned for 0.1; not implemented. The rules below are the
-invariants that the term core and its contract follow.
+**Status:** implemented in `src/term.rs`; its
+[contract](components/terms/contract.md) writes the rules below out as
+invariants, with the display grammar, the charges and the tests.
 
 ### One shared immutable tree
 
@@ -138,13 +140,14 @@ changes.
 
 ### Traversal and drop
 
-Comparison, display, the collection of negative-exponent bases and
-rebuilding are each a loop over a stack on the heap; none recurses natively.
-Their frames hold owned terms (a clone only increments a count) and copied
-scalars, never borrowed references. `Drop` for a node moves its children onto
-a stack of its own and releases them one at a time with `Rc::try_unwrap`, so
-dropping a deep term uses a constant amount of native stack. The native stack
-use of term operations therefore does not grow with the depth of the term.
+Comparison, display and the collection of negative-exponent bases are each a
+loop over a stack on the heap, and the constructors keep their work lists on
+the heap; none recurses natively. Their frames hold owned terms (a clone only
+increments a count) and copied scalars, never borrowed references. `Drop` for
+a node moves its children onto a stack of its own and releases them one at a
+time with `Rc::try_unwrap`, so dropping a deep term uses a constant amount of
+native stack. The native stack use of term operations therefore does not grow
+with the depth of the term.
 
 ### Kinds and order
 
@@ -171,33 +174,53 @@ existing kinds. Terms are totally ordered by rank first. Within a rank:
 - sums by their monomials one by one (core, then coefficient), the number of
   monomials, then the constant.
 
-Comparison is structural, and each step is charged.
+Comparison is structural, and each step is charged. It takes the children
+of two nodes one pair at a time, so every step does a bounded amount of work,
+and the pairs after the first one that differs are never visited.
 
 ### Canonical forms
 
 The constructors keep every term in canonical form:
 
 - **Products.** Nested products are flattened, and numeric coefficients are
-  multiplied exactly. Factors with the same base and the same sign of
-  exponent are merged by adding exponents; factors with exponents of opposite
-  sign are not merged. Factors are sorted, and a product contains no number
-  and no product as a factor. A product with coefficient 1 and a single
-  factor is that factor.
+  multiplied exactly. A sum among the factors is taken by its primitive
+  part, as stated below: its content joins the coefficient, so
+  $(2x + 2y) z = 2 (x + y) z$. Factors with the same base and the same sign
+  of exponent are merged by adding exponents, so
+  $(2x + 2y)(x + y) = 2 (x + y)^2$; factors with exponents of opposite sign
+  are not merged. Factors are sorted, and a product contains no number and
+  no product as a factor. A product with coefficient 1 and a single factor
+  is that factor, and a coefficient other than 0 and 1 times a single sum
+  is that sum scaled by the coefficient.
 - **Powers.** The exponent is an integer. A numeric base is evaluated
   strictly, and the exponent limit is checked before the value is computed.
   An exponent of 1 returns the base. An integer power distributes over a
-  product, $(c \prod f)^k = c^k \prod f^k$. A power of a power $(b^j)^k$
-  becomes $b^{jk}$ only when $jk \lt 0$, when $j, k \ge 0$, or when $j = 0$.
-  A power of a sum is not expanded.
+  product, $(c \prod f)^k = c^k \prod f^k$. A power of a sum $s = c \cdot p$,
+  with its content $c$ and its primitive part $p$, is $c^k p^k$ with $c^k$
+  evaluated strictly: $(2x + 2y)^2 = 4 (x + y)^2$ and
+  $(1 - x)^{-1} = -(x - 1)^{-1}$. A power of a power $(b^j)^k$ becomes
+  $b^{jk}$ only when $jk \lt 0$, when $j, k \ge 0$, or when $j = 0$. A power
+  of a sum is not expanded.
 - **Sums.** Nested sums are flattened, and monomials with the same core add
-  their coefficients. A sum core whose coefficient becomes 1 is flattened
-  again, repeatedly, so no monomial core of a sum is a sum with coefficient 1.
-  A numeric scalar does not distribute over a sum: $2(x + y)$ is a single
-  monomial, and distributing it is the job of `expand`.
+  their coefficients. A numeric coefficient $c$ other than 0 and 1 times a
+  sum $s$ is the sum whose constant and coefficients are those of $s$
+  multiplied by $c$, so $2(x + y) = 2x + 2y$ and $-(x + y) = -x - y$, and no
+  monomial core of a sum is a sum; the coefficient 0 follows the witnesses
+  below.
+- **Primitive parts.** The content $c$ of a sum $s$ is the coefficient of its
+  first monomial, in the term order, whose coefficient is not 0, or its
+  constant when its only monomial is a witness; it is never 0. The primitive
+  part of $s$ is $p = s / c$, whose content is 1, so
+  $(3x + 2y) z = 3 (x + \frac{2}{3} y) z$. It takes only the division of
+  rationals, never a greatest common divisor. A sum that is a factor of a
+  product or the base of a power is always taken by its primitive part.
 
 The canonical form does not depend on the order in which a term was built:
 under associativity and commutativity the result is the same, and rebuilding
-a canonical term gives a structurally equal term.
+a canonical term gives a structurally equal term. So scaled copies of one sum
+merge in every grouping: with $s = x + y$, $a = 2s$ and $b = -s$, the sums
+$a + b + b$ and $(a + b) + b$ are both 0, $(a + b) + (a + b)$ and
+$a + b + a + b$ are both $2x + 2y$, and $s - s = 0$.
 
 ### Strict numeric evaluation
 
@@ -216,15 +239,20 @@ subterm fails at once and cannot be absorbed by the term around it:
 
 Write $N(t)$ for the set of bases that occur with a negative exponent in a
 term $t$, and $\max N(t)$ for those elements of $N(t)$ that do not themselves
-occur with a negative exponent inside another element. Canonicalization
-never shrinks this set:
+occur with a negative exponent inside another element. A base that is a sum
+is taken by its primitive part, also inside the witnesses below: a power of
+a sum $s = c \cdot p$ raises $p$, and since $c \ne 0$, $s$ and $p$ are 0 at
+the same points. Canonicalization never shrinks this set:
 
 ```math
 N(\mathrm{input}) \subseteq N(\mathrm{output})
 ```
 
-A canonical form therefore never hides a point where its input is undefined.
-Where a simplification would lose a base, the term keeps a witness instead:
+The negative power that `power` and `divide` introduce is kept as well: the
+result is undefined wherever the base or the divisor is 0, unless the
+construction fails with `DivisionByZero`. A canonical form therefore never
+hides a point where its input is undefined. Where a simplification would lose
+a base, the term keeps a witness instead:
 
 - a product whose coefficient is 0 is $0 \cdot \prod_{b \in \max N} b^{-1}$,
   and the number 0 when the set is empty;
@@ -237,9 +265,9 @@ Where a simplification would lose a base, the term keeps a witness instead:
   so $((x^{-1})^0)^{-1} = (x^{-1})^0$.
 
 So $x^2 x^{-1}$, $x x^{-1}$, $(x^{-1})^{-1}$, $0 \cdot x^{-1}$ and
-$(x^{-1})^0$ each stay as written, while $x^{-1} x^{-2} = x^{-3}$. Removing
-negative exponents under conditions is an explicit operation, never part of a
-constructor.
+$(x^{-1})^0$ each stay as written, while $x^{-1} x^{-2} = x^{-3}$ and
+$0 \cdot (2x + 2y)^{-1} = 0 \cdot (x + y)^{-1}$. Removing negative exponents
+under conditions is an explicit operation, never part of a constructor.
 
 ### Call nodes
 
@@ -282,9 +310,9 @@ are taken only from this list or from spellings that are errors in 0.1.
 - The depth of a new node is one more than the largest depth of its
   children. It is compared with `max_depth` before the node is allocated, and
   exceeding it fails with `LimitId::Field(Depth)`.
-- Every step is charged, including rescans and the collection loops, which
-  are charged per monomial they pass. There is no hidden cap, and a broken
-  internal invariant returns an `Internal` error.
+- Every step is charged, including the scans of monomials and the
+  collection loops, which are charged per monomial they pass. There is no
+  hidden cap, and a broken internal invariant returns an `Internal` error.
 
 ## Coefficient-field trait
 

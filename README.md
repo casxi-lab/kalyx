@@ -17,9 +17,10 @@ comes from the Greek κάλυξ.
 kalyx is being built from its foundations, and it has no usable capabilities
 yet. The repository holds a Rust package named `kalyx`, with a library that
 so far holds only the types of its errors and result states, the request
-context with its limits, and exact integers and rationals with the
-coefficient-field trait over $\mathbb{Q}$, and a command-line program that
-has no commands;
+context with its limits, exact integers and rationals with the
+coefficient-field trait over $\mathbb{Q}$, and the term core, which keeps
+numbers, symbols, sums, products and integer powers in canonical form, and a
+command-line program that has no commands;
 the repository checks, which continuous integration runs on every pull
 request to `main` and on every push to `main`; the
 [porting record](PORTING.md) of code taken over from an earlier
@@ -40,9 +41,9 @@ releases complete the shared foundations (coefficient fields, the function
 registry, numerical evaluators with rigorous enclosures, collection values,
 stable value encoding and a machine floating-point path) and then build the
 subject domains below on them. Apart from the types of the errors and
-result states, the request context and the exact rational number type with
-the coefficient-field trait over $\mathbb{Q}$, none of this is available
-yet.
+result states, the request context, the exact rational number type with the
+coefficient-field trait over $\mathbb{Q}$ and the expression core with
+canonical forms, none of this is available yet.
 
 ## Build
 
@@ -56,9 +57,10 @@ cargo test --locked
 ```
 
 The library's public items so far are the types of its errors and result
-states, the request context, and the exact numbers with the coefficient-field
+states, the request context, the exact numbers with the coefficient-field
 trait over $\mathbb{Q}$, whose operations compute exact rational arithmetic
-under a context; the program exits without output
+under a context, and the terms of the term core, which build canonical
+expressions under a context; the program exits without output
 (`cargo run --quiet` prints nothing).
 
 ## Rules the library is built to
@@ -169,7 +171,8 @@ domains, and natural-language input.
   verification tiers and first callers, and the design rules of the
   foundations: term representation, coefficient fields, the context and
   error kinds. Of the library components, only the errors and result
-  states and the context and limits are implemented yet.
+  states, the context and limits, the exact numbers with the
+  coefficient-field trait and the term core are implemented yet.
 - [Public API conventions](docs/conventions/public-api.md): the rules that
   every public interface of the library is to follow.
 - [Answer vectors](vectors/README.md): the format of the test vectors and
