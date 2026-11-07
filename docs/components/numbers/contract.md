@@ -14,8 +14,9 @@ charges belong to the [context](../context/contract.md), and the errors to the
 
 **Status.** Implemented in `src/number.rs` and `src/coefficient.rs`, at tier
 A0 (tested); the trait is planned for tier A2 in release 0.2. The first
-callers in the library are planned: the term core and the polynomials over
-$\mathbb{Q}$.
+caller in the library is the [term core](../terms/contract.md), whose numbers,
+coefficients and constants are rationals; the polynomials over $\mathbb{Q}$
+are a planned caller.
 
 ## Scope
 
@@ -36,9 +37,9 @@ $\mathbb{Q}$.
     fields and maps between structures: the coefficient fields of release 0.2.
   - `PolynomialRing` and `Polynomial`: the univariate polynomials over
     $\mathbb{Q}$, later in release 0.1.
-  - The evaluation of expressions, symbols, spans of parsed expressions and
-    the decimal literal syntax beyond one literal: the term core and the
-    parser, later in release 0.1.
+  - Expressions and symbols: the [term core](../terms/contract.md). Spans
+    of parsed expressions and the decimal literal syntax beyond one literal:
+    the parser, later in release 0.1.
   - Number theory: release 0.4.
 
 ## Interface
@@ -231,10 +232,12 @@ Zero costs $(1, 4)$.
   states, so, as
   [convention 1](../../conventions/public-api.md#1-request-context-last)
   asks of every public method that may allocate, it takes the context. The
-  term order, planned with the term core, compares numbers by value through
-  it, so that each step is charged. `Rational` implements neither `PartialOrd` nor `Ord`, and is not a key
-  of ordered collections. `Integer` keeps its derived order: comparing two
-  integers reads their digits and does not allocate.
+  total order of the
+  [term core](../terms/contract.md#kinds-and-the-total-order) compares
+  numbers by value through it, so that each step is charged. `Rational`
+  implements neither `PartialOrd` nor `Ord`, and is not a key of ordered
+  collections. `Integer` keeps its derived order: comparing two integers
+  reads their digits and does not allocate.
 
 ### The coefficient-field trait
 

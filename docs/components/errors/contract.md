@@ -278,8 +278,8 @@ failures with mathematical outcomes. Each kind has this place in kalyx:
 | --- | --- | --- |
 | `ResourceLimit`, `Cancelled`, `DeadlineExceeded` | `ErrorKind`, same names (request failures); `ResourceLimit` carries a `LimitExceeded` | the request context, 0.1 |
 | `Syntax`, `DivisionByZero`, `UnknownSymbol`, `NotPolynomial`, `NonIntegerExponent` | `FaultKind`, same names (foundation faults) | the parser, exact numbers, the term core and the polynomials over $\mathbb{Q}$, 0.1 |
-| `UnsupportedSymbolic`, `UnsupportedValue` | merged into `FaultKind::Unsupported`; collection values may add a finer kind of their own | the parser and the command entry, 0.1 |
-| `NonConstantExponent` | merged into `NonIntegerExponent`, which means that the exponent is not an integer constant | the term core, 0.1 |
+| `UnsupportedSymbolic`, `UnsupportedValue` | merged into `FaultKind::Unsupported`; collection values may add a finer kind of their own | the term core (reserved names), the parser and the command entry, 0.1 |
+| `NonConstantExponent` | merged into `NonIntegerExponent`, which means that the exponent is not an integer constant | the parser, 0.1, since the powers of the term core take an integer exponent |
 | `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `OutsideDomain`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, coefficient fields, real root isolation and algebraic numbers, and real sets and inequalities, 0.2 |
 | `StaleEnvironment`, `DimensionMismatch` | feature kinds, appended under the same names | the computation environment with versioned requests, and the arrays of collection values, 0.3 |
 | `InvalidMatrix`, `SingularMatrix` | feature kinds, appended under the same names | exact rational matrices and linear systems, 0.4 |
