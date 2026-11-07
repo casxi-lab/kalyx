@@ -21,8 +21,9 @@ release 0.2. The term core is written anew for kalyx after the design rules of
 the architecture: no code and no test is taken over from the earlier
 implementation, so [PORTING](../../../PORTING.md) has no row for it. Its
 first caller in the library is the [parser](../syntax/contract.md), which
-builds the term of every input through its constructors; the command entry is
-planned for later in release 0.1.
+builds the term of every input through its constructors; the
+[command entry](../command/contract.md) reads the terms of its results and
+writes their display text.
 
 ## Scope
 
@@ -41,8 +42,8 @@ planned for later in release 0.1.
     [the input syntax](../../semantics.md).
   - Expansion, differentiation and the conversion between terms and
     polynomials: the [polynomials](../polynomials/contract.md).
-  - The serialization of outcomes as output lines: the command entry, later
-    in release 0.1.
+  - The serialization of outcomes as output lines: the
+    [command entry](../command/contract.md).
   - Function calls (their constructor, their simplification and the function
     registry), the constants $\pi$, $i$ and `undefined` of rank 1,
     assumptions, and the explicit operation that removes negative exponents

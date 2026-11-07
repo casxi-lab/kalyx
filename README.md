@@ -20,18 +20,18 @@ so far holds only the types of its errors and result states, the request
 context with its limits, exact integers and rationals with the
 coefficient-field trait over $\mathbb{Q}$, the term core, which keeps
 numbers, symbols, sums, products and integer powers in canonical form, the
-parser of its [input syntax](docs/semantics.md), and the univariate
+parser of its [input syntax](docs/semantics.md), the univariate
 polynomials over $\mathbb{Q}$ with the expansion of terms and
-differentiation, and a command-line program that has no commands;
-the repository checks, which continuous integration runs on every pull
-request to `main` and on every push to `main`; the
+differentiation, and the command entry, which runs a request of `eval`,
+`expand` or `diff` under the limits, deadline and cancellation of its
+context and writes its outcome as a line, and a command-line program that
+has no commands; the repository checks, which continuous integration runs on
+every pull request to `main` and on every push to `main`; the
 [porting record](PORTING.md) of code taken over from an earlier
 implementation of the casξ computer algebra system; and the
 58 [answer vectors](vectors/README.md) for the planned first release, 0.1,
 converted from that earlier implementation's fixtures, whose format is
-checked and whose cases that concern parsing alone, and whose expansions and
-derivatives, are replayed against the parser and the polynomials so far. The
-earlier
+checked and which are all replayed through the command entry. The earlier
 implementation is not public; it serves as a reference and as a source of
 test vectors.
 
@@ -47,9 +47,9 @@ stable value encoding and a machine floating-point path) and then build the
 subject domains below on them. Apart from the types of the errors and
 result states, the request context, the exact rational number type with the
 coefficient-field trait over $\mathbb{Q}$, the expression core with
-canonical forms, the parser and the univariate polynomials over
-$\mathbb{Q}$ with expansion and differentiation, none of this is available
-yet.
+canonical forms, the parser, the univariate polynomials over
+$\mathbb{Q}$ with expansion and differentiation and the command entry, none
+of this is available yet.
 
 ## Build
 
@@ -69,8 +69,11 @@ under a context, the terms of the term core, which build canonical
 expressions under a context, `parse`, which reads an expression into a term
 under a context, and the polynomial rings and polynomials, which expand
 terms into polynomials over $\mathbb{Q}$, compute with them and
-differentiate them under a context; the program exits without output
-(`cargo run --quiet` prints nothing).
+differentiate them under a context, and the command entry: `execute` runs a
+request of `eval`, `expand` or `diff` under a context and returns its
+outcome, and `kalyx::command::serialize` writes the outcome as one line, the
+only output format of the library ([output lines](docs/semantics.md#output-lines)).
+The program exits without output (`cargo run --quiet` prints nothing).
 
 ## Rules the library is built to
 

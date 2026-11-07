@@ -17,7 +17,10 @@
 //!   `.rs` entry that is a symbolic link, a submodule or not UTF-8 is a
 //!   finding, since it cannot be scanned;
 //! - `Cargo.lock` holds only the package itself and the packages that
-//!   [`CRATES`] names, and never a package of [`DENIED_CRATES`];
+//!   [`CRATES`] names, and never a package of [`DENIED_CRATES`]; so does the
+//!   lock file of each check crate of [`CHECK_CRATES`], which may also hold
+//!   the check crate itself, and a manifest or lock file under `checks/`
+//!   outside those crates is a finding;
 //! - the `license` field of the package in `Cargo.toml` is exactly
 //!   [`LICENSE`], and its `[profile.release]` table sets
 //!   `overflow-checks = true`.
@@ -48,10 +51,22 @@ pub const CRATES: &str = "guard/crates.txt";
 /// The license that the package must state.
 pub const LICENSE: &str = "MIT";
 
-/// The top-level directories whose Rust files are not code of the package
-/// and are not read: the repository checks, and the integration tests,
-/// benchmarks and examples, which are test code.
-pub const NOT_PACKAGE: [&str; 4] = ["xtask/", "tests/", "benches/", "examples/"];
+/// The directories whose Rust files are not code of the package and are not
+/// read: the repository checks, in `xtask/` and the check crate of
+/// [`CHECK_CRATES`], and the integration tests, benchmarks and examples,
+/// which are test code. Any other file under `checks/` is read.
+pub const NOT_PACKAGE: [&str; 5] = [
+    "xtask/",
+    "checks/allocation/",
+    "tests/",
+    "benches/",
+    "examples/",
+];
+
+/// The check crates: workspaces of their own outside the package, each
+/// depending on the package by path. The lock file of each may hold only the
+/// package, the check crate itself and the packages that [`CRATES`] names.
+pub const CHECK_CRATES: [&str; 1] = ["checks/allocation"];
 
 /// `std` paths that no entry of [`STD_PATHS`] may name, contain or lie
 /// below.
@@ -130,15 +145,60 @@ pub fn check(tree: &Tree) -> Report {
     let manifest = tree.text("Cargo.toml").unwrap_or_default();
     check_license(manifest, &mut report.problems);
     check_release_profile(manifest, &mut report.problems);
+    let package = package_field(manifest, "name");
     match tree.text("Cargo.lock") {
         Some(lock) => {
-            let own = package_field(manifest, "name");
-            check_lock(lock, own.as_deref(), &crates, &mut report.problems);
+            let own: Vec<&str> = package.iter().map(String::as_str).collect();
+            check_lock("Cargo.lock", lock, &own, &crates, &mut report.problems);
         }
         None => report.problems.push("Cargo.lock is missing".to_string()),
     }
+    for dir in CHECK_CRATES {
+        check_crate_lock(tree, dir, package.as_deref(), &crates, &mut report.problems);
+    }
+    check_unlisted_crates(tree, &mut report.problems);
     check_sources(tree, &std_paths, &mut report);
     report
+}
+
+/// Reports a manifest or a lock file under `checks/` that is not one of a
+/// check crate of [`CHECK_CRATES`], whose sources the source scan would
+/// skip and whose lock file nothing would check.
+fn check_unlisted_crates(tree: &Tree, problems: &mut Vec<String>) {
+    for (path, _) in tree.entries() {
+        let Some((dir, file)) = path.rsplit_once('/') else {
+            continue;
+        };
+        if path.starts_with("checks/")
+            && (file == "Cargo.toml" || file == "Cargo.lock")
+            && !CHECK_CRATES.contains(&dir)
+        {
+            problems.push(format!(
+                "{path}: a crate under checks/ that is not a listed check crate"
+            ));
+        }
+    }
+}
+
+/// Checks the lock file of the check crate in `dir`, whose own packages are
+/// the check crate, by the name in its manifest, and `package`, the package
+/// at the root, which it depends on by path.
+fn check_crate_lock(
+    tree: &Tree,
+    dir: &str,
+    package: Option<&str>,
+    crates: &[String],
+    problems: &mut Vec<String>,
+) {
+    let path = format!("{dir}/Cargo.lock");
+    let Some(lock) = tree.text(&path) else {
+        problems.push(format!("{path} is missing"));
+        return;
+    };
+    let manifest = tree.text(&format!("{dir}/Cargo.toml")).unwrap_or_default();
+    let name = package_field(manifest, "name");
+    let own: Vec<&str> = name.as_deref().into_iter().chain(package).collect();
+    check_lock(&path, lock, &own, crates, problems);
 }
 
 /// Whether the allow list `entries` permits the `std` path `path`.
@@ -328,25 +388,24 @@ fn locked_packages(lock: &str) -> Vec<Locked> {
     packages
 }
 
-/// Checks the packages of `lock` against the allow list `crates`. The
-/// package `own`, without a source, is the package itself.
-fn check_lock(lock: &str, own: Option<&str>, crates: &[String], problems: &mut Vec<String>) {
+/// Checks the packages of the lock file `lock` at `path` against the allow
+/// list `crates`. The packages named in `own`, without a source, are the
+/// packages of the repository: the package itself and, in the lock file of a
+/// check crate, the check crate.
+fn check_lock(path: &str, lock: &str, own: &[&str], crates: &[String], problems: &mut Vec<String>) {
     for package in locked_packages(lock) {
         let Some(name) = package.name else {
-            problems.push(format!(
-                "Cargo.lock:{}: a package without a name",
-                package.line
-            ));
+            problems.push(format!("{path}:{}: a package without a name", package.line));
             continue;
         };
         if denied_crate(&name) {
             problems.push(format!(
-                "Cargo.lock:{}: package `{name}` is never allowed, even when {CRATES} names it",
+                "{path}:{}: package `{name}` is never allowed, even when {CRATES} names it",
                 package.line
             ));
-        } else if !(own == Some(name.as_str()) && !package.source) && !crates.contains(&name) {
+        } else if !(own.contains(&name.as_str()) && !package.source) && !crates.contains(&name) {
             problems.push(format!(
-                "Cargo.lock:{}: package `{name}` is not in {CRATES}",
+                "{path}:{}: package `{name}` is not in {CRATES}",
                 package.line
             ));
         }
@@ -435,6 +494,9 @@ mod tests {
 
     const MANIFEST: &str = "[package]\nname = \"kalyx\"\nversion = \"0.1.0\"\nlicense = \"MIT\"\n\n[profile.release]\noverflow-checks = true\n";
     const LOCK: &str = "version = 4\n\n[[package]]\nname = \"kalyx\"\nversion = \"0.1.0\"\ndependencies = [\n \"num-traits\",\n]\n\n[[package]]\nname = \"num-traits\"\nversion = \"0.2.19\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n";
+    const CHECK_MANIFEST: &str = "[package]\nname = \"kalyx-allocation-check\"\nversion = \"0.0.0\"\n\n[workspace]\n\n[dependencies]\nkalyx = { path = \"../..\" }\n";
+    const CHECK_LOCK_PATH: &str = "checks/allocation/Cargo.lock";
+    const CHECK_LOCK: &str = "version = 4\n\n[[package]]\nname = \"kalyx\"\nversion = \"0.1.0\"\ndependencies = [\n \"num-traits\",\n]\n\n[[package]]\nname = \"kalyx-allocation-check\"\nversion = \"0.0.0\"\ndependencies = [\n \"kalyx\",\n]\n\n[[package]]\nname = \"num-traits\"\nversion = \"0.2.19\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n";
     const STD: &str = "# The list.\n\nstd::fmt\nstd::io::stdin\nstd::process::ExitCode\n";
     const LIB: &str = "use std::fmt;\n\npub fn f() -> fmt::Result {\n    Ok(())\n}\n";
 
@@ -450,6 +512,8 @@ mod tests {
                 "src/main.rs",
                 "use std::process::ExitCode;\n\nfn main() -> ExitCode {\n    ExitCode::SUCCESS\n}\n",
             ),
+            ("checks/allocation/Cargo.toml", CHECK_MANIFEST),
+            (CHECK_LOCK_PATH, CHECK_LOCK),
         ];
         for (path, text) in changes {
             files.retain(|(existing, _)| existing != path);
@@ -601,6 +665,60 @@ mod tests {
     }
 
     #[test]
+    fn the_lock_file_of_a_check_crate_holds_only_listed_packages() {
+        let with = |extra: &str| format!("{CHECK_LOCK}{extra}");
+        // The package and the check crate, without a source, need no entry.
+        assert_eq!(problems(&[]), Vec::<String>::new());
+        let unlisted = with(
+            "\n[[package]]\nname = \"num-bigint\"\nversion = \"0.4.8\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+        );
+        assert_eq!(
+            problems(&[(CHECK_LOCK_PATH, &unlisted)]),
+            ["checks/allocation/Cargo.lock:22: package `num-bigint` is not in guard/crates.txt"]
+        );
+        let denied = with(
+            "\n[[package]]\nname = \"rand_core\"\nversion = \"0.9.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+        );
+        assert_eq!(
+            problems(&[
+                (CHECK_LOCK_PATH, &denied),
+                (CRATES, "num-traits\nrand_core\n")
+            ]),
+            [
+                "checks/allocation/Cargo.lock:22: package `rand_core` is never allowed, even when guard/crates.txt names it"
+            ]
+        );
+        // A registry package that has the name of the check crate is not the
+        // check crate.
+        let impostor = with(
+            "\n[[package]]\nname = \"kalyx-allocation-check\"\nversion = \"9.9.9\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+        );
+        assert_eq!(
+            problems(&[(CHECK_LOCK_PATH, &impostor)]),
+            [
+                "checks/allocation/Cargo.lock:22: package `kalyx-allocation-check` is not in guard/crates.txt"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_check_crate_without_its_lock_file_is_a_finding() {
+        let mut files: Vec<(&str, &str)> = vec![
+            ("Cargo.toml", MANIFEST),
+            ("Cargo.lock", LOCK),
+            (STD_PATHS, STD),
+            (CRATES, "num-traits\n"),
+            ("src/lib.rs", LIB),
+            ("checks/allocation/Cargo.toml", CHECK_MANIFEST),
+        ];
+        files.sort();
+        assert_eq!(
+            check(&Tree::from_files(&files)).problems,
+            ["checks/allocation/Cargo.lock is missing"]
+        );
+    }
+
+    #[test]
     fn rejects_invalid_package_list_entries() {
         assert_eq!(
             problems(&[(CRATES, "num-traits\nnum-traits\nnum traits\n")]),
@@ -681,6 +799,7 @@ mod tests {
                 "guard/std-paths.txt is missing",
                 "guard/crates.txt is missing",
                 "Cargo.lock is missing",
+                "checks/allocation/Cargo.lock is missing",
             ]
         );
     }
@@ -764,6 +883,7 @@ mod tests {
                 "fn main() {\n    let _ = HashSet::<u8>::new();\n}\n",
             ),
             ("xtask/src/main.rs", denied),
+            ("checks/allocation/src/main.rs", denied),
             ("tests/integration.rs", denied),
             ("benches/speed.rs", denied),
             ("examples/demo.rs", denied),
@@ -779,6 +899,42 @@ mod tests {
         assert_eq!(
             report.files,
             ["build.rs", "extra/outside.rs", "src/lib.rs", "src/main.rs"]
+        );
+    }
+
+    // Only the listed check crate is exempt from the source scan: another
+    // file under `checks/`, such as one that library code includes with
+    // `#[path]`, is scanned, and a crate under `checks/` that is not listed
+    // is a finding, since its lock file would not be checked.
+    #[test]
+    fn files_under_checks_outside_the_check_crate_are_scanned() {
+        let report = check(&tree(&[
+            (
+                "src/lib.rs",
+                "#[path = \"../checks/shared/inner.rs\"]\nmod inner;\n",
+            ),
+            (
+                "checks/shared/inner.rs",
+                "pub type Map = HashMap<u8, u8>;\n",
+            ),
+            ("checks/other/Cargo.toml", CHECK_MANIFEST),
+            ("checks/other/Cargo.lock", CHECK_LOCK),
+            (
+                "checks/allocation/src/main.rs",
+                "pub type Map = HashMap<u8, u8>;\n",
+            ),
+        ]));
+        assert_eq!(
+            report.problems,
+            [
+                "checks/other/Cargo.lock: a crate under checks/ that is not a listed check crate",
+                "checks/other/Cargo.toml: a crate under checks/ that is not a listed check crate",
+                "checks/shared/inner.rs:1: `HashMap` is not allowed in non-test code",
+            ]
+        );
+        assert_eq!(
+            report.files,
+            ["checks/shared/inner.rs", "src/lib.rs", "src/main.rs"]
         );
     }
 

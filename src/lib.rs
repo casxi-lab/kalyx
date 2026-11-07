@@ -15,7 +15,13 @@
 //! an expression in it into a term. The [`polynomial`] module holds the
 //! univariate polynomials over a coefficient ring, with the expansion of
 //! terms into polynomials over $\mathbb{Q}$, the conversion back to terms and
-//! differentiation.
+//! differentiation. The [`command`] module holds the command entry:
+//! [`execute`] runs a [`Request`] under a context and returns its
+//! [`Outcome`], and [`command::serialize`] writes an outcome as the line
+//! bytes that are the only output format of the library.
+//!
+//! The public names of this crate root are listed in `api/root-names.txt`,
+//! and a test fails when the two differ.
 
 #![forbid(unsafe_code)]
 #![deny(clippy::float_arithmetic)]
@@ -24,6 +30,7 @@
 const _: () = assert!(usize::BITS == 64, "kalyx supports only 64-bit targets");
 
 pub mod coefficient;
+pub mod command;
 pub mod context;
 mod error;
 pub mod number;
@@ -31,6 +38,7 @@ pub mod polynomial;
 pub mod syntax;
 pub mod term;
 
+pub use command::{Outcome, Request, execute};
 pub use context::{Context, Limits};
 pub use error::{
     Error, ErrorClass, ErrorKind, FaultKind, LimitAmount, LimitExceeded, LimitField, LimitId,

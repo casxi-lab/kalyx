@@ -11,8 +11,10 @@ division and exponent cases, and the exponent limit of the expansion
 `degree_limit_1`, which fails as its input is read; every error among them is
 checked with its span. `tests/polynomials.rs` replays the 27 expansions and
 derivatives, each as one request of the parser and the polynomials under its
-limits, and compares its result with the answer by canonical form. Replaying
-all of them through the command entry is planned together with that entry.
+limits, and compares its result with the answer by canonical form.
+`tests/command.rs` replays all 58 through the command entry, each as one
+request under its limits: an answer is compared by canonical form, and an
+error by its kind and, for `ResourceLimit`, by the field that its limits set.
 
 ## Format
 

@@ -5,12 +5,16 @@ expression that a request gives to the library, and how that text becomes a
 term of the [term core](components/terms/contract.md). The parser,
 `kalyx::syntax::parse` (also `kalyx::parse`), reads it. Its
 [contract](components/syntax/contract.md) states the limits of the parser
-with their measures, its charges, its spans and errors, and its tests.
+with their measures, its charges, its spans and errors, and its tests. The
+last section, [output lines](#output-lines), states the bytes of the one
+output format of the library, the line that the command entry writes for the
+outcome of a request.
 
 **Status.** The grammar of this release reads numbers, identifiers, the binary
 operators `+`, `-`, `*`, `/` and `^`, parentheses and unary minus, and is
 implemented in `src/syntax.rs` and `src/syntax/`. Later releases extend it as
-[the single-grammar rule](#the-single-grammar-rule) states.
+[the single-grammar rule](#the-single-grammar-rule) states. The output lines
+are implemented in `src/command/line.rs`.
 
 ## The single-grammar rule
 
@@ -124,11 +128,12 @@ So `-2^2 + 2^3^2` is $-4 + 512 = 508$.
   number literals that a later release adds, `.5`, `1.` and scientific
   notation such as `1e-3`, keep their meaning.
 - **Command words.** The grammar has no command words. Operations such as
-  evaluation, expansion and differentiation are chosen by the command entry,
-  which is planned for this release, before it gives the text of an operand
-  to `parse`. Inside an expression, a word such as `eval`, `expand` or `diff`
-  is an ordinary identifier, so `diff` is the symbol named `diff`, and
-  `diff(x)` is function-call syntax.
+  evaluation, expansion and differentiation are chosen by the
+  [command entry](components/command/contract.md), by the name of the
+  operation that a request gives apart from its input, before it gives the
+  input to `parse`. Inside an expression, a word such as `eval`, `expand` or
+  `diff` is an ordinary identifier, so `diff` is the symbol named `diff`,
+  and `diff(x)` is function-call syntax.
 - **Other notation.** Unary plus, `**`, comparisons, assignments, commas,
   brackets and operators outside ASCII are not part of the grammar and are
   syntax errors.
@@ -226,3 +231,103 @@ exponent of a power and every operand of a chain after its first, so
 `1+2+3` has the depth 2, a tower `2^3^4` the depth 3 and 127 nested
 parentheses around a number the depth 128; and a syntax node is a number, an
 identifier, a unary minus or a binary operator, so parentheses add none.
+
+## Output lines
+
+The command entry writes the outcome of a request as one line of bytes with
+`kalyx::command::serialize`. This line is the only output format of the
+library: a program shows results only through it. The
+[contract of the command entry](components/command/contract.md) states how
+the line is charged and when it is written; this section states its bytes.
+
+**Lines and fields.** A line is UTF-8 text: fields separated by one tab, the
+byte `0x09`, and ended by one line feed, the byte `0x0A`. A line holds no
+other tab, line feed or control character, since the text of a field that
+could hold one is escaped. The first field names the kind of the line, and
+the kind fixes the number of fields:
+
+| First field | Fields |
+| --- | --- |
+| `value` | 5: `value`, the three versions and the text of the value |
+| `state` | 5: `state`, the three versions and the name of the state |
+| `error` | 11: `error`, the three versions, the kind, the span, the limit, the scope, the allowed value, the amount and the message |
+
+Fields 2, 3 and 4 are the input version, the context version and the
+settings version of the request, which the outcome echoes. A version, a
+span offset, an allowed value and an amount are `u64` numbers, written in
+decimal ASCII digits without a sign, separators or leading zeros, so zero is
+`0`. The display text of a value is not such a number: it follows the term
+core and may hold signs, fractions and integers of any size, such as `-2/3`.
+
+**Value lines.** The fifth field is the display text of the term of the
+result, as the [term core](components/terms/contract.md#display) writes it:
+input of this grammar that [reads back](#reading-display-text-back) as the
+same term. Display text holds only printable ASCII characters, so it is
+written as it is. Results are compared with expected answers by their
+canonical terms, never by this text.
+
+**State lines.** The fifth field is the name of the mathematical state:
+`NotConverged`, `Unevaluated`, `NotApplicable`, `Undecided` or
+`IterationLimit`. No operation of this release ends in a state.
+
+**Error lines.** The fields after the versions:
+
+| Field | Bytes |
+| --- | --- |
+| Kind | `ResourceLimit`, `Cancelled` or `DeadlineExceeded` for a request failure; for a fault, the name of its kind: `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported` or `Internal` |
+| Span | `start..end`, the half-open range of byte offsets into the input of the request; `-` when the error has no span |
+| Limit | for `ResourceLimit`, `Field(name)` with the name of a field of `Limits`, such as `Field(max_work)`, or `Parameter(name)` with the escaped name of a parameter of the request; otherwise `-` |
+| Scope | for `ResourceLimit` on `max_nodes` or `max_storage_bytes`, where the limit was reached: `Value`, `Frame` or `Temporary`; otherwise `-` |
+| Allowed | for `ResourceLimit`, the value of the limit in force; otherwise `-` |
+| Amount | for `ResourceLimit`, `Used(n)`, `Required(n)` or `Bound(n)`: the total at the check, the amount needed, or an upper bound of it; otherwise `-` |
+| Message | the English message of the error, escaped |
+
+- **Kinds.** The kinds are the names of the `result` column of the
+  [answer vectors](../vectors/README.md#result-kinds). A kind that a later
+  release adds is written by its name.
+- **Spans.** A span counts bytes of the input text of the request, never of
+  the operation or the variable. The errors of the parser, including the
+  errors of the terms that it builds, have the spans that its
+  [contract](components/syntax/contract.md#spans) states. An error that has
+  no single range of the input has the span `-`: settings other than the
+  default, an unknown operation, a variable that is not a symbol name, and
+  every error of the work on a term after it is read, such as
+  `UnknownSymbol`, `NotPolynomial` and the request failures of its charges,
+  since a term has no span.
+- **Limits.** The limit, the scope, the allowed value and the amount are
+  those of the `LimitExceeded` record of the error.
+- **Messages.** The message is text for people. Its bytes depend only on the
+  error, so they are the same in every run, but its wording is not part of
+  the interface and may change in a later release; programs read the other
+  fields.
+
+**Escaping.** In a message and in the name of a parameter, a backslash is
+written `\\`, a tab `\t`, a line feed `\n`, a carriage return `\r`, and every
+other byte from `0x00` to `0x1F` and the byte `0x7F` as `\x` and two
+lowercase hexadecimal digits, such as `\x1b`. Every other byte is written as
+it is, so UTF-8 text stays UTF-8. No other field holds a byte that needs
+escaping.
+
+**Examples.** In these lines `⇥` stands for a tab, and the line feed at the
+end of each line is not shown:
+
+```text
+value⇥0⇥0⇥0⇥1/2
+value⇥7⇥0⇥0⇥1 + 5*x + 10*x^2 + 10*x^3 + 5*x^4 + x^5
+state⇥0⇥0⇥0⇥IterationLimit
+error⇥0⇥0⇥0⇥Syntax⇥0..0⇥-⇥-⇥-⇥-⇥expected a number, an identifier, `-` or `(`
+error⇥0⇥0⇥0⇥DivisionByZero⇥3..6⇥-⇥-⇥-⇥-⇥division by zero
+error⇥3⇥2⇥1⇥ResourceLimit⇥2..5⇥Field(max_exponent)⇥-⇥256⇥Required(257)⇥resource limit exceeded: max_exponent
+error⇥0⇥0⇥0⇥ResourceLimit⇥-⇥Field(max_nodes)⇥Value⇥12⇥Required(17)⇥resource limit exceeded: max_nodes
+error⇥0⇥0⇥0⇥UnknownSymbol⇥-⇥-⇥-⇥-⇥-⇥eval needs a number, and the input holds a symbol, which has no value
+error⇥0⇥0⇥0⇥Unsupported⇥-⇥-⇥-⇥-⇥-⇥unknown operation: the operations of this release are eval, expand and diff
+```
+
+They are the lines of `eval` of `1/3 + 1/6`; `expand` of `(x+1)^5` in `x`
+with the input version 7; a state, which no operation of this release
+reaches; `eval` of the empty input, whose operand is missing; `eval` of
+`0*(1/0)`; `expand` of `x^257` under `max_exponent = 256`, with the input,
+context and settings versions 3, 2 and 1; `expand` of `(x+1)^5` under
+`max_nodes = 12`, whose power $(x + 1)^3$ needs 17 nodes; `eval` of `x`; and
+the operation `simplify`, which this release does not have. The messages are
+those of this release.
