@@ -30,8 +30,10 @@ The parser (`kalyx::syntax`) checks `max_input_bytes` and `max_depth`, checks
 the count of its syntax nodes with `check_storage` at scope `Value`, and
 charges work. The polynomials (`kalyx::polynomial`) check `max_depth` and
 `max_exponent`, check the cost of every polynomial with `check_storage` at
-scope `Value`, and charge work; the command entry is a planned caller. The
-command-line program does not create a context yet.
+scope `Value`, and charge work. The command entry (`kalyx::command`) runs
+these under the context of its request and charges every byte of the lines
+that it writes with `charge_output`; it creates no context. The command-line
+program does not create a context yet.
 
 ## Interface
 
@@ -484,8 +486,10 @@ library starts no threads.
 
 - `settings` and `settings_version` are inputs of the request, and a progress
   receiver is a separate parameter of a streaming entry.
-- Only the command entry and the command-line program create a `Context`; the
-  guard of `cargo xtask check` rejects every path `Context::name` elsewhere in
+- Within the package, only the command entry and the command-line program
+  may create a `Context`; in this release neither does: the caller of
+  `execute` creates one context per request. The guard of
+  `cargo xtask check` rejects every path `Context::name` elsewhere in
   non-test code, so library code reaches the context only through the methods
   of the value it was given. `check` and `check_parameter` are `&self`
   methods for that reason.

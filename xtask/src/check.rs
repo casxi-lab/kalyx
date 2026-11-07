@@ -17,6 +17,10 @@ pub const MANIFEST: &str = "xtask/Cargo.toml";
 /// `kalyx-fmt`, `kalyx-clippy` and `kalyx-test` steps cover.
 pub const PACKAGE_MANIFEST: &str = "Cargo.toml";
 
+/// The manifest of the allocation check, a workspace of its own outside the
+/// package, which the `kalyx-allocation` step covers and runs.
+pub const ALLOCATION_MANIFEST: &str = "checks/allocation/Cargo.toml";
+
 /// A command run in the repository root.
 #[derive(Debug, Clone)]
 pub struct Cmd {
@@ -132,6 +136,19 @@ pub fn steps() -> Vec<Step> {
         Step {
             name: "kalyx-test",
             action: Action::Commands(vec![cargo(PACKAGE_MANIFEST, &["test", "--locked"], &[])]),
+        },
+        Step {
+            name: "kalyx-allocation",
+            action: Action::Commands(vec![
+                cargo(ALLOCATION_MANIFEST, &["fmt", "--all", "--check"], &[]),
+                cargo(
+                    ALLOCATION_MANIFEST,
+                    &["clippy", "--all-targets", "--locked"],
+                    &["--", "-D", "warnings"],
+                ),
+                cargo(ALLOCATION_MANIFEST, &["test", "--locked"], &[]),
+                cargo(ALLOCATION_MANIFEST, &["run", "--locked"], &[]),
+            ]),
         },
         Step {
             name: "guard",
@@ -279,7 +296,7 @@ mod tests {
 
     use super::*;
 
-    const ORDER: [&str; 10] = [
+    const ORDER: [&str; 11] = [
         "fmt",
         "clippy",
         "test",
@@ -289,6 +306,7 @@ mod tests {
         "kalyx-fmt",
         "kalyx-clippy",
         "kalyx-test",
+        "kalyx-allocation",
         "guard",
     ];
 
@@ -299,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn command_steps_cover_the_xtask_workspace_and_then_the_package() {
+    fn command_steps_cover_the_xtask_workspace_the_package_and_the_allocation_check() {
         let mut seen = Vec::new();
         for step in steps() {
             if let Action::Commands(commands) = step.action {
@@ -319,21 +337,29 @@ mod tests {
                 ("kalyx-fmt", PACKAGE_MANIFEST.to_string()),
                 ("kalyx-clippy", PACKAGE_MANIFEST.to_string()),
                 ("kalyx-test", PACKAGE_MANIFEST.to_string()),
+                ("kalyx-allocation", ALLOCATION_MANIFEST.to_string()),
+                ("kalyx-allocation", ALLOCATION_MANIFEST.to_string()),
+                ("kalyx-allocation", ALLOCATION_MANIFEST.to_string()),
+                ("kalyx-allocation", ALLOCATION_MANIFEST.to_string()),
             ]
         );
     }
 
-    /// The arguments of the single command of the step `name`.
-    fn args_of(name: &str) -> Vec<String> {
+    /// The arguments of each command of the step `name`.
+    fn commands_of(name: &str) -> Vec<Vec<String>> {
         let steps = steps();
         let step = steps.iter().find(|step| step.name == name).unwrap();
         match &step.action {
-            Action::Commands(commands) => {
-                assert_eq!(commands.len(), 1, "{name}");
-                commands[0].args.clone()
-            }
+            Action::Commands(commands) => commands.iter().map(|cmd| cmd.args.clone()).collect(),
             Action::Internal(_) => panic!("{name} runs a command"),
         }
+    }
+
+    /// The arguments of the single command of the step `name`.
+    fn args_of(name: &str) -> Vec<String> {
+        let commands = commands_of(name);
+        assert_eq!(commands.len(), 1, "{name}");
+        commands[0].clone()
     }
 
     #[test]
@@ -349,6 +375,23 @@ mod tests {
             assert!(args_of(test).contains(&"--locked".to_string()));
             assert!(args_of(fmt).contains(&"--check".to_string()));
         }
+    }
+
+    // The allocation step format-checks the check crate, lints it with
+    // warnings as errors, runs the tests of its verdict and then runs it,
+    // each with its own lock file.
+    #[test]
+    fn the_allocation_step_checks_and_runs_the_allocation_crate() {
+        let commands = commands_of("kalyx-allocation");
+        let subcommands: Vec<&str> = commands.iter().map(|args| args[0].as_str()).collect();
+        assert_eq!(subcommands, ["fmt", "clippy", "test", "run"]);
+        assert!(commands[0].contains(&"--check".to_string()));
+        let warnings = ["--".to_string(), "-D".to_string(), "warnings".to_string()];
+        assert!(commands[1].ends_with(&warnings));
+        assert!(commands[1].contains(&"--all-targets".to_string()));
+        assert!(commands[1].contains(&"--locked".to_string()));
+        assert!(commands[2].contains(&"--locked".to_string()));
+        assert!(commands[3].contains(&"--locked".to_string()));
     }
 
     /// The real step list with `failing` replaced by a failing action and
@@ -462,6 +505,11 @@ mod tests {
     #[test]
     fn a_package_test_failure_stops_the_check() {
         assert_fails_at("kalyx-test");
+    }
+
+    #[test]
+    fn an_allocation_failure_stops_the_check() {
+        assert_fails_at("kalyx-allocation");
     }
 
     #[test]

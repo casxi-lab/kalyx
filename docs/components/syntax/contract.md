@@ -22,7 +22,8 @@ every public interface follows. The limits and the charges belong to the
 code of the parser is taken over from the earlier implementation, which
 served as a reference; cases of `tests/syntax.rs` are adapted from its parser
 tests, as [PORTING](../../../PORTING.md) records. Its first caller in the
-library, the command entry, is planned for later in release 0.1.
+library is the [command entry](../command/contract.md), which gives it the
+input of every request.
 
 ## Scope
 
@@ -39,10 +40,11 @@ library, the command entry, is planned for later in release 0.1.
     [exact numbers](../numbers/contract.md#decimal-literals), whose
     crate-internal `Rational::literal_at` the parser calls.
   - Command words, operations, settings and the serialization of outcomes:
-    the command entry, later in release 0.1, which gives the text of an
+    the [command entry](../command/contract.md), which gives the text of an
     operand to `parse`.
   - Each extension of the grammar, which comes with its first user: the
-    syntax of the command line, with the command entry later in release 0.1;
+    syntax of the command line, with the command-line program later in
+    release 0.1;
     function calls and the constants $\pi$, $i$ and `undefined`, release 0.2;
     set literals and program syntax, release 0.3; calls with several
     arguments, release 0.5; and the number literals `.5`, `1.` and

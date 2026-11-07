@@ -22,8 +22,8 @@ A0 (tested); planned for tier A2 in release 0.2. The polynomials are written
 anew for kalyx after the design rules of the architecture: no code and no test
 is taken over from the earlier implementation, which served as a reference, so
 [PORTING](../../../PORTING.md) has no row for them. Their first caller in the
-library, the command entry with its operations `expand` and `diff`, is planned
-for later in release 0.1.
+library is the [command entry](../command/contract.md), with its operations
+`expand` and `diff`.
 
 ## Scope
 
@@ -53,7 +53,7 @@ for later in release 0.1.
     polynomial, and a result is shown through its term. The serialization of
     outcomes, the one output format of the library, and the replay of all the
     [answer vectors](../../../vectors/README.md) through it belong to the
-    command entry, later in release 0.1.
+    [command entry](../command/contract.md).
   - Reading input text and the canonical forms of terms: the
     [parser](../syntax/contract.md) and the [term core](../terms/contract.md).
 
@@ -117,8 +117,9 @@ for amounts bounded by a machine width or beyond `u64::MAX`.
   ring with the same coefficient ring and variable. They never compare rings
   and never call `same_parent`. In this release no value stores a parent
   together with an element: the conversions take the ring as their receiver
-  and a term or a polynomial as their argument, and the command entry is
-  planned. `same_parent` is called, and a mismatch fails with
+  and a term or a polynomial as their argument, and the command entry
+  converts every polynomial back to a term with the ring that built it.
+  `same_parent` is called, and a mismatch fails with
   `VariableMismatch`, where such a pair is stored, from release 0.2 on.
 - **One public type.** `Polynomial<K>` is the type of the polynomials of
   every coefficient ring: the polynomials of $\mathbb{Q}[x]$ are

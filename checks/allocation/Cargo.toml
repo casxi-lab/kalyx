@@ -1,0 +1,33 @@
+[package]
+name = "kalyx-allocation-check"
+version = "0.0.0"
+description = "The allocation check of kalyx, run by `cargo xtask check`"
+edition = "2024"
+license = "MIT"
+publish = false
+rust-version = "1.99"
+
+# The allocation check is a workspace of its own, outside the kalyx package:
+# the package forbids `unsafe` code in every target, and a counting global
+# allocator needs it.
+[workspace]
+
+[dependencies]
+kalyx = { path = "../.." }
+
+# `unsafe` code is denied, and only the allocator wrapper allows it, with its
+# reason; every unsafe block and implementation states why it is sound.
+[lints.rust]
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+undocumented_unsafe_blocks = "deny"
+allow_attributes_without_reason = "deny"
+float_arithmetic = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+
+[profile.release]
+overflow-checks = true

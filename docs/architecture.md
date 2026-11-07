@@ -10,19 +10,22 @@ kinds. The interface conventions that all public items follow are in
 **Status.** kalyx ships the errors and result states, the context and
 limits, the exact numbers with the coefficient-field trait over
 $\mathbb{Q}$, the term core, the parser, the univariate polynomials over
-$\mathbb{Q}$, a command-line program without commands and the repository
-checks. The errors and result states, the context and limits, the exact
-numbers with the two layers of the coefficient-field trait and `Rationals`,
-the term core with its canonical forms, the parser of the
-[input syntax](semantics.md) and the univariate polynomials with expansion
-and differentiation are implemented, each with its contract
-([errors](components/errors/contract.md),
+$\mathbb{Q}$, the command entry with its output lines, a command-line
+program without commands and the repository checks. The errors and result
+states, the context and limits, the exact numbers with the two layers of the
+coefficient-field trait and `Rationals`, the term core with its canonical
+forms, the parser of the [input syntax](semantics.md), the univariate
+polynomials with expansion and differentiation and the command entry with
+the [output lines](semantics.md#output-lines) are implemented, each with its
+contract ([errors](components/errors/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
 [terms](components/terms/contract.md),
 [syntax](components/syntax/contract.md),
-[polynomials](components/polynomials/contract.md)); no other library
-component below is implemented yet. For the other components, the tables are
+[polynomials](components/polynomials/contract.md),
+[command entry](components/command/contract.md), co-signed with
+krepi); no other library component below is implemented
+yet. For the other components, the tables are
 the plan and the design rules are the rules that their code follows when it
 lands; each component also gets its own `contract.md` with its requirements
 at that time. Where a rule is already enforced by `cargo xtask check`, the
@@ -94,7 +97,7 @@ at once in 0.2.
 | Term core and canonical forms (`term`; implemented, [contract](components/terms/contract.md)) | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
 | Parser (`syntax`; implemented, [contract](components/syntax/contract.md), grammar in [the input syntax](semantics.md)) | A1 | none | the command entry, in 0.1 |
 | Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation (`polynomial`; implemented, [contract](components/polynomials/contract.md)) | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
-| Command entry and output serialization | A1 | none | the command-line program, in 0.1; the calculator job of krepi, built from a pinned 0.1 commit |
+| Command entry and output serialization (`command`; implemented, [contract](components/command/contract.md)) | A1 | none | the command-line program, in 0.1; the calculator job of krepi, built from a pinned 0.1 commit |
 | Command-line program | A0 | none | none: it is the top level |
 
 ### Later foundations
@@ -424,7 +427,9 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   methods assume that their arguments belong to `self`. Whether two parents
   match is checked with `same_parent` only where a parent and an element are
   stored as a pair: when converting between terms and polynomials, in the
-  command entry, and later in typed collection columns; a mismatch fails with
+  command entry where it stores such a pair (in this release it stores none:
+  it converts every polynomial back to a term with the ring that built it),
+  and later in typed collection columns; a mismatch fails with
   `VariableMismatch`, a fault kind that arrives in 0.2 together with the
   first parents that can differ; in 0.1 the only parent is
   `PolynomialRing<Rationals>`. So a parent parametrized at runtime, such as
@@ -653,7 +658,10 @@ single value, with no scope.
 - **Not in the context.** `settings` and `settings_version` are inputs of the
   request, and a progress receiver is a separate parameter of a streaming
   entry ([convention 13](conventions/public-api.md#13-request-inputs-and-progress)).
-  Only the command entry and the command-line program construct a `Context`.
+  Within the package, only the command entry and the command-line program
+  may construct a `Context` (the guard rejects every other path it can see);
+  in this release neither does: the caller of `execute` creates one context
+  per request, and library code charges the context that it is given.
 
 ## Error kinds
 
@@ -770,9 +778,13 @@ defines a synonym. `Completeness` and `Evidence` are planned for 0.2, and
 ### At the command entry
 
 The command entry maps an outcome to the state of the job that runs it:
-`Cancelled` and `DeadlineExceeded` to the terminal states that the contract of
-the command entry defines together with krepi, `ResourceLimit` and every
-`Fault` to failed, and `Settled::State` to completed, with the state attached.
-In 0.1, function-call syntax, the reserved names `pi`, `i` and `undefined`,
-an unknown operation and a non-default setting fail with `Unsupported`, and a
+`ResourceLimit` and every `Fault` to failed, `Settled::State` to completed,
+with the state attached, and `Cancelled` and `DeadlineExceeded` to the
+terminal states that the contract of the command entry defines together with
+krepi: its
+[Table 1](components/command/contract.md#table-1-outcomes-and-the-terminal-states-of-a-job)
+maps them to `cancelled` and `resource_exhausted`, and the contract states
+the terminal state of a job of several requests. In 0.1,
+function-call syntax, the reserved names `pi`, `i` and `undefined`, an
+unknown operation and a non-default setting fail with `Unsupported`, and a
 missing operand fails with `Syntax`.

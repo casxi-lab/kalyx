@@ -36,6 +36,7 @@ allow_attributes_without_reason = "deny"
 [profile.release]
 overflow-checks = true
 
-# The repository checks in xtask/ are a workspace of their own.
+# The repository checks in xtask/ and the allocation check in
+# checks/allocation/ are workspaces of their own.
 [workspace]
-exclude = ["xtask"]
+exclude = ["xtask", "checks/allocation"]
