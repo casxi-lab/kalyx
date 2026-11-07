@@ -42,11 +42,17 @@ The crate root re-exports every public item of the component:
   `state()`, `is_value()` and `is_state()`;
 - `Result<T>`, which is `std::result::Result<T, Error>`.
 
-Crate-internal, for the request context and for methods with states:
+Crate-internal, for the request context, for the parser and for methods with
+states:
 
 - the constructors of the three request failures, `Error::resource_limit`,
   `Error::cancelled` and `Error::deadline_exceeded`, and
   `LimitExceeded::new`;
+- `Error::with_default_span(span)`, which gives an error that has no span the
+  span `span` and keeps the span of an error that has one, and changes
+  nothing else: the [parser](../syntax/contract.md#spans) gives each error of
+  the term core, which carries no span, the span of the syntax node whose
+  term failed;
 - the internal channel `Run<T>`, a `Result` whose error type `Halt` is either
   `Error(Error)` or `Stop(MathState, Cap)`, with `From<Error> for Halt`;
 - `Cap` and its diagnostic text `Cap::message`;
@@ -298,7 +304,9 @@ the mapping above is fixed, so each difference is accepted by its row.
    every request failure, a domain error and an invalid input with its kind,
    span and exceeded limit, and that no foundation fault becomes a state;
    that `evaluation_stop` keeps stops and errors and turns every stop into the
-   given stop; the fixed text of the cap; and the accessors of `Settled`.
+   given stop; the fixed text of the cap; the accessors of `Settled`; and
+   that `with_default_span` fills only a missing span
+   (`a_default_span_fills_only_a_missing_span`).
 2. **Two types.** For request failures and for mathematical states, one
    positive and one negative test each:
    `request_failures_are_errors_of_the_context_class`,

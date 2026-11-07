@@ -9,15 +9,17 @@ kinds. The interface conventions that all public items follow are in
 
 **Status.** kalyx ships the errors and result states, the context and
 limits, the exact numbers with the coefficient-field trait over
-$\mathbb{Q}$, the term core, a command-line program without commands and the
-repository checks. The errors and result states, the context and limits, the
-exact numbers with the two layers of the coefficient-field trait and
-`Rationals`, and the term core with its canonical forms are implemented, each
-with its contract ([errors](components/errors/contract.md),
+$\mathbb{Q}$, the term core, the parser, a command-line program without
+commands and the repository checks. The errors and result states, the
+context and limits, the exact numbers with the two layers of the
+coefficient-field trait and `Rationals`, the term core with its canonical
+forms and the parser of the [input syntax](semantics.md) are implemented,
+each with its contract ([errors](components/errors/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
-[terms](components/terms/contract.md)); no other library component below is
-implemented yet. For the other components, the tables are the plan and the
+[terms](components/terms/contract.md),
+[syntax](components/syntax/contract.md)); no other library component below
+is implemented yet. For the other components, the tables are the plan and the
 design rules are the rules that their code follows when it lands; each
 component also gets its own `contract.md` with its requirements at that time.
 Where a rule is already enforced by `cargo xtask check`, the text says so.
@@ -86,7 +88,7 @@ at once in 0.2.
 | Context and limits (`Context`, `Limits`; implemented, [contract](components/context/contract.md)) | A1 | 0.2, for the charging core; the frame table first needs proof models of `Vec` and `Box` | exact numbers and the coefficient-field trait over $\mathbb{Q}$, then the term core, the parser and the command entry, in 0.1 |
 | Exact numbers and the coefficient-field trait over $\mathbb{Q}$ (`number`, `coefficient`; implemented, with the polynomial ring still planned, [contract](components/numbers/contract.md)) | A0; the coefficient-field interface is planned for A2 in 0.2 | none | the term core and the polynomials over $\mathbb{Q}$, in 0.1 |
 | Term core and canonical forms (`term`; implemented, [contract](components/terms/contract.md)) | A1; canonical forms are planned for A2 in 0.2 | none | the parser and the command entry, in 0.1 |
-| Parser | A1 | none | the command entry, in 0.1 |
+| Parser (`syntax`; implemented, [contract](components/syntax/contract.md), grammar in [the input syntax](semantics.md)) | A1 | none | the command entry, in 0.1 |
 | Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
 | Command entry and output serialization | A1 | none | the command-line program, in 0.1; the calculator job of krepi, built from a pinned 0.1 commit |
 | Command-line program | A0 | none | none: it is the top level |

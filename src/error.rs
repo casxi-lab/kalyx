@@ -247,6 +247,17 @@ impl Error {
         }
     }
 
+    /// The error with the source span `span` when it has none; an error that
+    /// already has a span keeps it, so the innermost span is the one
+    /// reported. The parser gives each error of the term core, which carries
+    /// no span, the span of the syntax node whose term failed.
+    pub(crate) fn with_default_span(mut self, span: Option<Span>) -> Self {
+        if self.span.is_none() {
+            self.span = span;
+        }
+        self
+    }
+
     /// The kind of the error.
     #[must_use]
     pub const fn kind(&self) -> ErrorKind {
@@ -944,6 +955,36 @@ mod tests {
                 error.kind() == ErrorKind::ResourceLimit,
                 "{error:?}"
             );
+        }
+    }
+
+    // A default span fills only a missing span: an error with a span keeps
+    // it, and the kind and the exceeded limit stay the same.
+    #[test]
+    fn a_default_span_fills_only_a_missing_span() {
+        for error in failures() {
+            let kept = error.clone().with_default_span(span(5, 6));
+            assert!(same(&kept, &error), "{error:?}");
+        }
+        let unplaced = [
+            Error::new(FaultKind::Internal, None, "broken invariant"),
+            Error::cancelled(None),
+            Error::resource_limit(
+                LimitExceeded::new(
+                    LimitId::Field(LimitField::Nodes),
+                    Some(LimitScope::Value),
+                    2,
+                    LimitAmount::Required(3),
+                ),
+                None,
+            ),
+        ];
+        for error in unplaced {
+            let placed = error.clone().with_default_span(span(5, 6));
+            assert_eq!(placed.span(), span(5, 6));
+            assert_eq!(placed.kind(), error.kind());
+            assert_eq!(placed.exceeded(), error.exceeded());
+            assert_eq!(error.clone().with_default_span(None).span(), None);
         }
     }
 }

@@ -91,6 +91,11 @@ use crate::number::Rational;
 use crate::{Context, Result};
 use node::{TermNode, TermShape};
 
+// The parser reads identifiers by the rule of symbol names, rejects the
+// reserved names and reads the exponent of a power through these.
+pub(crate) use exponent::integer_exponent;
+pub(crate) use symbol::{character_length, continues_name, is_digit, is_reserved, starts_name};
+
 /// A canonical term: a shared handle to an immutable node.
 ///
 /// Terms are built only by the constructors of this type, each of which

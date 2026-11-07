@@ -25,8 +25,10 @@ contract). Its first caller in the library is the exact numbers
 (`kalyx::number` and `kalyx::coefficient`), which check `max_integer_bits`
 and `max_exponent` and charge work. The term core (`kalyx::term`) checks
 `max_depth`, `max_integer_bits` and `max_exponent`, checks the cost of every
-new term with `check_storage` at scope `Value`, and charges work and output;
-the parser and the command entry are planned callers. The command-line program
+new term with `check_storage` at scope `Value`, and charges work and output.
+The parser (`kalyx::syntax`) checks `max_input_bytes` and `max_depth`, checks
+the count of its syntax nodes with `check_storage` at scope `Value`, and
+charges work; the command entry is a planned caller. The command-line program
 does not create a context yet.
 
 ## Interface

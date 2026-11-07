@@ -39,7 +39,8 @@ are a planned caller.
     $\mathbb{Q}$, later in release 0.1.
   - Expressions and symbols: the [term core](../terms/contract.md). Spans
     of parsed expressions and the decimal literal syntax beyond one literal:
-    the parser, later in release 0.1.
+    the [parser](../syntax/contract.md), which reads each literal through
+    `literal_at`.
   - Number theory: release 0.4.
 
 ## Interface
@@ -62,6 +63,9 @@ The module `kalyx::coefficient` holds `ZeroTest<U>`, the traits
 
 Crate-internal: `Rational::literal_at(text, offset, context)`, the literal
 conversion for the parser, whose errors carry spans shifted by `offset`;
+`Integer::magnitude_u64`, the absolute value of an integer as a `u64`, or
+`None` beyond 64 bits, with which the term core reads an integer exponent for
+the parser;
 `Rational::binary(other, operation, span, context)`, the binary operations
 with the caller's span on the error; and the kernels of `arithmetic`, `power`
 and `literal`.

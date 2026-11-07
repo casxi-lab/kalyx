@@ -20,8 +20,9 @@ with a written contract); its canonical forms are planned for tier A2 in
 release 0.2. The term core is written anew for kalyx after the design rules of
 the architecture: no code and no test is taken over from the earlier
 implementation, so [PORTING](../../../PORTING.md) has no row for it. Its
-first callers in the library, the parser and the command entry, are planned
-for later in release 0.1.
+first caller in the library is the [parser](../syntax/contract.md), which
+builds the term of every input through its constructors; the command entry is
+planned for later in release 0.1.
 
 ## Scope
 
@@ -35,8 +36,9 @@ for later in release 0.1.
   drop.
 - **Excluded, with their owners.**
   - Reading input text into terms, with the input syntax, its spans,
-    function-call syntax and the reserved names in input: the parser, later in
-    release 0.1.
+    function-call syntax and the reserved names in input: the
+    [parser](../syntax/contract.md), whose grammar is stated in
+    [the input syntax](../../semantics.md).
   - Expansion, differentiation and the conversion between terms and
     polynomials: the univariate polynomials over $\mathbb{Q}$, later in
     release 0.1.
@@ -97,9 +99,14 @@ parameter.
 Crate-internal: the shape `TermShape::Call(CallHead { name, class })` of a
 reserved call node, with the class `CallClass`, which is `Registered` or
 `Formal` and `#[non_exhaustive]`, and the test-only constructor
-`reserved_call` that alone builds one; and the check of an exponent against
+`reserved_call` that alone builds one; the check of an exponent against
 `max_exponent` and the width of `i64`, through the crate-internal
-`Context::check_width_at` of the [context](../context/contract.md#interface).
+`Context::check_width_at` of the [context](../context/contract.md#interface);
+and, for the [parser](../syntax/contract.md), the rule of symbol names
+(`starts_name`, `continues_name`, `is_digit` and `character_length`),
+`is_reserved`, and `integer_exponent`, which reads an integer as an exponent
+under the same check, so the parser and the term core cannot disagree on a
+name or an exponent.
 
 The crate root re-exports nothing of the component.
 
@@ -427,8 +434,9 @@ without repetitions.
 ### Exponents
 
 An exponent is an `i64`. Every exponent that the term core takes or computes,
-the argument of `power`, the sum of the exponents of one key in a product and
-the product of two exponents in a power of a power, is checked against
+the argument of `power`, the sum of the exponents of one key in a product,
+the product of two exponents in a power of a power and an integer that the
+parser reads as the exponent of a power, is checked against
 `max_exponent` and against the width of `i64`: the effective bound is the
 smaller of `max_exponent` and $2^{63} - 1$, and an exponent of a larger
 magnitude fails with `ResourceLimit` naming `max_exponent`, with that
@@ -437,8 +445,10 @@ effective value as `allowed`, as the
 bound set by a machine width. Sums and products of exponents are computed
 exactly in `i128` before the check, and an exponent is checked before it is
 used, without a charge. So `i64::MIN` is never an exponent, and the negation
-of an exponent never overflows. Under the default limits an exponent has a
-magnitude of at most 4096.
+of an exponent never overflows. An integer that the parser reads as an
+exponent and whose magnitude does not fit in a `u64` fails with the amount
+`LimitAmount::Bound(u64::MAX)`, and its error carries the span that the parser
+gives. Under the default limits an exponent has a magnitude of at most 4096.
 
 ### Calls and reserved names
 
@@ -754,8 +764,9 @@ by its primitive part, with the minimal witnesses of
   `sums_as_factors_and_bases_are_primitive`,
   `negation_difference_and_quotient_are_canonical`,
   `exponents_beyond_the_width_of_i64_are_resource_limits` and, in
-  `src/term/exponent.rs`, `the_merge_condition_never_hides_a_negative_exponent`
-  and `magnitudes_cover_the_whole_range_of_i64`.
+  `src/term/exponent.rs`, `the_merge_condition_never_hides_a_negative_exponent`,
+  `magnitudes_cover_the_whole_range_of_i64` and
+  `integers_become_exponents_under_the_same_check`.
 
 ### Strict evaluation of numbers
 
@@ -926,8 +937,12 @@ constructs R1 to R7, the provable design rules 1 to 9 and the loop shapes.
 - **Integer conversions.** Conversions that cannot lose information are `as`
   casts; the magnitude of an `i64` is computed in translated arithmetic by
   `exponent::magnitude`; exponents are summed and multiplied in `i128` and
-  converted back with an `as` cast after a bound check. No `unsigned_abs`,
-  `try_from` or `From` conversion between machine integers is used.
+  converted back with an `as` cast after a bound check. An integer that the
+  parser reads as an exponent becomes a `u64` magnitude through
+  `Integer::magnitude_u64`, an operation of the exact numbers outside the
+  subset, and an `i64` by an `as` cast after the bound check of
+  `integer_exponent`. No `unsigned_abs`, `try_from` or `From` conversion
+  between machine integers is used.
 - **Design rules.** Every check of a node, of an exponent and of a name
   comes before the charge and the allocation (1). Each node is allocated on
   the heap at run time, only after its checks of `max_depth`, `max_nodes` and
