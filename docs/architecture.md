@@ -10,8 +10,8 @@ kinds. The interface conventions that all public items follow are in
 **Status.** kalyx ships the errors and result states, the context and
 limits, the exact numbers with the coefficient-field trait over
 $\mathbb{Q}$, the term core, the parser, the univariate polynomials over
-$\mathbb{Q}$, the command entry with its output lines, a command-line
-program without commands and the repository checks. The errors and result
+$\mathbb{Q}$, the command entry with its output lines, the command-line
+program `kalyx` and the repository checks. The errors and result
 states, the context and limits, the exact numbers with the two layers of the
 coefficient-field trait and `Rationals`, the term core with its canonical
 forms, the parser of the [input syntax](semantics.md), the univariate
@@ -98,7 +98,7 @@ at once in 0.2.
 | Parser (`syntax`; implemented, [contract](components/syntax/contract.md), grammar in [the input syntax](semantics.md)) | A1 | none | the command entry, in 0.1 |
 | Univariate polynomials over $\mathbb{Q}$ with expansion and differentiation (`polynomial`; implemented, [contract](components/polynomials/contract.md)) | A0; planned for A2 in 0.2 | none | the command entry (`expand`, `diff`), in 0.1 |
 | Command entry and output serialization (`command`; implemented, [contract](components/command/contract.md)) | A1 | none | the command-line program, in 0.1; the calculator job of krepi, built from a pinned 0.1 commit |
-| Command-line program | A0 | none | none: it is the top level |
+| Command-line program (`src/main.rs`; implemented, forms in [the command-line program](semantics.md#the-command-line-program)) | A0 | none | none: it is the top level |
 
 ### Later foundations
 
@@ -660,8 +660,9 @@ single value, with no scope.
   entry ([convention 13](conventions/public-api.md#13-request-inputs-and-progress)).
   Within the package, only the command entry and the command-line program
   may construct a `Context` (the guard rejects every other path it can see);
-  in this release neither does: the caller of `execute` creates one context
-  per request, and library code charges the context that it is given.
+  the command entry never does: its caller, such as the command-line
+  program, creates one context per request, and library code charges the
+  context that it is given.
 
 ## Error kinds
 

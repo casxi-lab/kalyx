@@ -42,9 +42,11 @@ input of every request.
   - Command words, operations, settings and the serialization of outcomes:
     the [command entry](../command/contract.md), which gives the text of an
     operand to `parse`.
-  - Each extension of the grammar, which comes with its first user: the
-    syntax of the command line, with the command-line program later in
-    release 0.1;
+  - The arguments and the line format of the command-line program, which
+    split a request into its operation, variable, input and limits before
+    the input reaches `parse`, and are not part of the grammar:
+    [the command-line program](../../semantics.md#the-command-line-program).
+  - Each extension of the grammar, which comes with its first user:
     function calls and the constants $\pi$, $i$ and `undefined`, release 0.2;
     set literals and program syntax, release 0.3; calls with several
     arguments, release 0.5; and the number literals `.5`, `1.` and

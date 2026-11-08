@@ -12,46 +12,38 @@ typed continuous calculation for the casξ applications: kosmo, the casξ user
 interface, will send it what you type and show what it computes. The name
 comes from the Greek κάλυξ.
 
-## Status
+## What kalyx can do now
 
-kalyx is being built from its foundations, and it has no usable capabilities
-yet. The repository holds a Rust package named `kalyx`, with a library that
-so far holds only the types of its errors and result states, the request
-context with its limits, exact integers and rationals with the
-coefficient-field trait over $\mathbb{Q}$, the term core, which keeps
-numbers, symbols, sums, products and integer powers in canonical form, the
-parser of its [input syntax](docs/semantics.md), the univariate
-polynomials over $\mathbb{Q}$ with the expansion of terms and
-differentiation, and the command entry, which runs a request of `eval`,
-`expand` or `diff` under the limits, deadline and cancellation of its
-context and writes its outcome as a line, and a command-line program that
-has no commands; the repository checks, which continuous integration runs on
-every pull request to `main` and on every push to `main`; the
-[porting record](PORTING.md) of code taken over from an earlier
-implementation of the casξ computer algebra system; and the
-58 [answer vectors](vectors/README.md) for the planned first release, 0.1,
-converted from that earlier implementation's fixtures, whose format is
-checked and which are all replayed through the command entry. The earlier
-implementation is not public; it serves as a reference and as a source of
-test vectors.
+kalyx is being built from its foundations. This version computes exactly
+over the rational numbers and over univariate polynomials with rational
+coefficients, through three operations:
 
-The first release, 0.1, is planned to provide the base of the library and a
-small slice of algebra on it: an exact rational number type, a parser, an
-expression core with canonical forms, univariate polynomials over
-$\mathbb{Q}$ with expansion and differentiation, structured errors and result
-states, and a command entry that runs each request under a work budget, a
-deadline and cancellation, with a minimal command-line program. Later
-releases complete the shared foundations (coefficient fields, the function
-registry, numerical evaluators with rigorous enclosures, collection values,
-stable value encoding and a machine floating-point path) and then build the
-subject domains below on them. Apart from the types of the errors and
-result states, the request context, the exact rational number type with the
-coefficient-field trait over $\mathbb{Q}$, the expression core with
-canonical forms, the parser, the univariate polynomials over
-$\mathbb{Q}$ with expansion and differentiation and the command entry, none
-of this is available yet.
+- `eval` evaluates an expression of numbers to its exact rational value:
+  `+`, `-`, `*`, `/`, `^` with integer exponents, parentheses and unary
+  minus; decimal literals such as `0.1` are exact;
+- `expand` expands an expression as a polynomial in one variable over
+  $\mathbb{Q}$; any other symbol is an error;
+- `diff` returns the derivative of that polynomial by the variable.
 
-## Build
+Every request runs under explicit limits on its work, its input and output
+bytes, its nesting depth, the size of its values, the bits of its integers
+and its exponents; a caller of the library can also give it a deadline and
+cancel it. A request that exceeds a limit fails with a `ResourceLimit`
+error that names the limit. Results come out as one line of tab-separated
+fields per request, the only output format, which the
+[output lines](docs/semantics.md#output-lines) state byte for byte.
+
+The repository holds the Rust package `kalyx`, with the library and the
+command-line program `kalyx`; the repository checks, which continuous
+integration runs on every pull request to `main` and on every push to
+`main`; the [porting record](PORTING.md) of code taken over from an earlier
+implementation of the casξ computer algebra system; and 58
+[answer vectors](vectors/README.md), converted from that earlier
+implementation's fixtures, which are all replayed through the library and
+through the program. The earlier implementation is not public; it serves as
+a reference and as a source of test vectors.
+
+## Build and run
 
 Building needs the Rust toolchain that `rust-toolchain.toml` pins and a 64-bit
 target; the crate does not compile for other pointer widths.
@@ -60,20 +52,100 @@ target; the crate does not compile for other pointer widths.
 rustup toolchain install
 cargo build --locked
 cargo test --locked
+cargo run --quiet -- eval '1/3 + 1/6'
 ```
 
-The library's public items so far are the types of its errors and result
-states, the request context, the exact numbers with the coefficient-field
-trait over $\mathbb{Q}$, whose operations compute exact rational arithmetic
-under a context, the terms of the term core, which build canonical
-expressions under a context, `parse`, which reads an expression into a term
-under a context, and the polynomial rings and polynomials, which expand
-terms into polynomials over $\mathbb{Q}$, compute with them and
-differentiate them under a context, and the command entry: `execute` runs a
-request of `eval`, `expand` or `diff` under a context and returns its
-outcome, and `kalyx::command::serialize` writes the outcome as one line, the
-only output format of the library ([output lines](docs/semantics.md#output-lines)).
-The program exits without output (`cargo run --quiet` prints nothing).
+The program is built as `target/debug/kalyx`; `cargo build --locked
+--release` builds `target/release/kalyx`. `kalyx --version` prints the name
+and the version of the package, and `kalyx --help` the usage.
+
+## The command-line program
+
+The program writes the result of each request as one line on standard
+output. In the examples below, `⇥` stands for a tab. The fields of a line are its kind, `value` or `error`,
+the input, context and settings versions of the request, which the program
+always sets to 0, and then the result: the value, or the kind, span, limit,
+scope, allowed value, amount and message of the error.
+
+**Argument mode.** Given an operation, the program runs that one request:
+
+```sh
+kalyx eval '1/3 + 1/6'
+kalyx expand x '(x + 1)^5'
+kalyx diff x 'x^3 - 2*x + 7'
+kalyx eval '1/0'
+```
+
+```text
+value⇥0⇥0⇥0⇥1/2
+value⇥0⇥0⇥0⇥1 + 5*x + 10*x^2 + 10*x^3 + 5*x^4 + x^5
+value⇥0⇥0⇥0⇥-2 + 3*x^2
+error⇥0⇥0⇥0⇥DivisionByZero⇥0..3⇥-⇥-⇥-⇥-⇥division by zero
+```
+
+The forms are `kalyx eval INPUT`, `kalyx expand VARIABLE INPUT` and
+`kalyx diff VARIABLE INPUT`. Quote the input for the shell. The option
+`--limits`, given before the operation, changes the limits of the request:
+
+```sh
+kalyx --limits max_exponent=256 expand x 'x^257'
+```
+
+```text
+error⇥0⇥0⇥0⇥ResourceLimit⇥2..5⇥Field(max_exponent)⇥-⇥256⇥Required(257)⇥resource limit exceeded: max_exponent
+```
+
+**Line mode.** Without arguments, the program reads requests from standard
+input, one per line, and writes one line for each, in order, as soon as it
+is computed. A line holds the operation, the variable, the input and,
+optionally, the limits, separated by tabs:
+
+```sh
+printf 'eval\tx\t2^64\nexpand\ty\t(y - 1)^3\ndiff\tx\t(x^2 + 1)^2\n' | kalyx
+printf 'expand\tx\t(x + 1)^300\tmax_exponent=256\n' | kalyx
+```
+
+```text
+value⇥0⇥0⇥0⇥18446744073709551616
+value⇥0⇥0⇥0⇥-1 + 3*y - 3*y^2 + y^3
+value⇥0⇥0⇥0⇥4*x + 4*x^3
+error⇥0⇥0⇥0⇥ResourceLimit⇥8..11⇥Field(max_exponent)⇥-⇥256⇥Required(300)⇥resource limit exceeded: max_exponent
+```
+
+Limits are `-` for the defaults or `field=value` settings separated by `;`,
+such as `max_work=1000000;max_depth=32`, with the field names of `Limits`.
+The [command-line forms](docs/semantics.md#the-command-line-program) state
+the forms, the line format and the rules for invalid lines.
+
+**Exit status.**
+
+| Status | Meaning |
+| --- | --- |
+| 0 | Every request gave a value, or `--version` or `--help` was written. |
+| 1 | Some request ended with an error, written as its error line, or its value did not fit the limits of the request and has no line. |
+| 2 | A usage error: arguments that the program does not accept, or a line of line mode that is not a request. Nothing is written for it on standard output. |
+| 3 | Reading standard input or writing standard output failed, for example because the reader of a pipe closed it. The program stops at once. |
+
+In line mode the status is the highest status of its lines. Diagnostics
+go to standard error, prefixed with `kalyx:`.
+
+## Limitations
+
+This version is the first slice of the library. It does not have:
+
+- rational functions: `expand x '1/x'` fails with `NotPolynomial`;
+- factorization;
+- multivariate polynomials: `expand` and `diff` work in one variable, and
+  `expand x 'x*y'` fails with `UnknownSymbol`;
+- function calls such as `sin(x)` and constants such as `pi`: both fail
+  with `Unsupported`;
+- floating point: every number is an exact rational;
+- a REPL, sessions, variables and commands beyond `eval`, `expand` and
+  `diff`: line mode answers each line on its own.
+
+The program reads one line into memory at a time and does not bound the
+length of a line before it reads it; the request then checks the input
+against `max_input_bytes`.
 
 ## Rules the library is built to
 
@@ -184,10 +256,12 @@ domains, and natural-language input.
   foundations: term representation, coefficient fields, the context and
   error kinds. Of the library components, only the errors and result
   states, the context and limits, the exact numbers with the
-  coefficient-field trait, the term core, the parser and the univariate
-  polynomials are implemented yet.
-- [Input syntax](docs/semantics.md): the one grammar of the library's input,
-  its precedence and lexical rules, and how an expression becomes a term.
+  coefficient-field trait, the term core, the parser, the univariate
+  polynomials and the command entry are implemented yet.
+- [Input syntax and semantics](docs/semantics.md): the one grammar of the
+  library's input, its precedence and lexical rules, how an expression
+  becomes a term, the output lines and the forms of the command-line
+  program.
 - [Public API conventions](docs/conventions/public-api.md): the rules that
   every public interface of the library is to follow.
 - [Answer vectors](vectors/README.md): the format of the test vectors and

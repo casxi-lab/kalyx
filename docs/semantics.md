@@ -6,15 +6,18 @@ term of the [term core](components/terms/contract.md). The parser,
 `kalyx::syntax::parse` (also `kalyx::parse`), reads it. Its
 [contract](components/syntax/contract.md) states the limits of the parser
 with their measures, its charges, its spans and errors, and its tests. The
-last section, [output lines](#output-lines), states the bytes of the one
-output format of the library, the line that the command entry writes for the
-outcome of a request.
+section [output lines](#output-lines) states the bytes of the one output
+format of the library, the line that the command entry writes for the
+outcome of a request, and the last section,
+[the command-line program](#the-command-line-program), the forms of the
+program `kalyx`, its line format and its exit statuses.
 
 **Status.** The grammar of this release reads numbers, identifiers, the binary
 operators `+`, `-`, `*`, `/` and `^`, parentheses and unary minus, and is
 implemented in `src/syntax.rs` and `src/syntax/`. Later releases extend it as
 [the single-grammar rule](#the-single-grammar-rule) states. The output lines
-are implemented in `src/command/line.rs`.
+are implemented in `src/command/line.rs`, and the command-line program in
+`src/main.rs`.
 
 ## The single-grammar rule
 
@@ -27,6 +30,11 @@ this release reads the same in every later release. For this reason the
 reserved names, function-call syntax, juxtaposition and the number literals
 beyond the forms `1` and `1.5` are errors today, so that later releases can
 give them a meaning.
+
+The rule covers the text of expressions. The arguments of the command-line
+program and the tab-separated fields and limits of its input lines frame a
+request around that text and are outside the grammar; see
+[the command-line program](#the-command-line-program).
 
 ## Grammar
 
@@ -331,3 +339,92 @@ context and settings versions 3, 2 and 1; `expand` of `(x+1)^5` under
 `max_nodes = 12`, whose power $(x + 1)^3$ needs 17 nodes; `eval` of `x`; and
 the operation `simplify`, which this release does not have. The messages are
 those of this release.
+
+## The command-line program
+
+The program `kalyx` runs requests of the command entry and writes the
+[output line](#output-lines) of each to standard output, through
+`kalyx::command::serialize` only. Its arguments and the fields of its
+input lines are not part of the grammar of expressions: the program splits
+them into the operation, the variable, the input and the limits of a
+request, and the input is read by the grammar alone.
+
+**Forms.** The arguments after the program name take one of these forms:
+
+| Arguments | What the program does |
+| --- | --- |
+| none | Line mode: one request per line of standard input. |
+| `--version` | Writes `kalyx` and the version of the package, such as `kalyx 0.1.0`, and a line feed. |
+| `--help` or `-h` | Writes the usage text. |
+| `[--limits LIMITS] OPERATION INPUT` | Argument mode: the request of `OPERATION` on `INPUT`, with the empty variable, which `eval` does not read. |
+| `[--limits LIMITS] OPERATION VARIABLE INPUT` | Argument mode: the request of `OPERATION` on `INPUT` in `VARIABLE`, such as `expand x '(x+1)^2'`. |
+
+`LIMITS` has the format of the `limits` column of the
+[answer vectors](../vectors/README.md#format): `-` for the default limits,
+or `field=value` settings separated by `;`, applied on top of the defaults,
+where `field` is a field of `Limits` and `value` the decimal digits of a
+`u64`, without a sign; no field may be set twice. The empty text is the
+default limits as well. Options are read only before the operation: every
+argument after it is an operand, so `kalyx eval -2` evaluates $-2$. The
+operation is given to the command entry as it is: an operation that the
+entry does not have, such as `simplify`, is a request that fails with
+`Unsupported`, never a usage error and never another operation. Any other
+form is a usage error: an operation without an input or with more than two
+operands, an option other than these, `--limits` without its value or
+without an operation, an invalid `LIMITS`, or an argument that is not
+UTF-8.
+
+**Line format.** In line mode the program reads standard input as lines,
+each ended by a line feed; the last line may lack it. A line, without its
+line feed and without one carriage return before it, holds up to four
+fields separated by tabs:
+
+```text
+OPERATION⇥VARIABLE⇥INPUT⇥LIMITS
+```
+
+where `⇥` stands for a tab. The fields are the operation, the variable, the
+input and the limits of the request, in the format of `LIMITS` above; a
+field that the line does not have is empty, and empty limits are the
+default limits. Since the tab separates fields, an input in line mode holds
+no tab. A line with fewer fields is still a request: `eval` alone is the
+request of `eval` with the empty input, which fails with `Syntax` at its
+end, and the empty line is the request of the empty operation, which fails
+with `Unsupported`. A line that is not UTF-8, has more than four fields or
+has invalid limits is not a request: the program writes a diagnostic with
+its line number to standard error, writes no line for it on standard
+output, and goes on with the next line.
+
+**Requests and lines.** For every request the program creates a context
+with the limits of the request, a cancellation flag of its own, which
+nothing in the program sets, and no deadline, runs `execute` under it, and builds the line of the outcome with
+`serialize` under the same context. When that fails and the outcome is an
+error, it builds the line again under a fresh context with the default
+limits, a fresh flag and no deadline, the
+[fallback step](components/command/contract.md#the-fallback-line) of the
+command entry. A value or a state whose line fails under the context of its
+request has no line: the program writes a diagnostic to standard error
+instead. The line is complete before its first byte is written, and the
+program writes it with one `write!` to the locked standard output and then
+flushes it, so a cancellation or a limit leaves the whole line or nothing,
+and a reader of line mode sees each line as soon as its request is done.
+The versions of every request are 0. Line mode answers its lines in order,
+one at a time; each request is independent of the others.
+
+**Terminals.** When standard input is a terminal, line mode writes one
+line of guidance to standard error before it reads; standard output is the
+same either way.
+
+**Exit statuses.**
+
+| Status | Meaning |
+| --- | --- |
+| 0 | Every request gave a value or a state, or the version or the usage text was written. |
+| 1 | Some request ended with an error, whose error line was written, or its value or state has no line under the limits of the request. |
+| 2 | A usage error: the arguments are not one of the forms above, or a line of line mode is not a request. |
+| 3 | Reading standard input or writing standard output failed, as when the reader of a pipe has closed it; the program stops at once. |
+
+In line mode the status is the highest status of its lines. Diagnostics go
+to standard error and start with `kalyx:`; a failure to write them is
+ignored. The program never panics on input or on a closed stream: it
+writes with `write!` and `flush` and returns its status from `main`.

@@ -33,7 +33,7 @@ charges work. The polynomials (`kalyx::polynomial`) check `max_depth` and
 scope `Value`, and charge work. The command entry (`kalyx::command`) runs
 these under the context of its request and charges every byte of the lines
 that it writes with `charge_output`; it creates no context. The command-line
-program does not create a context yet.
+program creates one context for each request that it runs.
 
 ## Interface
 
@@ -487,8 +487,9 @@ library starts no threads.
 - `settings` and `settings_version` are inputs of the request, and a progress
   receiver is a separate parameter of a streaming entry.
 - Within the package, only the command entry and the command-line program
-  may create a `Context`; in this release neither does: the caller of
-  `execute` creates one context per request. The guard of
+  may create a `Context`; the command entry never does: the caller of
+  `execute`, such as the command-line program, creates one context per
+  request. The guard of
   `cargo xtask check` rejects every path `Context::name` elsewhere in
   non-test code, so library code reaches the context only through the methods
   of the value it was given. `check` and `check_parameter` are `&self`
