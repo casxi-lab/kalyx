@@ -15,6 +15,7 @@
 
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use kalyx::command::serialize;
 use kalyx::context::CancelFlag;
@@ -44,6 +45,23 @@ fn run(arguments: &[&str], input: &[u8]) -> Output {
     let output = child.wait_with_output().expect("the program ends");
     writer.join().expect("the writer ends");
     output
+}
+
+/// Runs the program with `input` on its standard input and the reading end
+/// of its standard output closed before it writes.
+fn run_with_closed_output(input: &[u8]) -> Output {
+    let mut child = Command::new(PROGRAM)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the program starts");
+    drop(child.stdout.take());
+    let mut stdin = child.stdin.take().expect("standard input is piped");
+    // The program may end before it reads all of its input.
+    let _ = stdin.write_all(input);
+    drop(stdin);
+    child.wait_with_output().expect("the program ends")
 }
 
 /// The exit status of `output`.
@@ -204,19 +222,7 @@ fn line_mode_reports_errors_and_goes_on() {
 
 #[test]
 fn a_closed_standard_output_exits_with_3_without_a_panic() {
-    let mut child = Command::new(PROGRAM)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("the program starts");
-    // Close the reading end of standard output before the program writes.
-    drop(child.stdout.take());
-    let mut stdin = child.stdin.take().expect("standard input is piped");
-    // The program may end before it reads all of its input.
-    let _ = stdin.write_all(b"eval\tx\t1\neval\tx\t2\n");
-    drop(stdin);
-    let output = child.wait_with_output().expect("the program ends");
+    let output = run_with_closed_output(b"eval\tx\t1\neval\tx\t2\n");
     assert_eq!(status(&output), 3);
     assert_no_panic(&output);
     assert!(stderr(&output).contains("kalyx: cannot write to standard output"));
@@ -224,20 +230,9 @@ fn a_closed_standard_output_exits_with_3_without_a_panic() {
 
 #[test]
 fn a_write_failure_stops_line_mode_at_once() {
-    let mut child = Command::new(PROGRAM)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("the program starts");
-    // Close the reading end of standard output before any input is written,
-    // so that the first write fails.
-    drop(child.stdout.take());
-    let mut stdin = child.stdin.take().expect("standard input is piped");
-    // The program may end before it reads all of its input.
-    let _ = stdin.write_all(b"eval\tx\t1\neval\tx\t2\neval\tx\t3\n");
-    drop(stdin);
-    let output = child.wait_with_output().expect("the program ends");
+    // Standard output is closed before any input is written, so that the
+    // first write fails.
+    let output = run_with_closed_output(b"eval\tx\t1\neval\tx\t2\neval\tx\t3\n");
     assert_eq!(status(&output), 3);
     assert_no_panic(&output);
     // One diagnostic: the run ended at the first failed write.
@@ -246,6 +241,48 @@ fn a_write_failure_stops_line_mode_at_once() {
             .matches("cannot write to standard output")
             .count(),
         1
+    );
+}
+
+#[test]
+fn a_closed_standard_output_stays_closed_while_other_children_start() {
+    // Half of the threads run the program with its standard output closed,
+    // while the other half start children until they are done. Every run
+    // with a closed standard output must find it closed.
+    const THREADS: usize = 4;
+    const ROUNDS: usize = 50;
+    let done = AtomicBool::new(false);
+    let failures = std::thread::scope(|scope| {
+        for _ in 0..THREADS {
+            scope.spawn(|| {
+                while !done.load(Ordering::Relaxed) {
+                    assert_eq!(status(&run(&["--version"], b"")), 0);
+                }
+            });
+        }
+        let closing: Vec<_> = (0..THREADS)
+            .map(|_| {
+                scope.spawn(|| {
+                    (0..ROUNDS)
+                        .filter(|_| status(&run_with_closed_output(b"eval\tx\t1\n")) != 3)
+                        .count()
+                })
+            })
+            .collect();
+        let counts: Vec<_> = closing.into_iter().map(|thread| thread.join()).collect();
+        // The starting threads stop before a failed join panics, so that the
+        // scope can end.
+        done.store(true, Ordering::Relaxed);
+        counts
+            .into_iter()
+            .map(|count| count.expect("a closing thread ends"))
+            .sum::<usize>()
+    });
+    assert_eq!(
+        failures,
+        0,
+        "{failures} of {} runs with a closed standard output did not exit with 3",
+        THREADS * ROUNDS
     );
 }
 
