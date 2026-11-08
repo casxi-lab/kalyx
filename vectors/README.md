@@ -13,12 +13,19 @@ checked with its span. `tests/polynomials.rs` replays the 27 expansions and
 derivatives, each as one request of the parser and the polynomials under its
 limits, and compares its result with the answer by canonical form.
 `tests/command.rs` replays all 58 through the command entry, each as one
-request under its limits: an answer is compared by canonical form, and an
-error by its kind and, for `ResourceLimit`, by the field that its limits set.
-`tests/cli.rs` replays all 58 through the line mode of the command-line
-program, each line with the operation, variable, input and limits of its
-case, and compares the output with the lines of the command entry byte for
-byte.
+request under the limits that its `limits` column sets: `compare_case`
+compares an answer by canonical form, reading the answer and comparing the
+two terms by structure, and an error by its kind and, for `ResourceLimit`,
+by the limit identifier of the field that its limits set; it never compares
+display text or work, and a negative test shows that it rejects a corrupted
+expectation. `tests/cli.rs` replays all 58 through the line mode of the
+command-line program, each line with the operation, variable, input and
+limits of its case, and compares the output with the lines of the command
+entry byte for byte. The allocation check in `checks/allocation/` runs each
+of the 58 cases 100 times under a counting allocator and checks that every
+run leaves no memory behind; the
+[resource profile](../docs/resource-profile.md) records the heap and the
+stack of each case.
 
 ## Format
 

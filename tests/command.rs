@@ -2,10 +2,10 @@
 //! operations, the rejected requests and their order, the versions that an
 //! outcome echoes, the line bytes of outcomes and their bounded output, the
 //! deadline and cancellation, a property test of the determinism of lines,
-//! and the replay of every case of `vectors/r02.tsv`. The rules are those of
-//! `docs/components/command/contract.md` and of the output lines of
-//! `docs/semantics.md`. Errors are compared by kind, span and exceeded
-//! limit, never by message.
+//! and the replay of every case of `vectors/r02.tsv` with its comparison.
+//! The rules are those of `docs/components/command/contract.md` and of the
+//! output lines of `docs/semantics.md`. Errors are compared by kind, span
+//! and exceeded limit, never by message.
 
 #![allow(
     clippy::expect_used,
@@ -24,8 +24,8 @@ use kalyx::polynomial::PolynomialRing;
 use kalyx::syntax::parse;
 use kalyx::term::Term;
 use kalyx::{
-    Context, Error, ErrorKind, FaultKind, LimitAmount, LimitField, LimitId, LimitScope, Limits,
-    Outcome, Request, Settled, Span, execute,
+    Context, Error, ErrorKind, FaultKind, LimitAmount, LimitExceeded, LimitField, LimitId,
+    LimitScope, Limits, Outcome, Request, Settled, Span, execute,
 };
 
 const VECTORS: &str = include_str!("../vectors/r02.tsv");
@@ -1517,6 +1517,7 @@ fn a_deadline_on_an_injected_clock_ends_the_request() {
 // The answer vectors
 
 /// One case of the vector file: its seven columns.
+#[derive(Clone, Copy)]
 struct Case<'a> {
     id: &'a str,
     operation: &'a str,
@@ -1546,6 +1547,11 @@ fn cases() -> Vec<Case<'static>> {
             }
         })
         .collect()
+}
+
+/// The case `id` of `vectors/r02.tsv`.
+fn case(id: &str) -> Case<'static> {
+    cases().into_iter().find(|case| case.id == id).expect(id)
 }
 
 /// The field of `Limits` named `name`.
@@ -1592,39 +1598,150 @@ fn case_limits(case: &Case<'_>) -> (Limits, Vec<LimitField>) {
     (limits, fields)
 }
 
+/// The error kind that the `result` column names, or `None` for `ok` and
+/// for a name outside the table of result kinds.
+fn result_kind(name: &str) -> Option<ErrorKind> {
+    Some(match name {
+        "ResourceLimit" => ErrorKind::ResourceLimit,
+        "Cancelled" => ErrorKind::Cancelled,
+        "DeadlineExceeded" => ErrorKind::DeadlineExceeded,
+        "Syntax" => ErrorKind::Fault(FaultKind::Syntax),
+        "UnknownSymbol" => ErrorKind::Fault(FaultKind::UnknownSymbol),
+        "DivisionByZero" => ErrorKind::Fault(FaultKind::DivisionByZero),
+        "NonIntegerExponent" => ErrorKind::Fault(FaultKind::NonIntegerExponent),
+        "NotPolynomial" => ErrorKind::Fault(FaultKind::NotPolynomial),
+        "Unsupported" => ErrorKind::Fault(FaultKind::Unsupported),
+        "Internal" => ErrorKind::Fault(FaultKind::Internal),
+        _ => return None,
+    })
+}
+
+/// Compares the outcome of a case with its expectation, by structure only,
+/// never by display text or work: for `ok`, the outcome must be a value
+/// whose term equals the answer read under wide limits, so both are in
+/// canonical form; for an error kind, the outcome must be an error of that
+/// kind, and a `ResourceLimit` must name, as `LimitId::Field`, the one field
+/// that the limits column sets. Returns how they differ.
+fn compare_case(case: &Case<'_>, outcome: &Outcome) -> Result<(), String> {
+    let id = case.id;
+    match (case.result, outcome.result()) {
+        ("ok", Ok(Settled::Value(term))) => {
+            let c = &mut context(wide());
+            let expected = parse(case.answer, c)
+                .map_err(|error| format!("{id}: the answer does not parse: {error}"))?;
+            let equal = term
+                .equals(&expected, c)
+                .map_err(|error| format!("{id}: the comparison failed: {error}"))?;
+            if equal {
+                Ok(())
+            } else {
+                Err(format!("{id}: the value is not the answer {}", case.answer))
+            }
+        }
+        ("ok", other) => Err(format!("{id}: expected a value, found {other:?}")),
+        (name, Err(error)) => {
+            let Some(kind) = result_kind(name) else {
+                return Err(format!("{id}: {name} is not a result kind"));
+            };
+            if error.kind() != kind {
+                return Err(format!("{id}: expected {kind:?}, found {:?}", error.kind()));
+            }
+            if kind != ErrorKind::ResourceLimit {
+                return Ok(());
+            }
+            let (_, set) = case_limits(case);
+            let [field] = set.as_slice() else {
+                return Err(format!("{id}: a ResourceLimit case sets one field"));
+            };
+            match error.exceeded() {
+                Some(exceeded) if exceeded.id() == &LimitId::Field(*field) => Ok(()),
+                other => Err(format!(
+                    "{id}: expected the limit {field:?}, found {:?}",
+                    other.map(LimitExceeded::id)
+                )),
+            }
+        }
+        (name, other) => Err(format!("{id}: expected {name}, found {other:?}")),
+    }
+}
+
 // Every case of `vectors/r02.tsv` runs as one request through the command
-// entry under its limits. The result of a case with an answer is compared
-// with the answer by canonical form, and its line writes the display text of
-// the result; an error is compared by its kind, which its line writes, and a
-// `ResourceLimit` by the field that the limits column sets. The line of every
-// case fits the limits of the case: written under the context of its request,
-// as a host writes it, it has the same bytes as under wide limits.
+// entry under the limits of its limits column, set explicitly on top of the
+// defaults, and `compare_case` compares its outcome with the case: an answer
+// by canonical form, an error by its kind and a `ResourceLimit` also by the
+// field that the limits column sets; never by display text or work. The
+// line of every case fits the limits of the case: written under the context
+// of its request, as a host writes it, it has the same bytes as under wide
+// limits, and the documented shape.
 #[test]
 fn every_vector_of_r02_replays_through_the_command_entry() {
     let cases = cases();
     assert_eq!(cases.len(), 58);
-    let mut answered = 0;
+    let (mut answered, mut failed, mut limited) = (0, 0, 0);
     for case in &cases {
         let (limits, set) = case_limits(case);
         let request = Request::new(case.operation, case.variable, case.input);
         let (outcome, mut c) = run(&request, limits);
+        assert_eq!(c.limits(), &limits, "{}", case.id);
+        if let Err(difference) = compare_case(case, &outcome) {
+            panic!("{difference}");
+        }
+        match case.result {
+            "ok" => answered += 1,
+            "ResourceLimit" => {
+                limited += 1;
+                failed += 1;
+                assert_eq!(set.len(), 1, "{}", case.id);
+            }
+            _ => failed += 1,
+        }
         let text = line(&outcome);
         let own = serialize(&outcome, &mut c).expect(case.id);
         assert_eq!(own, text.as_bytes(), "{}", case.id);
         assert_shape(&text, &outcome);
-        if case.result == "ok" {
-            assert!(is(value(&outcome), case.answer), "{}", case.id);
-            answered += 1;
-        } else {
-            let error = error(&outcome);
-            assert_eq!(fields(&text)[4], case.result, "{}", case.id);
-            if case.result == "ResourceLimit" {
-                assert_eq!(set.len(), 1, "{}", case.id);
-                assert_limit(error, set[0]);
-            }
-        }
     }
-    assert_eq!(answered, 49);
+    assert_eq!((answered, failed, limited), (49, 9, 4));
+}
+
+// The comparison fails for a case whose expectation is corrupted: an
+// answer changed from 1/2 to 1/3, an error kind changed from
+// `DivisionByZero` to `Syntax`, and the limit of `degree_limit_1` changed
+// from `max_exponent` to `max_integer_bits`, each compared with the outcome
+// of the request of the true case, which passes.
+#[test]
+fn a_corrupted_expectation_fails_the_comparison() {
+    let outcome = |case: &Case<'_>| {
+        let request = Request::new(case.operation, case.variable, case.input);
+        run(&request, case_limits(case).0).0
+    };
+    for (id, corrupted) in [
+        (
+            "rational_sum",
+            Case {
+                answer: "1/3",
+                ..case("rational_sum")
+            },
+        ),
+        (
+            "zero_division_1",
+            Case {
+                result: "Syntax",
+                ..case("zero_division_1")
+            },
+        ),
+        (
+            "degree_limit_1",
+            Case {
+                limits: "max_integer_bits=256",
+                ..case("degree_limit_1")
+            },
+        ),
+    ] {
+        let found = outcome(&case(id));
+        assert_eq!(compare_case(&case(id), &found), Ok(()), "{id}");
+        let difference = compare_case(&corrupted, &found).unwrap_err();
+        assert!(difference.starts_with(id), "{difference}");
+    }
 }
 
 // The examples of the output lines in `docs/semantics.md`, with the requests

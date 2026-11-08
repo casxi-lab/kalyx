@@ -594,21 +594,32 @@ keeps such macros out of the crate root.
 
 ### The allocation check
 
-A request leaves no memory behind: run 100 times, the same request returns
-the live bytes of the process to their baseline after every run.
+A request leaves no memory behind: run 100 times, every case of the answer
+vectors returns the live bytes of the process to their baseline after every
+run.
 
 - **The check.** `checks/allocation/` is a Rust package of its own, a
   workspace outside the kalyx package that depends on it by path, since the
   package forbids `unsafe` code in every target and a global allocator needs
   it. Its program installs a counting `#[global_allocator]` that forwards to
   the system allocator and counts the bytes of the blocks that it hands out
-  and takes back. It builds the request `diff` of `(x/2 + 1/3)^8 - x^3`, and
-  the live bytes after that are the baseline. Each of 100 runs creates a
-  context, executes the request, writes the line of its outcome and drops
-  them, and must leave the live bytes at the baseline, 0 bytes above it,
-  with a value and the same line as the first run. The program prints
-  nothing before the last run, since the first print keeps a buffer for the
-  rest of the process, and exits with 1 when a run fails.
+  and takes back. It embeds `vectors/r02.tsv` when it is built and reads its
+  58 cases with the limits of each, and builds their requests; the live
+  bytes after that are the baseline. Each of 100 runs of each case creates a
+  context with the limits of the case, executes the request, publishes the
+  line of its outcome as a host does, by the
+  [fallback step](#the-fallback-line) for an error whose line does not fit
+  the context of its request, and drops them. Every run must leave the live
+  bytes at the baseline, 0 bytes above it, end with the result kind of its
+  case and publish a line, the same line as the first run of its case. The
+  program prints nothing before the last run, since the first print keeps a
+  buffer for the rest of the process, and exits with 1 when a run fails.
+- **The resource profile.** Run with `profile`, the same program measures
+  the heap peak and the native stack of every case and of deep inputs at
+  several values of `max_depth`, the stack in child processes without
+  `unsafe` code; the [resource profile](../../resource-profile.md) records
+  the figures, the host and the method. The profile is run by hand and is
+  not a step of `cargo xtask check`.
 - **`unsafe` code.** The allocator wrapper, an `unsafe impl GlobalAlloc` with
   two unsafe blocks that call the system allocator, is the only `unsafe` code
   of the crate. Its manifest denies `unsafe` code and undocumented unsafe
@@ -618,8 +629,9 @@ the live bytes of the process to their baseline after every run.
   format-checks the crate, lints it with Clippy with warnings as errors,
   runs its tests and then runs it, each with its lock file. The tests show
   that the verdict rejects a run that leaves bytes behind, also when every
-  run leaves the same amount, a run without a value, a run without a line
-  and a run whose line differs from the first. The guard does not scan the
+  run leaves the same amount, a run with another result kind than its case,
+  a run without a line and a run whose line differs from the first, and
+  that the program reads the 58 cases with their limits. The guard does not scan the
   crate, which is not code of the package, but scans every other file under
   `checks/`; it checks that the lock file of the crate holds only the
   package, the check crate and the packages of `guard/crates.txt`, and
@@ -631,8 +643,9 @@ the live bytes of the process to their baseline after every run.
 The command layer of the earlier implementation had no requirement
 identifiers, so the requirements of this component are named after what
 they state. Tests are in `tests/command.rs` unless the entry names
-`src/command/tests.rs`, `tests/root_names.rs`, a documentation test, the
-allocation check or `xtask`.
+`src/command/tests.rs`, `tests/root_names.rs`, `tests/host_fixtures.rs`,
+`tests/random_requests.rs`, a documentation test, the allocation check or
+`xtask`.
 
 ### The request and its outcome
 
@@ -802,16 +815,51 @@ state by the rule of [a job of several requests](#a-job-of-several-requests).
 
 ### The answer vectors
 
-All 58 cases of `vectors/r02.tsv` run through `execute` under their limits:
-the 49 answers are compared by canonical form, and the 9 errors by kind and,
-for `ResourceLimit`, by the field that the limits column sets.
+All 58 cases of `vectors/r02.tsv` run through `execute` under their limits,
+set explicitly from the limits column of each case: the 49 answers are
+compared by canonical form, and the 9 errors by kind and, for
+`ResourceLimit`, by the limit identifier of the field that the limits column
+sets; never by display text or work.
 
 - **Implemented here.** The whole component, with the parser, the term core
   and the polynomials.
-- **Evidence.** `every_vector_of_r02_replays_through_the_command_entry`,
-  which also checks the line of every case and that it fits the limits of
-  the case: written under the context of its request, it has the same bytes
-  as under wide limits.
+- **Evidence.** Positive: `every_vector_of_r02_replays_through_the_command_entry`,
+  which compares every case with `compare_case` and also checks the line of
+  every case and that it fits the limits of the case: written under the
+  context of its request, it has the same bytes as under wide limits.
+  Negative: `a_corrupted_expectation_fails_the_comparison`, in which
+  `compare_case` rejects a case whose answer, error kind or limit field is
+  changed.
+
+### Host fixtures
+
+The four cancellation and budget fixtures planned for krepi's calculator
+worker have host counterparts, run by a host of the
+[rule for a job of several requests](#a-job-of-several-requests) that writes
+a line only when `serialize` has returned all of its bytes: the total budget
+of a job exceeded, cancellation between two evaluations, a deadline that
+expires on an injected clock, and cancellation in the middle of an
+evaluation, which never leaves half a line in the output.
+
+- **Implemented here.** The rule of the host, in the test, over `execute`,
+  `serialize` and `Context::with_observers`.
+- **Evidence.** `fixture_total_budget_exceeded`,
+  `fixture_cancellation_between_two_evaluations`, `fixture_deadline_expiry`
+  and `fixture_mid_evaluation_cancellation`, in `tests/host_fixtures.rs`.
+
+### No panic on random requests
+
+No request panics, and every outcome is a value, a state or an error of a
+kind that a request without a deadline or a cancellation may end with.
+
+- **Implemented here.** `execute` and `serialize`, with the components below
+  them.
+- **Evidence.** `ten_thousand_random_requests_never_panic` in
+  `tests/random_requests.rs`: 10,000 requests from a fixed seed, of which
+  4,000 general, 2,000 with exponents near $2^{32}$, $2^{63}$ and the `u64`
+  bound, 2,000 under limits with fields at `u64::MAX` and 2,000 with inputs
+  nested up to 20,000 levels; a failing request is reported with its index
+  and the seed.
 
 ### The names of the crate root
 
@@ -826,14 +874,18 @@ The public names of the crate root are those of `api/root-names.txt`.
 
 ### No memory left behind
 
-100 runs of the same request leave the live bytes at their baseline.
+100 runs of each case of the answer vectors leave the live bytes at their
+baseline.
 
 - **Implemented here.** The allocation check in `checks/allocation/` and the
   step `kalyx-allocation` of `cargo xtask check`.
 - **Evidence.** The run of the allocation check, and its tests
   `equal_runs_without_leftovers_pass`, `a_run_that_leaves_bytes_behind_fails`,
-  `a_run_without_a_value_or_a_line_fails` and
-  `a_run_with_another_line_fails` in `checks/allocation/src/main.rs`. In
+  `a_run_with_another_result_or_without_a_line_fails`,
+  `a_run_with_another_line_fails`,
+  `the_check_reads_the_58_cases_with_their_limits` and
+  `a_run_publishes_the_fallback_line_of_an_error` in
+  `checks/allocation/src/main.rs`. In
   `xtask`,
   `the_allocation_step_checks_and_runs_the_allocation_crate` and
   `an_allocation_failure_stops_the_check` in `xtask/src/check.rs`, and
@@ -876,10 +928,15 @@ The public names of the crate root are those of `api/root-names.txt`.
    fault, and the rule for a job of several requests a case for each way to
    stop and to end without a stop.
 5. **Vectors.** Every case of `vectors/r02.tsv`, compared by canonical form or
-   by kind and limit, never by text.
+   by kind and limit, never by text, and one negative case of a corrupted
+   expectation.
 6. **Names of the crate root.** One positive and one negative case.
-7. **Allocation.** 100 runs of one request under the counting allocator.
-8. **No message text.** No test asserts the message of an error of the
+7. **Allocation.** 100 runs of every case of `vectors/r02.tsv` under the
+   counting allocator.
+8. **Host fixtures and random requests.** One test for each of the four
+   fixtures planned for krepi's worker, and 10,000 random requests from a fixed seed
+   in four categories of fixed counts.
+9. **No message text.** No test asserts the message of an error of the
    library; a test that reads the message field of a line compares it with
    the escaped message of the error.
 

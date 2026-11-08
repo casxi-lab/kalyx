@@ -90,9 +90,11 @@ index with `git add` before running the check.
 
 ### Allocation check
 
-The allocation check runs one request of the command entry 100 times under a
-counting global allocator and fails unless every run leaves the live bytes of
-the process at their baseline, as the
+The allocation check runs each of the 58 cases of
+[the answer vectors](vectors/README.md) 100 times through the command entry,
+under the limits of the case and under a counting global allocator, and fails
+unless every run leaves the live bytes of the process at their baseline, as
+the
 [contract of the command entry](docs/components/command/contract.md#the-allocation-check)
 states. A global allocator implements the unsafe trait `GlobalAlloc`, and
 the kalyx package forbids `unsafe` code in every target, so the check is the
@@ -103,6 +105,12 @@ code and undocumented unsafe blocks, and only the wrapper allows `unsafe`
 code, with its reason, and states why each unsafe block is sound. The guard
 does not scan the check, which is not code of the package, and checks its
 lock file as [below](#guard).
+
+The same program measures the [resource profile](docs/resource-profile.md)
+of the library, the heap and the stack of each case and of deep inputs, when
+it is run by hand with
+`cargo run --locked --release --manifest-path checks/allocation/Cargo.toml -- profile`;
+`cargo xtask check` does not run the profile.
 
 ### Guard
 
