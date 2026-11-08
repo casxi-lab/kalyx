@@ -4,8 +4,14 @@ version = "0.1.0"
 description = "The computer algebra library of casξ"
 edition = "2024"
 license = "MIT"
-publish = false
 rust-version = "1.99"
+repository = "https://github.com/casxi-lab/kalyx"
+readme = "README.md"
+keywords = ["computer-algebra", "cas", "polynomial", "rational", "symbolic"]
+categories = ["mathematics", "science"]
+# The repository checks, the allocation check, the guard lists and the
+# local configuration are not part of the published package.
+exclude = [".cargo/", ".githooks/", ".github/", "xtask/", "checks/", "guard/"]
 
 [dependencies]
 # Arbitrary-precision integers and rationals, wrapped by the `number` module;
