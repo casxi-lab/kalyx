@@ -28,11 +28,12 @@ const VECTORS: &str = include_str!("../vectors/r02.tsv");
 const PROGRAM: &str = env!("CARGO_BIN_EXE_kalyx");
 
 /// Held while a child process starts, and by a test that closes the reading
-/// end of a pipe until it is closed. From its creation until it executes the
-/// program, a child holds a copy of every descriptor of this process,
-/// close-on-exec descriptors included. Without the lock, a child that one
-/// test starts could hold the reading end of a pipe that another test has
-/// closed, and a write to that pipe would then succeed.
+/// end of a pipe, from before the pipe is created until that end is closed.
+/// From its creation until it executes the program, a child holds a copy of
+/// every descriptor of this process, close-on-exec descriptors included, and
+/// it may still hold them for a moment after `spawn` returns. Without the
+/// lock, a child that one test starts could hold the reading end of a pipe
+/// that another test has closed, and a write to that pipe would then succeed.
 static STARTING: Mutex<()> = Mutex::new(());
 
 /// Takes [`STARTING`] until the guard is dropped. A test that panicked while
@@ -271,21 +272,33 @@ fn a_write_failure_stops_line_mode_at_once() {
 
 #[test]
 fn a_closed_standard_output_stays_closed_while_other_children_start() {
-    // Half of the threads run the program with its standard output closed,
-    // while the other half start children until they are done. Every run
-    // with a closed standard output must find it closed.
-    const THREADS: usize = 4;
+    // `CLOSING` threads run the program with its standard output closed,
+    // while as many others start children until the closing threads are
+    // done. Every run with a closed standard output must find it closed.
+    const CLOSING: usize = 4;
     const ROUNDS: usize = 50;
+
+    /// Tells the starting threads to stop when dropped, also when the test
+    /// panics, so that the scope can end.
+    struct Stop<'a>(&'a AtomicBool);
+
+    impl Drop for Stop<'_> {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+        }
+    }
+
     let done = AtomicBool::new(false);
     let failures = std::thread::scope(|scope| {
-        for _ in 0..THREADS {
+        let _stop = Stop(&done);
+        for _ in 0..CLOSING {
             scope.spawn(|| {
                 while !done.load(Ordering::Relaxed) {
                     assert_eq!(status(&run(&["--version"], b"")), 0);
                 }
             });
         }
-        let closing: Vec<_> = (0..THREADS)
+        let closing: Vec<_> = (0..CLOSING)
             .map(|_| {
                 scope.spawn(|| {
                     (0..ROUNDS)
@@ -294,20 +307,16 @@ fn a_closed_standard_output_stays_closed_while_other_children_start() {
                 })
             })
             .collect();
-        let counts: Vec<_> = closing.into_iter().map(|thread| thread.join()).collect();
-        // The starting threads stop before a failed join panics, so that the
-        // scope can end.
-        done.store(true, Ordering::Relaxed);
-        counts
+        closing
             .into_iter()
-            .map(|count| count.expect("a closing thread ends"))
+            .map(|thread| thread.join().expect("a closing thread ends"))
             .sum::<usize>()
     });
     assert_eq!(
         failures,
         0,
         "{failures} of {} runs with a closed standard output did not exit with 3",
-        THREADS * ROUNDS
+        CLOSING * ROUNDS
     );
 }
 
