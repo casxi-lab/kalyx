@@ -266,6 +266,9 @@ domains, and natural-language input.
   every public interface of the library is to follow.
 - [Answer vectors](vectors/README.md): the format of the test vectors and
   their result kinds and limits.
+- [Resource profile](docs/resource-profile.md): the heap and the stack that
+  the requests of the answer vectors and deep inputs use, measured on one
+  host, with the commands that measure them.
 - Rules for this repository: [AGENTS](AGENTS.md) and
   [CONTRIBUTING](CONTRIBUTING.md); code taken over from the earlier
   implementation: [PORTING](PORTING.md).

@@ -156,7 +156,8 @@ increments a count) and copied scalars, never borrowed references. `Drop` for
 a node moves its children onto a stack of its own and releases them one at a
 time with `Rc::try_unwrap`, so dropping a deep term uses a constant amount of
 native stack. The native stack use of term operations therefore does not grow
-with the depth of the term.
+with the depth of the term; the [resource profile](resource-profile.md)
+measures the stack and the heap of requests on one host.
 
 ### Kinds and order
 
