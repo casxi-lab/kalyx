@@ -35,7 +35,7 @@ are stated in [the input syntax and semantics](../../semantics.md#output-lines).
 after the design rules of the architecture: no code and no test is taken
 over from the earlier implementation, which served as a reference, so
 [PORTING](../../../PORTING.md) has no row for it. Its first callers are the
-command-line program, later in release 0.1, and the calculator job of krepi,
+command-line program, `src/main.rs`, and the calculator job of krepi,
 built from a pinned commit of the library.
 
 ## Scope
@@ -51,8 +51,9 @@ built from a pinned commit of the library.
   and the allocation check of repeated requests.
 - **Excluded, with their owners.**
   - Arguments, standard streams, line mode and process exit codes: the
-    command-line program, later in release 0.1, which builds requests,
-    calls `execute` and `serialize` and chooses its exit code.
+    command-line program, `src/main.rs`, which builds requests,
+    calls `execute` and `serialize` and chooses its exit code
+    ([the command-line program](../../semantics.md#the-command-line-program)).
   - Sessions, bindings, a context version that is checked against a
     session, the fault `StaleEnvironment`, nested commands and the commands
     beyond the three of this release: the session and command layer, release

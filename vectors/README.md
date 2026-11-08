@@ -15,6 +15,10 @@ limits, and compares its result with the answer by canonical form.
 `tests/command.rs` replays all 58 through the command entry, each as one
 request under its limits: an answer is compared by canonical form, and an
 error by its kind and, for `ResourceLimit`, by the field that its limits set.
+`tests/cli.rs` replays all 58 through the line mode of the command-line
+program, each line with the operation, variable, input and limits of its
+case, and compares the output with the lines of the command entry byte for
+byte.
 
 ## Format
 

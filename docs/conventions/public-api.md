@@ -55,9 +55,9 @@ structure as `&self` and the context last as well.
 A library function never creates a context in place of the caller's. Within
 the package, only the command entry and the command-line program may
 construct a `Context`, and the guard of `cargo xtask check` rejects every
-other construction path that it can see; in this release neither does: the
-caller of `execute` creates one context per request, and library code
-charges the context that it is given.
+other construction path that it can see; the command entry never does: the
+caller of `execute`, such as the command-line program, creates one context
+per request, and library code charges the context that it is given.
 Library interfaces return library types: parsing command-line options and
 choosing process exit codes belong to the program. The command entry is the
 one exception to the return type: `execute` returns an `Outcome`, which
@@ -268,7 +268,7 @@ output: bytes are written only after every charge for them has succeeded.
 `impl Display` exists only as a debugging convenience and is never the path
 by which results reach callers. The command entry has one serialization
 function, `kalyx::command::serialize`, that writes an outcome as line bytes;
-it is the only output format, and the command-line program is to call only
+it is the only output format, and the command-line program calls only
 it.
 
 **Counterexample in the earlier implementation.**
