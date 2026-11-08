@@ -14,8 +14,9 @@
 )]
 
 use std::io::Write;
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use kalyx::command::serialize;
 use kalyx::context::CancelFlag;
@@ -26,15 +27,35 @@ const VECTORS: &str = include_str!("../vectors/r02.tsv");
 /// The program built from this package.
 const PROGRAM: &str = env!("CARGO_BIN_EXE_kalyx");
 
+/// Held while a child process starts, and by a test that closes the reading
+/// end of a pipe until it is closed. From its creation until it executes the
+/// program, a child holds a copy of every descriptor of this process,
+/// close-on-exec descriptors included. Without the lock, a child that one
+/// test starts could hold the reading end of a pipe that another test has
+/// closed, and a write to that pipe would then succeed.
+static STARTING: Mutex<()> = Mutex::new(());
+
+/// Takes [`STARTING`] until the guard is dropped. A test that panicked while
+/// holding it leaves nothing to repair, so a poisoned lock is taken as well.
+fn starting() -> MutexGuard<'static, ()> {
+    STARTING.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Starts `command` while holding [`STARTING`].
+fn start(command: &mut Command) -> Child {
+    let _starting = starting();
+    command.spawn().expect("the program starts")
+}
+
 /// Runs the program with `arguments` and `input` on its standard input.
 fn run(arguments: &[&str], input: &[u8]) -> Output {
-    let mut child = Command::new(PROGRAM)
-        .args(arguments)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("the program starts");
+    let mut child = start(
+        Command::new(PROGRAM)
+            .args(arguments)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    );
     let mut stdin = child.stdin.take().expect("standard input is piped");
     let input = input.to_vec();
     // A thread writes the input, so that a large output cannot block it.
@@ -50,6 +71,9 @@ fn run(arguments: &[&str], input: &[u8]) -> Output {
 /// Runs the program with `input` on its standard input and the reading end
 /// of its standard output closed before it writes.
 fn run_with_closed_output(input: &[u8]) -> Output {
+    // No other child starts until the reading end is closed, so none holds a
+    // copy of it.
+    let starting = starting();
     let mut child = Command::new(PROGRAM)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -57,6 +81,7 @@ fn run_with_closed_output(input: &[u8]) -> Output {
         .spawn()
         .expect("the program starts");
     drop(child.stdout.take());
+    drop(starting);
     let mut stdin = child.stdin.take().expect("standard input is piped");
     // The program may end before it reads all of its input.
     let _ = stdin.write_all(input);
@@ -289,14 +314,20 @@ fn a_closed_standard_output_stays_closed_while_other_children_start() {
 #[test]
 fn version_and_help_to_a_closed_pipe_exit_with_3() {
     for argument in ["--version", "--help"] {
+        // No other child starts between the creation of the pipe and the
+        // start of this one, so none holds a copy of the reading end.
+        let starting = starting();
         let (reader, writer) = std::io::pipe().expect("a pipe");
         drop(reader);
-        let output = Command::new(PROGRAM)
+        let child = Command::new(PROGRAM)
             .arg(argument)
+            .stdin(Stdio::null())
             .stdout(writer)
             .stderr(Stdio::piped())
-            .output()
-            .expect("the program runs");
+            .spawn()
+            .expect("the program starts");
+        drop(starting);
+        let output = child.wait_with_output().expect("the program ends");
         assert_eq!(status(&output), 3, "{argument}");
         assert_no_panic(&output);
         assert!(
@@ -311,10 +342,13 @@ fn version_and_help_to_a_closed_pipe_exit_with_3() {
 fn a_read_failure_exits_with_3() {
     // A directory opens but cannot be read, so the first read fails.
     let directory = std::fs::File::open("/").expect("the root directory opens");
-    let output = Command::new(PROGRAM)
-        .stdin(Stdio::from(directory))
-        .output()
-        .expect("the program runs");
+    let child = start(
+        Command::new(PROGRAM)
+            .stdin(Stdio::from(directory))
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    );
+    let output = child.wait_with_output().expect("the program ends");
     assert_eq!(status(&output), 3);
     assert!(output.stdout.is_empty());
     assert_no_panic(&output);
