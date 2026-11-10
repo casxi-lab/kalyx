@@ -9,8 +9,8 @@ kalyx is the computer algebra library of casξ, a portable workstation for
 mathematics, science and programming built on the Raspberry Pi 5. It is being
 built to compute exact symbolic algebra, controlled-precision numerics and
 typed continuous calculation for the casξ applications: kosmo, the casξ user
-interface, will send it what you type and show what it computes. The name
-comes from the Greek κάλυξ.
+interface, will send it what you type and show what it computes. The
+name comes from the Greek κάλυξ.
 
 ## What kalyx can do now
 
