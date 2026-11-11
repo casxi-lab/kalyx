@@ -129,10 +129,11 @@ a file writes `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:<path>`.
 The program name of the earlier implementation is written `cas-project`
 wherever the program printed it, which is in its usage text. Apart from this
 name, the escaping, the outcomes written in kalyx's terms (see
-[Kinds](#kinds)) and the words that name the scopes, the values are those
-that the earlier implementation wrote; the work that it counted and the
-messages of the errors of its library requests and root calls are not
-recorded, and no row was added or removed.
+[Kinds](#kinds)) and the words that name the scopes, the recorded outputs
+are those that the earlier implementation wrote; the work that it counted,
+other than through the budgets of `library.tsv`, and the messages of the
+errors of its library requests and root calls are not recorded, and no row
+was added or removed.
 
 ### Files
 
@@ -234,7 +235,7 @@ id	file	module	test	category	commands	ignored	status	blob
 | `module` | The module of the test in its binary, as `cargo test` prints it before the test name. |
 | `test` | The name of the test function. |
 | `category` | `examples`, `properties`, `constructions`, `boundaries`, `resources` or `regressions` when the test sits in the submodule of that name directly below the module of its file, otherwise `-`. |
-| `commands` | The first arguments that the test passes to the command-line program: its command words, `repl` for a session, and the options `--help`, `-h` and `--version`, each once and in code-point order, as a list (see [Escaping](#escaping)); `-` when the test does not run the program. First arguments that are not command words of the program, which it rejects as usage errors, and the commands typed within a session or a `program` text are not listed. |
+| `commands` | The first arguments that the test passes to the command-line program: its command words, `repl` for a session, and the options `--help`, `-h` and `--version`, each once and in code-point order, as a list (see [Escaping](#escaping)); `-` when the test does not run the program. Other first arguments, which the program rejects as usage errors, and the commands typed within a session or a `program` text are not listed. |
 | `ignored` | `yes` for the 6 tests marked `#[ignore]`, otherwise `no`. |
 | `status` | The result of one `cargo test` run of the nine binaries with Rust 1.99.0 in a debug build: `pass`, `fail`, or `ignored` for a test that the run skipped because it is marked `#[ignore]`. |
 | `blob` | The Git blob SHA-1 of `file` at that commit. |
