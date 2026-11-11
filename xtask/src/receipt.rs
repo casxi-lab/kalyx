@@ -6,8 +6,7 @@
 //! each step with its status, duration and facts (such as the commit range
 //! that the commits step read), the runner image and the GitHub Actions run.
 //! A value that cannot be read, or an environment variable that is not set,
-//! is `null`. The text is the pretty form of `serde_json`, with two-space
-//! indentation and the fields in the order in which they are written.
+//! is `null`.
 
 use std::fs;
 use std::io;
