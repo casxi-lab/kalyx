@@ -2,7 +2,7 @@
 //! as "Statements and proofs" and "Guard" in `docs/formal-verification.md`
 //! describe them: the statement registry, the statement hash and the import
 //! rule of the statement side, and the rules for pull requests that change
-//! the statement side, the proofs or the sources.
+//! the statement side, the proofs, the sources or the module list.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
