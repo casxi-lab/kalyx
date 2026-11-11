@@ -453,7 +453,10 @@ fn equal_rationals_compare_equal_where_their_difference_is_rejected() {
 // bit lengths of the cross products and the cross products. Every
 // comparison charges one unit and gives the same order under every
 // `max_integer_bits` that admits it: the first five check no bound, so 0
-// admits them, and the cross products of the last need 4096 bits.
+// admits them, and the cross products of the last need 4096 bits. The
+// second and the third pair would also be decided without a bound by a later
+// path; `only_cross_products_beyond_max_integer_bits_are_rejected` has pairs
+// that only the signs and only the binary points decide.
 #[test]
 fn each_path_of_the_comparison_charges_one_unit_under_every_admitting_limit() {
     let dyadic_small = two_to(-4095);
@@ -501,7 +504,9 @@ fn each_path_of_the_comparison_charges_one_unit_under_every_admitting_limit() {
 // bound is that of the cross products: $L = (N - 1)/(N - 3)$ and
 // $R = (N - 3)/(N - 5)$ need 2048 + 2048 = 4096 bits and are ordered under
 // the default limits, while $E$ and $L$ need 2049 + 2048 = 4097 bits and are
-// rejected before any charge.
+// rejected before any charge. Pairs that share no denominator and whose
+// cross products would need 4097 bits are still ordered when their signs, or
+// the binary points of two power-of-two denominators, decide.
 #[test]
 fn only_cross_products_beyond_max_integer_bits_are_rejected() {
     let left = ratio(&n_plus(-1), &n_plus(-3));
@@ -518,6 +523,28 @@ fn only_cross_products_beyond_max_integer_bits_are_rejected() {
         LimitAmount::Required(4097)
     );
     assert_eq!(rejected.work_used(), 0);
+    // $-E$ and $L$: 2049 + 2048 and 2048 + 2048 bits.
+    let minus_e = e().negate(&mut default_context()).unwrap();
+    // $1 + 2^{-k} = (2^k + 1)/2^k$: 2048 + 2049 and 2049 + 2048 bits for
+    // $k = 2047$ and $k = 2048$.
+    let above_one = |k: i64| {
+        Rational::from(1_i64)
+            .add(&two_to(-k), &mut default_context())
+            .unwrap()
+    };
+    let (farther, nearer) = (above_one(2047), above_one(2048));
+    assert_eq!(farther.numerator().bits(), 2048);
+    assert_eq!(nearer.denominator().bits(), 2049);
+    for (first, second, expected) in [
+        (&minus_e, &left, Ordering::Less),
+        (&left, &minus_e, Ordering::Greater),
+        (&farther, &nearer, Ordering::Greater),
+        (&nearer, &farther, Ordering::Less),
+    ] {
+        let mut context = default_context();
+        assert_eq!(first.compare(second, &mut context).unwrap(), expected);
+        assert_eq!(context.work_used(), 1);
+    }
 }
 
 #[test]
