@@ -1,0 +1,9 @@
+# Lean 4.35.0 on darwin-arm64 in the environment of the gate: `lake env lean AuditNative.lean` in the stage `counter`, exit 0
+kalyx-audit module Kalyx.Proofs.Native
+'Kalyx.Proofs.Native.n' depends on axioms: [_private.Kalyx.Proofs.Native.0.Kalyx.Proofs.Native.n._native.native_decide.ax_1_1]
+kalyx-audit native _private.Kalyx.Proofs.Native.0.Kalyx.Proofs.Native.n._native.native_decide.ax_1_1 Kalyx.Proofs.Native
+kalyx-audit range Kalyx.Proofs.Native.n 5
+kalyx-audit module Kalyx.Proofs.Forged
+'Kalyx.Proofs.Forged.f' depends on axioms: [Kalyx.Proofs.Native.n._native.native_decide.ax_9_9]
+kalyx-audit native Kalyx.Proofs.Native.n._native.native_decide.ax_9_9 Kalyx.Proofs.Forged
+kalyx-audit range Kalyx.Proofs.Forged.f 13

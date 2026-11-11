@@ -40,9 +40,10 @@ limits that the [guard](#guard) section states.
 ## Porting record
 
 Code taken over from the earlier implementation of the casξ computer algebra
-system, which is not public, is recorded in [PORTING.md](PORTING.md): one row
-per module, added in the same change as the code. The record states where the
-code came from, what changed and which tests were not carried over.
+system, which is not public, and the proof tooling taken over from krepi are
+recorded in [PORTING.md](PORTING.md): one row per module or file, added in the
+same change as the code. The record states where the code came from, what
+changed and which tests were not carried over.
 
 ## Checks
 
@@ -100,7 +101,9 @@ states. A global allocator implements the unsafe trait `GlobalAlloc`, and
 the kalyx package forbids `unsafe` code in every target, so the check is the
 package `checks/allocation/`, a workspace of its own outside the package that
 depends on it by path, like `xtask/`. Its allocator wrapper is the only
-`unsafe` code of the repository: the manifest of the check denies `unsafe`
+`unsafe` code that the checks build (the file `xtask/src/formal/process.rs`
+of the proof tooling, which no module declares yet, calls libc in `unsafe`
+blocks): the manifest of the check denies `unsafe`
 code and undocumented unsafe blocks, and only the wrapper allows `unsafe`
 code, with its reason, and states why each unsafe block is sound. The guard
 does not scan the check, which is not code of the package, and checks its
@@ -115,7 +118,8 @@ it is run by hand with
 ### Guard
 
 The guard reads every tracked `.rs` file outside `xtask/`,
-`checks/allocation/`, `tests/`, `benches/` and `examples/`, such as the files
+`checks/allocation/`, `verification/`, `tests/`, `benches/` and `examples/`,
+such as the files
 below `src/`, a build script and any other file under `checks/`; such a file that is a symbolic link, a submodule or not UTF-8
 is a finding. It skips test code: an item, module, associated item, `let`
 statement or macro statement marked `#[test]` or with a `#[cfg(...)]` that
@@ -219,4 +223,6 @@ outside this repository and appear in no document here.
 
 kalyx is released under the [MIT License](LICENSE). The copyright holders are
 the casξ Authors, listed in [AUTHORS](AUTHORS). Contributions are accepted
-under the same license.
+under the same license. Third-party files keep their own license: the patch
+of Aeneas in `verification/tooling/` is under the
+[Apache License 2.0](verification/tooling/LICENSE-Apache-2.0).

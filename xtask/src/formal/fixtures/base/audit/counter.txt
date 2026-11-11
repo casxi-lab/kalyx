@@ -1,0 +1,46 @@
+# Lean 4.35.0 on darwin-arm64 in the environment of the gate: `lake env lean Audit.lean` in a base stage, exit 1
+Audit.lean:4:40: error: Type mismatch
+  Kalyx.Proofs.Counter.t
+has type
+  Kalyx.Statements.Counter.W
+but is expected to have type
+  Kalyx.Statements.Counter.S
+Audit.lean:6:10: error(lean.unknownIdentifier): Unknown identifier `Kalyx.Statements.Counter.Missing`
+kalyx-audit module Kalyx.HB.Fixture
+'Kalyx.HB.fx' depends on axioms: [propext]
+kalyx-audit range Kalyx.HB.fx 7
+kalyx-audit module Kalyx.Spec.Counter
+kalyx-audit module Kalyx.Statements.Counter
+kalyx-audit module Kalyx.Proofs.Counter
+kalyx-audit range _private.Kalyx.Proofs.Counter.0.Kalyx.Proofs.Counter.helper 15
+'Kalyx.Proofs.Counter.t' depends on axioms: [propext, Quot.sound]
+kalyx-audit range Kalyx.Proofs.Counter.t 9
+'Kalyx.Proofs.Counter.s' depends on axioms: [propext, Quot.sound]
+kalyx-audit range Kalyx.Proofs.Counter.s 20
+kalyx-audit module Kalyx.Proofs.Coerced
+'Kalyx.Proofs.Coerced.c' does not depend on any axioms
+kalyx-audit range Kalyx.Proofs.Coerced.c 15
+kalyx-audit module Kalyx.Proofs.Other
+kalyx-audit range Kalyx.Proofs.Other.u 12
+'Kalyx.Proofs.Other.v' does not depend on any axioms
+kalyx-audit range Kalyx.Proofs.Other.v 15
+kalyx-audit module Kalyx.Qualification.Arithmetic
+'Kalyx.Qualification.Arithmetic.mul_mod_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+kalyx-audit range Kalyx.Qualification.Arithmetic.mul_mod_spec 18
+kalyx-audit module Kalyx.Qualification.Checked
+'Aeneas.Std.U64.checked_add_bv_spec.match_1.congr_eq_2' does not depend on any axioms
+'Kalyx.Qualification.Checked.add_within_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+kalyx-audit range Kalyx.Qualification.Checked.add_within_spec 16
+'Aeneas.Std.U64.checked_add_bv_spec.match_1.congr_eq_1' does not depend on any axioms
+kalyx-audit module Kalyx.Qualification.Models.Arc
+'alloc.sync.Arc.mk.sizeOf_spec' does not depend on any axioms
+'alloc.sync.Arc.mk.inj' does not depend on any axioms
+'alloc.sync.Arc.mk.injEq' depends on axioms: [propext]
+kalyx-audit module Kalyx.Qualification.Models.FromStr
+kalyx-audit module Kalyx.Qualification.SingleLoop
+'Kalyx.Qualification.SingleLoop.charge_each_spec' depends on axioms: [propext, Classical.choice, Quot.sound]
+kalyx-audit range Kalyx.Qualification.SingleLoop.charge_each_spec 18
+kalyx-audit statement Kalyx.Statements.Counter.S Kalyx.Statements.Counter false
+kalyx-audit statement Kalyx.Proofs.Other.P Kalyx.Proofs.Other true
+kalyx-audit statement Kalyx.Statements.Counter.Missing [anonymous] false
+kalyx-audit statement Kalyx.Statements.Counter.W Kalyx.Statements.Counter false

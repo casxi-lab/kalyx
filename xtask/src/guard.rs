@@ -53,11 +53,13 @@ pub const LICENSE: &str = "MIT";
 
 /// The directories whose Rust files are not code of the package and are not
 /// read: the repository checks, in `xtask/` and the check crate of
-/// [`CHECK_CRATES`], and the integration tests, benchmarks and examples,
-/// which are test code. Any other file under `checks/` is read.
-pub const NOT_PACKAGE: [&str; 5] = [
+/// [`CHECK_CRATES`], the proof tooling in `verification/`, and the
+/// integration tests, benchmarks and examples, which are test code. Any
+/// other file under `checks/` is read.
+pub const NOT_PACKAGE: [&str; 6] = [
     "xtask/",
     "checks/allocation/",
+    "verification/",
     "tests/",
     "benches/",
     "examples/",
@@ -884,6 +886,7 @@ mod tests {
             ),
             ("xtask/src/main.rs", denied),
             ("checks/allocation/src/main.rs", denied),
+            ("verification/qualification/src/lib.rs", denied),
             ("tests/integration.rs", denied),
             ("benches/speed.rs", denied),
             ("examples/demo.rs", denied),

@@ -5,7 +5,9 @@
   its foundations. The Rust workspace `xtask/` holds the repository checks,
   which CI runs as `cargo xtask check`; one of them, the allocation check in
   `checks/allocation/`, is a workspace of its own whose counting allocator is
-  the only `unsafe` code of the repository.
+  the only `unsafe` code that the checks build. The file
+  `xtask/src/formal/process.rs` of the proof tooling, which no module declares
+  yet, calls libc in `unsafe` blocks.
 - The library is an ordinary Rust `std` library for 64-bit targets. Keep exact
   values exact. Pass a request-local context through parsing and computation,
   and check limits, the deadline and cancellation before potentially expensive
@@ -45,6 +47,12 @@
   with a test that rejects it, or recorded as a limitation; it is never
   carried over silently. Ported code is tested again here: tests, proofs and
   results of the earlier implementation are not evidence for kalyx.
+- The proof tooling is taken over from krepi at a fixed commit, file by
+  file, either byte for byte or with only the names of kalyx, except for the
+  parts that kalyx needs of its own; each file is recorded in
+  [PORTING.md](PORTING.md) in the same change, with its source written as
+  `krepi@<full commit SHA>:<path>`. Third-party files of the tooling keep
+  their own license.
 - Write all documentation and code comments in English, for a person who uses
   or builds on the library: what it does, how to run it, its limits, and
   commands that actually run. Present as available only what the library ships

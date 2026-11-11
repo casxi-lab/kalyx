@@ -37,11 +37,14 @@ The repository holds the Rust package `kalyx`, with the library and the
 command-line program `kalyx`; the repository checks, which continuous
 integration runs on every pull request to `main` and on every push to
 `main`; the [porting record](PORTING.md) of code taken over from an earlier
-implementation of the casξ computer algebra system; and 58
+implementation of the casξ computer algebra system and of the proof tooling
+taken over from krepi, the kernel of casξ; and 58
 [answer vectors](vectors/README.md), converted from that earlier
 implementation's fixtures, which are all replayed through the library and
 through the program. The earlier implementation is not public; it serves as
-a reference and as a source of test vectors.
+a reference and as a source of test vectors. The files of the proof tooling
+in `verification/` and `xtask/src/formal/` are not yet used by the checks or
+by any command.
 
 ## Build and run
 
@@ -271,7 +274,7 @@ domains, and natural-language input.
   host, with the commands that measure them.
 - Rules for this repository: [AGENTS](AGENTS.md) and
   [CONTRIBUTING](CONTRIBUTING.md); code taken over from the earlier
-  implementation: [PORTING](PORTING.md).
+  implementation and from krepi: [PORTING](PORTING.md).
 
 The rest of the library documentation (the semantics of further operations,
 feature documents, subject domains and validation) is added as each part is
@@ -280,4 +283,6 @@ built.
 ## License
 
 kalyx is released under the [MIT License](LICENSE). Copyright (c) 2026 The
-casξ Authors; see [AUTHORS](AUTHORS).
+casξ Authors; see [AUTHORS](AUTHORS). The patch of Aeneas in
+`verification/tooling/` keeps its
+[Apache License 2.0](verification/tooling/LICENSE-Apache-2.0).
