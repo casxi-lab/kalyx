@@ -307,13 +307,59 @@ that fails there does not change the status of the run.
 
 ### Results
 
-Each command of the gate is `PASSED`, `PROOF_FAILURE`, `TOOL_FAILURE`,
-`NOT_RUN` or `BUDGET`, a tool failure at the limit of a phase or of the gate.
-A tool failure is never a statement about the code. The status of a run is
-the first of `TOOL_FAILURE`, `BUDGET`, `STALE` and `REJECTED` that its
-failures and the conclusions of its units give, `SCOPED` for a run of named
-targets, and otherwise `VERIFIED`. A run of the whole gate is complete when
-its only failures are `STALE` and no unit is `NOT_RUN` or `BUDGET`.
+Every command of the gate gets one class from one function,
+`outcome::classify`, which every call site uses: `PASSED`, `PROOF_FAILURE`,
+`TOOL_FAILURE` or `NOT_RUN`, and `BUDGET`, a tool failure at the limit of a
+phase or of the gate rather than at the cap of the call site. A tool failure
+is never a statement about the code. The conventions:
+
+| Result of the command | Call sites | Class |
+| --- | --- | --- |
+| Ran until its cap | All | `TOOL_FAILURE` |
+| Ran until the rest of a budget | All | `BUDGET` |
+| Ended by a signal | All | `TOOL_FAILURE` |
+| Exited with a status above 128 | All | `TOOL_FAILURE` |
+| Prints `error: Lean exited with code N` with `N` above 128 | The builds and the audits | `TOOL_FAILURE` |
+| Charon exits with 255 | Charon | `TOOL_FAILURE` |
+| Cargo reports a process ended by a signal, as in `(signal: 9, SIGKILL: kill)` | Charon | `TOOL_FAILURE` |
+| Could not start or could not keep its output | All | `TOOL_FAILURE` |
+| Ended by itself, and an output file that the gate reads, `translation.json` or a generated Lean file, cannot be read or is not what the tool writes, or `translation.json` is missing after an exit with 0 | Aeneas | `TOOL_FAILURE` |
+| The base build fails with errors or warnings in kalyx's own modules | The base build | `PROOF_FAILURE` |
+| The base build fails without an error or a warning in kalyx's own modules | The base build | `TOOL_FAILURE` |
+| The comparator exits with 1 and prints a line that starts with `error: Child exited with ` | The comparator | `TOOL_FAILURE` |
+| The comparator exits with 1 otherwise | The comparator | `PROOF_FAILURE` |
+
+A process of the group that survives the kill is a tool failure as well, and
+so is any failure of Git, which the gate runs itself, and any status of the
+comparator but 0 and 1. Any other non-zero status of a tool is a
+`PROOF_FAILURE`, which its call site compares with what it expects. The call
+sites are Charon and Aeneas, the qualification builds, the ill-typed builds
+and the case audits of the [qualification](#qualification), the base build,
+the axiom audit and `leanchecker` of the [base round](#base-round), and the
+comparator, which no phase runs yet.
+
+kalyx's own modules, in the rows of the base build, are every module below
+`Kalyx` but the root module, and the reviewed external declarations
+installed for qualification cases. A message counts for them when its
+`error:` or `warning:` line names the file of one of them; a message in a
+generated file, Lake's own `error: build failed`, a `trace:` line and a
+message without a position do not.
+
+A command that does not start because the command before it did not write
+what it needs, such as Aeneas after a Charon that failed, is `NOT_RUN` with
+the reason `not started:`. It decides nothing: the command before it does.
+A command whose limit is used up before it starts is `NOT_RUN` for the
+budget.
+
+A unit is a registered piece of work that gets exactly one conclusion: a
+qualification case, an audited theorem, the base round. A unit with a
+command that was a tool failure is concluded `TOOL_FAILURE`, and one with a
+command that met a budget, or did not start because its limit was used up,
+`BUDGET`, whatever its phase concludes. The status of a run is the first of
+`TOOL_FAILURE`, `BUDGET`, `STALE` and `REJECTED` that its failures and the
+conclusions of its units give, `SCOPED` for a run of named targets, and
+otherwise `VERIFIED`. A run of the whole gate is complete when its only
+failures are `STALE` and no unit is `NOT_RUN` or `BUDGET`.
 
 The command exits with 0 for `VERIFIED` and `SCOPED` and with 1 for any
 other status, printing each failure on standard error; with 2 on a usage
@@ -327,7 +373,33 @@ written, it writes the receipt to standard error and exits with 120.
 the gate inputs at the start and at the end, the budgets, the resources,
 each phase with its time, each unit with its conclusion, every command with
 its call site, class, limit and output files, the qualification, the base
-round, the guard on a pull request, and the failures.
+round, the guard on a pull request, and the failures. It is the pretty form
+of `serde_json`, with its fields in this order and every map sorted by its
+keys; times are seconds, rounded to milliseconds.
+
+| Field | Content |
+| --- | --- |
+| `schema` | `2` |
+| `command` | `cargo xtask formal run` |
+| `status` | `VERIFIED`, `REJECTED`, `STALE`, `TOOL_FAILURE`, `BUDGET` or `SCOPED` |
+| `complete` | Whether the run is complete, as [results](#results) defines it |
+| `trigger` | `mode`, `MANUAL` for a run of the whole gate and `SCOPED` for a run of named targets; `event`, `ref`, `run_id` and `attempt`, from `GITHUB_EVENT_NAME`, `GITHUB_REF`, `GITHUB_RUN_ID` and `GITHUB_RUN_ATTEMPT`, or `null` |
+| `targets` | The names given with `--target`, sorted; empty for a run of the whole gate |
+| `host` | `linux-aarch64` or `darwin-arm64`, or `null` on another host |
+| `image` | On `linux-aarch64`, the reference in `KALYX_FORMAL_IMAGE`, the user ID of the run, whether it could write the installation, and the text and SHA-256 of `versions.json` and the text of `/etc/os-release`; `null` on another host |
+| `run`, `directory` | The identifier of the run, and its directory relative to the repository root |
+| `started`, `seconds` | The Unix time in seconds at which the run started, and how long it took |
+| `commit`, `tree` | The snapshot commit and its root tree, or `null` |
+| `inputs` | `before` and `after`, the object of each gate input at the start and at the end, or `null` when they were not taken; `clean_after`, whether the gate inputs were clean at the end, or `null` |
+| `budgets` | `gate_seconds`, 7200, and `receipt_margin_seconds`, 300 |
+| `resources` | The disk space of the run directory, the largest resident set of one process and the memory peak of the run's cgroup, each `null` when the host does not report it |
+| `phases` | For each phase, `budget_seconds`, `seconds` and `ran` |
+| `units` | For each unit, its `phase`, its `status` and the `reason` for it, or `null` |
+| `qualification` | What the qualification found, or `null` when it did not start |
+| `base` | What the base round found, or `null` when the round stopped before it recorded it |
+| `guard` | What the [guard](#guard) found on a pull request, or `null` without a pull request event or when its phase did not finish |
+| `commands` | Every command, in the order in which they ran, with its sequence number, phase, unit, call site, arguments, working directory, class and reason, exit status or signal, whether it ran until its limit, the limit and what set it, its time, whether processes of its group survived the kill, and its output files |
+| `failures` | Every failure that is not the conclusion of a unit, with its `status` and `message` |
 
 ## CI job
 
