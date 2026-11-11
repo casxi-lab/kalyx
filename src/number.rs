@@ -467,11 +467,12 @@ impl Rational {
     ///
     /// For $a/b$ and $c/d$, decides by the first of these that applies:
     /// equal parts; the signs; the binary points of two power-of-two
-    /// denominators, aligned; equal denominators, by the numerators; the bit
-    /// lengths $\lvert a \rvert + \lvert d \rvert$ and
-    /// $\lvert c \rvert + \lvert b \rvert$ of the cross products, when they
-    /// differ by at least two; and otherwise the cross products $a d$ and
-    /// $c b$. Only the last forms products, and only it checks a bound: that
+    /// denominators, aligned; equal denominators, by the numerators; the sums
+    /// $\lvert a \rvert + \lvert d \rvert$ and
+    /// $\lvert c \rvert + \lvert b \rvert$ of the bit lengths, which bound
+    /// the bit lengths of the cross products, when they differ by at least
+    /// two; and otherwise the cross products $a d$ and $c b$. Only the last
+    /// forms products, and only it checks a bound: that
     /// of the cross products,
     /// $\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert)$,
     /// against `max_integer_bits`. Every path then charges one unit, and only

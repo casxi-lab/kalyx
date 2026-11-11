@@ -134,10 +134,14 @@ against `max_integer_bits`, computed from the operands alone; the charge,
 whose amount depends only on the operands; the computation; and the check of
 the bits of the result. A rejected operation therefore charges nothing,
 allocates nothing but its error and leaves `work_used` unchanged. The bound
-of each operation is at least the bits of every operand, so an operand above
-the limit of the receiving context is rejected, and at least the bits of
-every intermediate integer, so no integer that the operation computes
-exceeds it; `parse_decimal` also copies its digits, one byte per digit.
+of each operation that builds a rational is at least the bits of every
+operand, so an operand above the limit of the receiving context is rejected,
+and at least the bits of every intermediate integer, so no integer that the
+operation computes exceeds it; `parse_decimal` also copies its digits, one
+byte per digit. `compare` builds no rational and checks its bound only on
+the path of the cross products, as **Comparison** below states: on its other
+paths an operand above the limit is not rejected, and aligning binary points
+may compute an integer longer than the limit.
 Write $\lvert x \rvert$ for
 the bit length, the operands as $a/b$ and $c/d$, and $m = \lvert e \rvert$ for
 an exponent $e$.
@@ -185,7 +189,7 @@ an exponent $e$.
   difference. It takes the first of these paths that applies, chosen from
   the parts without allocating: equal parts, which give `Equal`; different
   signs; two power-of-two denominators $2^p$ and $2^q$, by aligning the
-  binary points; equal denominators, by the numerators; bit lengths
+  binary points; equal denominators, by the numerators; sums of bit lengths
   $\lvert a \rvert + \lvert d \rvert$ and $\lvert c \rvert + \lvert b \rvert$
   that differ by at least two, which decide, since $\lvert u v \rvert$ is
   $\lvert u \rvert + \lvert v \rvert - 1$ or $\lvert u \rvert + \lvert v \rvert$
@@ -199,10 +203,16 @@ an exponent $e$.
   under every limit that admits it. Aligning the binary points is not
   checked: for $p \gt q$ it shifts $c$ to $\lvert c \rvert + p - q$ bits,
   fewer than the bound of the cross products, which is at least
-  $\lvert c \rvert + p + 1$. Two equal rationals therefore compare `Equal`
-  under every `max_integer_bits`, though the charge still observes
-  `max_work`, cancellation and the deadline, and an operand above the
-  receiving limit is checked only where it takes part in cross products.
+  $\lvert c \rvert + p + 1$. The shifted numerator is not bounded by
+  `max_integer_bits`: for operands within the limit it has fewer than twice
+  `max_integer_bits` bits, so under the default limits $2^{-4095}$ and
+  $2^{4096} - 1$ shift the latter to 8191 bits, and for operands above the
+  limit it is longer still: under `max_integer_bits` 0, $2^{100000}$ and
+  $2^{-100000}$ shift the former to 200,001 bits. Two equal rationals
+  therefore compare `Equal` under every `max_integer_bits`, though the
+  charge still observes `max_work`, cancellation and the deadline, and an
+  operand above the receiving limit is checked only where it takes part in
+  cross products.
   With $N = 2^{2048}$, under the default limits $E = (N + 1)/(N - 1)$, of
   2049 and 2048 bits, compares `Equal` with itself, though its difference
   with itself needs 4098 bits and is rejected; $(N - 1)/(N - 3)$ and
@@ -211,7 +221,9 @@ an exponent $e$.
   $-E$ and $(N - 1)/(N - 3)$ would need 4097 bits too, but their signs
   order them; so do the binary points of $(2^{2047} + 1)/2^{2047}$ and
   $(2^{2048} + 1)/2^{2048}$, whose cross products would also need 4097
-  bits.
+  bits. $E$ and $(N - 3)/(N + 3)$, whose sums of bit lengths 4098 and 4096
+  differ by exactly two, are ordered by these sums, though 4098 exceeds the
+  limit.
 - **The result check.** The bits of every result are checked with
   `check(IntegerBits, bits)` as in the earlier implementation; since every
   bound is at least the bits of the result, the check fails only if a bound

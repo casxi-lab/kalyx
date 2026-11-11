@@ -308,7 +308,9 @@ fn product(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> Result<Parts>
 /// parts without allocating. Only the last forms products.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum OrderPath {
-    /// The parts are equal, so the values are.
+    /// The parts are equal, so the values are. Equal parts share their
+    /// denominator, so the later paths would give `Equal` without a bound
+    /// as well; this one only stops first.
     Same,
     /// The signs differ: their order.
     Signs(Ordering),
@@ -317,8 +319,9 @@ pub(crate) enum OrderPath {
     Dyadic(u64, u64),
     /// The denominators are equal: the numerators are compared.
     SameDenominator,
-    /// The bit lengths $|a| + |d|$ and $|c| + |b|$ of the cross products
-    /// differ by at least two: the order that they decide.
+    /// The sums $|a| + |d|$ and $|c| + |b|$ of the bit lengths, which bound
+    /// the bit lengths of the cross products, differ by at least two: the
+    /// order that they decide.
     BitLengths(Ordering),
     /// The cross products $a d$ and $c b$ are compared; each has at most
     /// this many bits, $\max(|a| + |d|, |c| + |b|)$.
@@ -327,8 +330,9 @@ pub(crate) enum OrderPath {
 
 /// The path of the order of the canonical rationals $a/b$ and $c/d$: equal
 /// parts, then the signs, then two power-of-two denominators, then equal
-/// denominators, then the bit lengths of the cross products, and otherwise
-/// the cross products. It reads the parts and allocates nothing.
+/// denominators, then the sums of the bit lengths that bound the cross
+/// products, and otherwise the cross products. It reads the parts and
+/// allocates nothing.
 pub(crate) fn order_path(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> OrderPath {
     let (a, b) = left;
     let (c, d) = right;
@@ -350,7 +354,7 @@ pub(crate) fn order_path(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) ->
 
 /// The path of two nonzero rationals of the same sign that are not equal and
 /// not both dyadic. For positive $u$ and $v$, $|u v|$ is $|u| + |v| - 1$ or
-/// $|u| + |v|$, so bit lengths that differ by two or more decide.
+/// $|u| + |v|$, so sums of bit lengths that differ by two or more decide.
 fn general_path(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> OrderPath {
     let (a, b) = left;
     let (c, d) = right;
@@ -373,7 +377,8 @@ fn general_path(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> OrderPat
 /// The order of the canonical rationals $a/b$ and $c/d$ by `path`, their
 /// [`order_path`]. Only [`OrderPath::CrossProducts`] multiplies; aligning the
 /// binary points of $a / 2^p$ and $c / 2^q$ for $p \gt q$ shifts $c$ to
-/// $|c| + p - q$ bits, fewer than the bound of the cross products.
+/// $|c| + p - q$ bits, fewer than the bound of the cross products but not
+/// bounded by `max_integer_bits`, which this path does not check.
 pub(crate) fn order(
     left: (&BigInt, &BigInt),
     right: (&BigInt, &BigInt),
