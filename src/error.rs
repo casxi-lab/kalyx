@@ -100,8 +100,9 @@ impl ErrorKind {
 
 /// The kind of a fault: an error that is not a request failure.
 ///
-/// These are the foundation kinds. A feature that needs a kind of its own adds
-/// it in the release that brings the feature.
+/// The first seven are the foundation kinds; the kinds after them were
+/// appended by the features that brought them. A feature that needs a kind of
+/// its own adds it in the release that brings the feature.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum FaultKind {
@@ -121,6 +122,10 @@ pub enum FaultKind {
     /// An internal invariant of the library failed. This is a defect of the
     /// library, reported as an error instead of a panic.
     Internal,
+    /// An argument outside the domain of the operation, such as a modulus
+    /// that is not positive, or a negative power modulo $m$ of a residue
+    /// that has no inverse.
+    OutsideDomain,
 }
 
 impl FaultKind {
@@ -136,7 +141,8 @@ impl FaultKind {
             | Self::DivisionByZero
             | Self::NonIntegerExponent
             | Self::NotPolynomial
-            | Self::Unsupported => ErrorClass::Input,
+            | Self::Unsupported
+            | Self::OutsideDomain => ErrorClass::Input,
         }
     }
 }
@@ -699,7 +705,7 @@ mod tests {
         MathState::IterationLimit,
     ];
 
-    const FAULTS: [FaultKind; 7] = [
+    const FAULTS: [FaultKind; 8] = [
         FaultKind::Syntax,
         FaultKind::UnknownSymbol,
         FaultKind::DivisionByZero,
@@ -707,6 +713,7 @@ mod tests {
         FaultKind::NotPolynomial,
         FaultKind::Unsupported,
         FaultKind::Internal,
+        FaultKind::OutsideDomain,
     ];
 
     fn span(start: usize, end: usize) -> Option<Span> {

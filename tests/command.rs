@@ -1612,6 +1612,7 @@ fn result_kind(name: &str) -> Option<ErrorKind> {
         "NotPolynomial" => ErrorKind::Fault(FaultKind::NotPolynomial),
         "Unsupported" => ErrorKind::Fault(FaultKind::Unsupported),
         "Internal" => ErrorKind::Fault(FaultKind::Internal),
+        "OutsideDomain" => ErrorKind::Fault(FaultKind::OutsideDomain),
         _ => return None,
     })
 }
