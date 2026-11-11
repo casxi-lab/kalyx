@@ -1,0 +1,6 @@
+# Lean 4.35.0 on darwin-arm64 in the environment of the gate: `lake env lean AuditPair.lean` in the stage `counter`, exit 0
+kalyx-audit module Kalyx.HB.Pair
+'Kalyx.HB.pb' depends on axioms: [propext]
+kalyx-audit range Kalyx.HB.pb 11
+'Kalyx.HB.pa' depends on axioms: [propext]
+kalyx-audit range Kalyx.HB.pa 7

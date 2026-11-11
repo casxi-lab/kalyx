@@ -9,9 +9,9 @@ repository = "https://github.com/casxi-lab/kalyx"
 readme = "README.md"
 keywords = ["computer-algebra", "cas", "polynomial", "rational", "symbolic"]
 categories = ["mathematics", "science"]
-# The repository checks, the allocation check, the guard lists and the
-# local configuration are not part of the published package.
-exclude = [".cargo/", ".githooks/", ".github/", "xtask/", "checks/", "guard/"]
+# The repository checks, the allocation check, the guard lists, the proof
+# tooling and the local configuration are not part of the published package.
+exclude = [".cargo/", ".githooks/", ".github/", "xtask/", "checks/", "guard/", "verification/"]
 
 [dependencies]
 # Arbitrary-precision integers and rationals, wrapped by the `number` module;
@@ -42,7 +42,8 @@ allow_attributes_without_reason = "deny"
 [profile.release]
 overflow-checks = true
 
-# The repository checks in xtask/ and the allocation check in
-# checks/allocation/ are workspaces of their own.
+# The repository checks in xtask/, the allocation check in
+# checks/allocation/ and the qualification crate of the proof tooling in
+# verification/qualification/ are workspaces of their own.
 [workspace]
-exclude = ["xtask", "checks/allocation"]
+exclude = ["xtask", "checks/allocation", "verification/qualification"]

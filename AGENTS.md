@@ -45,6 +45,12 @@
   with a test that rejects it, or recorded as a limitation; it is never
   carried over silently. Ported code is tested again here: tests, proofs and
   results of the earlier implementation are not evidence for kalyx.
+- The proof tooling is taken over from krepi at a fixed commit, file by
+  file, either byte for byte or with only the names of kalyx, except for the
+  parts that kalyx needs of its own; each file adds a row to
+  [PORTING.md](PORTING.md) in the same change, with its source written as
+  `krepi@<full commit SHA>:<path>`. Third-party files of the tooling keep
+  their own license.
 - Write all documentation and code comments in English, for a person who uses
   or builds on the library: what it does, how to run it, its limits, and
   commands that actually run. Present as available only what the library ships
