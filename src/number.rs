@@ -47,7 +47,7 @@ use num_traits::{One, Signed, ToPrimitive, Zero};
 
 use crate::context::{Storage, StorageCost};
 use crate::{Context, Error, FaultKind, LimitField, Result, Span};
-use arithmetic::{ArithmeticOperation, Parts};
+use arithmetic::{ArithmeticOperation, OrderPath, Parts};
 
 /// The work units charged by every operation on rationals except a power and
 /// a decimal literal.
@@ -463,9 +463,42 @@ impl Rational {
         Self::validated(parts, None, context)
     }
 
-    /// The order of `self` and `other`, charged as a subtraction: checks the
-    /// bound of [`subtract`](Rational::subtract), then charges one unit, then
-    /// compares without forming the difference.
+    /// The order of `self` and `other`, without forming their difference.
+    ///
+    /// For $a/b$ and $c/d$, decides by the first of these that applies:
+    /// equal parts; the signs; the binary points of two power-of-two
+    /// denominators, aligned; equal denominators, by the numerators; the bit
+    /// lengths $\lvert a \rvert + \lvert d \rvert$ and
+    /// $\lvert c \rvert + \lvert b \rvert$ of the cross products, when they
+    /// differ by at least two; and otherwise the cross products $a d$ and
+    /// $c b$. Only the last forms products, and only it checks a bound: that
+    /// of the cross products,
+    /// $\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert)$,
+    /// against `max_integer_bits`. Every path then charges one unit, and only
+    /// then compares. Two equal rationals therefore compare `Equal` under
+    /// every limit, even where their difference would exceed
+    /// `max_integer_bits`.
+    ///
+    /// ```
+    /// use std::cmp::Ordering;
+    ///
+    /// use kalyx::context::CancelFlag;
+    /// use kalyx::number::Rational;
+    /// use kalyx::{Context, ErrorKind, Limits};
+    ///
+    /// let mut context = Context::new(Limits::new(), CancelFlag::new());
+    /// let one = Rational::from(1_i64);
+    /// let third = one.divide(&Rational::from(3_i64), &mut context)?;
+    /// let half = one.divide(&Rational::from(2_i64), &mut context)?;
+    /// // Equal parts decide without a bound.
+    /// let mut none = Context::new(Limits::new().with_max_integer_bits(0), CancelFlag::new());
+    /// assert_eq!(third.compare(&third, &mut none)?, Ordering::Equal);
+    /// // 1/3 and 1/2 need the cross products 1 * 2 and 1 * 3, of 3 bits.
+    /// let error = third.compare(&half, &mut none).unwrap_err();
+    /// assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    /// assert_eq!(third.compare(&half, &mut context)?, Ordering::Less);
+    /// # Ok::<(), kalyx::Error>(())
+    /// ```
     ///
     /// This is the only order of rationals: `Rational` implements neither
     /// `PartialOrd` nor `Ord`, since a comparison may form cross products of
@@ -473,12 +506,16 @@ impl Rational {
     ///
     /// # Errors
     ///
-    /// As [`subtract`](Rational::subtract).
+    /// `ResourceLimit` with `LimitField::IntegerBits` when the cross products
+    /// are needed and their bound exceeds `max_integer_bits`, before the
+    /// charge, and the request failures of the charge.
     pub fn compare(&self, other: &Self, context: &mut Context) -> Result<Ordering> {
-        let bound = self.bound(other, ArithmeticOperation::Subtract);
-        context.check(LimitField::IntegerBits, bound)?;
+        let path = arithmetic::order_path(self.parts(), other.parts());
+        if let OrderPath::CrossProducts(bound) = path {
+            context.check(LimitField::IntegerBits, bound)?;
+        }
         context.charge(OPERATION_CHARGE)?;
-        Ok(arithmetic::order(self.parts(), other.parts()))
+        Ok(arithmetic::order(self.parts(), other.parts(), path))
     }
 
     /// The bit bound of `operation` on `self` and `other`.

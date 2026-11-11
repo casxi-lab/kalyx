@@ -385,10 +385,11 @@ impl Term {
     ///
     /// # Errors
     ///
-    /// The errors of `Rational::compare`, which checks a bound on the bits of
-    /// two compared numbers against `max_integer_bits`; the request failures
-    /// of the charges; and `Fault(Internal)` when an internal invariant is
-    /// broken.
+    /// The errors of `Rational::compare`, which checks the bound of the cross
+    /// products of two compared numbers against `max_integer_bits` only when
+    /// it needs to form them, and never for equal numbers; the request
+    /// failures of the charges; and `Fault(Internal)` when an internal
+    /// invariant is broken.
     pub fn compare(&self, other: &Self, context: &mut Context) -> Result<Ordering> {
         order::compare(self, other, context)
     }

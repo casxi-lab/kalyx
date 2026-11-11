@@ -1618,15 +1618,15 @@ fn result_kind(name: &str) -> Option<ErrorKind> {
 
 /// Compares the outcome of a case with its expectation, by structure only,
 /// never by display text or work: for `ok`, the outcome must be a value
-/// whose term equals the answer read under wide limits, so both are in
-/// canonical form; for an error kind, the outcome must be an error of that
+/// whose term equals the answer read under the default limits, so both are
+/// in canonical form; for an error kind, the outcome must be an error of that
 /// kind, and a `ResourceLimit` must name, as `LimitId::Field`, the one field
 /// that the limits column sets. Returns how they differ.
 fn compare_case(case: &Case<'_>, outcome: &Outcome) -> Result<(), String> {
     let id = case.id;
     match (case.result, outcome.result()) {
         ("ok", Ok(Settled::Value(term))) => {
-            let c = &mut context(wide());
+            let c = &mut context(Limits::new());
             let expected = parse(case.answer, c)
                 .map_err(|error| format!("{id}: the answer does not parse: {error}"))?;
             let equal = term
@@ -1701,6 +1701,21 @@ fn every_vector_of_r02_replays_through_the_command_entry() {
         assert_shape(&text, &outcome);
     }
     assert_eq!((answered, failed, limited), (49, 9, 4));
+}
+
+// The value of `rational_sum_1024`, run through `execute` under the default
+// limits of the case, equals its answer read under the default limits: two
+// equal rationals of 2049 and 2048 bits, whose difference would need 4098.
+#[test]
+fn the_value_of_rational_sum_1024_equals_its_answer_under_the_default_limits() {
+    let case = case("rational_sum_1024");
+    assert_eq!(case.limits, "-");
+    let request = Request::new(case.operation, case.variable, case.input);
+    let (outcome, _) = run(&request, Limits::new());
+    let c = &mut context(Limits::new());
+    let answer = parse(case.answer, c).unwrap();
+    assert!(value(&outcome).equals(&answer, c).unwrap());
+    assert!(answer.equals(value(&outcome), c).unwrap());
 }
 
 // The comparison fails for a case whose expectation is corrupted: an
