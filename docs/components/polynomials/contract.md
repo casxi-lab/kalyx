@@ -739,8 +739,9 @@ their code has been extracted.
   charge, so that a rejected name charges nothing, as in the term core (4). The measure of the storage cost is a field of the list of terms (5).
   The fields of both types are private, and a `compile_fail` documentation
   test keeps `Polynomial` without `==` (6). The only `cfg` is `#[cfg(test)]`
-  on the unit-test module and on `push_with_cost`, the writer of terms with a
-  given cost with which the unit tests reach amounts beyond `u64::MAX` (7). There is no `Cell` or `RefCell` (8), and the
+  on the unit-test module and on the module that holds `push_with_cost`, the
+  writer of terms with a given cost with which the unit tests reach amounts
+  beyond `u64::MAX` (7). There is no `Cell` or `RefCell` (8), and the
   library forbids `unsafe` code (9).
 - **External declarations.** No code has been extracted, so this list follows
   the records that the [term core](../terms/contract.md#extractability)

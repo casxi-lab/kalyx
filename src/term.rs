@@ -617,23 +617,6 @@ impl fmt::Debug for Term {
     }
 }
 
-/// A test-only constructor of the reserved call node, which no constructor
-/// of this release builds: the tests pin its place in the order and in the
-/// rules of sums, products and powers.
-#[cfg(test)]
-fn reserved_call(
-    name: &str,
-    class: node::CallClass,
-    arguments: &[Term],
-    context: &mut Context,
-) -> Result<Term> {
-    let head = node::CallHead {
-        name: Box::from(name),
-        class,
-    };
-    node::make(TermShape::Call(head), arguments.to_vec(), context)
-}
-
 // A term is not `Send`: its nodes are shared through `Rc`. This fails to
 // compile once `Term` implements `Send`, since the parameter `A` of
 // `not_send` can then be inferred in two ways; moving the nodes to `Arc` is

@@ -963,10 +963,10 @@ constructs R1 to R7, the provable design rules 1 to 9 and the loop shapes.
   charges nothing (4). The size, the depth, the logical bytes and the
   negative flag are fields of the node (5). The fields of `Term` and of its
   node are private, and a compile-time assertion keeps `Term` from being
-  `Send` (6). The only `cfg` is `#[cfg(test)]` on the test modules and on
-  `reserved_call`; the reserved call variant and its class carry a lint
-  expectation selected by `cfg_attr`, which changes no shape (7). There is
-  no `Cell` or `RefCell`; the count of an `Rc` is visible only to the
+  `Send` (6). The only `cfg` is `#[cfg(test)]` on the test modules, one of
+  which holds `reserved_call`; the reserved call variant and its class carry
+  a lint expectation selected by `cfg_attr`, which changes no shape (7).
+  There is no `Cell` or `RefCell`; the count of an `Rc` is visible only to the
   `Rc::try_unwrap` of drop, which a model treats with value semantics (8).
   The library forbids `unsafe` code (9).
 - **External declarations.** No code has been extracted, so this list
