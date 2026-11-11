@@ -5,9 +5,9 @@
   its foundations. The Rust workspace `xtask/` holds the repository checks,
   which CI runs as `cargo xtask check`; one of them, the allocation check in
   `checks/allocation/`, is a workspace of its own whose counting allocator is
-  the only `unsafe` code that the checks build. The files of the proof
-  tooling in `xtask/src/formal/`, which no module declares yet, call libc in
-  `unsafe` blocks.
+  the only `unsafe` code that the checks build. The file
+  `xtask/src/formal/process.rs` of the proof tooling, which no module declares
+  yet, calls libc in `unsafe` blocks.
 - The library is an ordinary Rust `std` library for 64-bit targets. Keep exact
   values exact. Pass a request-local context through parsing and computation,
   and check limits, the deadline and cancellation before potentially expensive
