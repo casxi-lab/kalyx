@@ -42,9 +42,10 @@ taken over from krepi, the kernel of casξ; and 58
 [answer vectors](vectors/README.md), converted from that earlier
 implementation's fixtures, which are all replayed through the library and
 through the program. The earlier implementation is not public; it serves as
-a reference and as a source of test vectors. The files of the proof tooling
-in `verification/` and `xtask/src/formal/` are not yet used by the checks or
-by any command.
+a reference and as a source of test vectors. The proof tooling in
+`verification/` and `xtask/src/formal/` provides the commands of
+`cargo xtask formal` and two steps of the checks, and CI runs its proof gate;
+nothing about kalyx is proved yet.
 
 ## Build and run
 
@@ -272,6 +273,9 @@ domains, and natural-language input.
 - [Resource profile](docs/resource-profile.md): the heap and the stack that
   the requests of the answer vectors and deep inputs use, measured on one
   host, with the commands that measure them.
+- [Formal verification](docs/formal-verification.md): the proof tooling
+  taken over from krepi, its commands, the module list of the proof-target
+  modules and the CI job of the proof gate; nothing is proved yet.
 - Rules for this repository: [AGENTS](AGENTS.md) and
   [CONTRIBUTING](CONTRIBUTING.md); code taken over from the earlier
   implementation and from krepi: [PORTING](PORTING.md).

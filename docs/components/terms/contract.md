@@ -998,6 +998,16 @@ constructs R1 to R7, the provable design rules 1 to 9 and the loop shapes.
   `str::is_empty`, `fmt::Formatter::debug_struct` and the formatting of
   `Rational`, `u64` and `i64`; they are not part of the canonical forms.
 
+The module list of the component, the files that the `subset` step of
+`cargo xtask check` checks against the provable subset and that
+`cargo xtask formal check` inventories, holds the term core with its
+submodules:
+
+```paths
+src/term.rs
+src/term
+```
+
 ## Current deviations
 
 None: the code and the tests follow every rule above.

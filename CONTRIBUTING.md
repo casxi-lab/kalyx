@@ -6,7 +6,10 @@ program. The Rust workspace `xtask/` holds the repository checks, with the
 `xtask` alias in `.cargo/config.toml`, `rust-toolchain.toml`, the allow lists
 of the guard in `guard/` and the CI workflow `.github/workflows/check.yml`;
 the package `checks/allocation/`, a workspace of its own, holds the
-[allocation check](#allocation-check) that the checks run.
+[allocation check](#allocation-check) that the checks run. The proof tooling
+in `xtask/src/formal/` and `verification/`, with its CI workflow
+`.github/workflows/formal.yml`, is described in
+[formal verification](docs/formal-verification.md).
 These are the commands that apply today, run from the repository root:
 
 ```sh
@@ -63,9 +66,12 @@ fails:
    UTF-8 and one YAML document without anchors, aliases, merge keys, repeated
    keys or characters that YAML parsers read differently, and never mentions
    `pull_request_target` in any letter case, not even in a comment or
-   through an escape; every job sets its own `permissions`; and in a
-   workflow that runs on `pull_request`, or whose `on` is missing, empty or
-   unreadable, no job requests write access or references `secrets`;
+   through an escape; every job sets its own `permissions`; in a workflow
+   that runs on `pull_request`, or whose `on` is missing, empty or
+   unreadable, no job requests write access or references `secrets`, one
+   of these workflows names the proof-tool image of
+   `verification/image-pin.json` by its reference, and every mention of the
+   image's repository in them is that reference;
 5. `kalyx-fmt`, `kalyx-clippy` with warnings as errors, and `kalyx-test`
    (`cargo test --locked`), on the kalyx package at the repository root.
    For every target of the package, `Cargo.toml` forbids `unsafe` code and
@@ -82,12 +88,18 @@ fails:
    which tests the verdict of the check on the runs that it rejects, and
    `cargo run --locked` on the [allocation check](#allocation-check) in
    `checks/allocation/`;
-7. `guard`: the rules of the package that the compiler and Clippy do not
+7. `lean`: the source rules of the hand-written Lean in `verification/`, as
+   [formal verification](docs/formal-verification.md#source-rules) states;
+8. `subset`: the mechanical checks of the provable subset on the files of
+   the module list of the contracts, and the compile-fail cases of the
+   package, as [formal verification](docs/formal-verification.md#checks-in-cargo-xtask-check)
+   states;
+9. `guard`: the rules of the package that the compiler and Clippy do not
    check, described [below](#guard).
 
-The `docs`, `workflows` and `guard` steps read only files that Git tracks, so
-build output and ignored files do not change the result; add a new file to the
-index with `git add` before running the check.
+The `docs`, `workflows`, `lean`, `subset` and `guard` steps read only files
+that Git tracks, so build output and ignored files do not change the result;
+add a new file to the index with `git add` before running the check.
 
 ### Allocation check
 
@@ -100,10 +112,10 @@ the
 states. A global allocator implements the unsafe trait `GlobalAlloc`, and
 the kalyx package forbids `unsafe` code in every target, so the check is the
 package `checks/allocation/`, a workspace of its own outside the package that
-depends on it by path, like `xtask/`. Its allocator wrapper is the only
-`unsafe` code that the checks build (the file `xtask/src/formal/process.rs`
-of the proof tooling, which no module declares yet, calls libc in `unsafe`
-blocks): the manifest of the check denies `unsafe`
+depends on it by path, like `xtask/`. Its allocator wrapper and the libc
+calls of the proof tooling, in `xtask/src/formal/process.rs` and in the tests
+of `xtask/src/formal/run.rs`, are the only `unsafe` code that the checks
+build: the manifest of the check denies `unsafe`
 code and undocumented unsafe blocks, and only the wrapper allows `unsafe`
 code, with its reason, and states why each unsafe block is sound. The guard
 does not scan the check, which is not code of the package, and checks its
@@ -198,7 +210,24 @@ CI runs the check as the job `cargo xtask check` of
 for the head commit of every pull request to `main` and for every push to
 `main`. It sets `CHECK_BASE` to the base commit of the pull request or to the
 previous head of `main`, and uploads the receipt as the artifact
-`check-receipt-<commit>-<attempt>`.
+`check-receipt-<commit>-<attempt>`. The workflow `formal` runs the proof gate
+in a job of its own, which is not required, as
+[formal verification](docs/formal-verification.md#ci-job) describes.
+
+## Proof fields
+
+A pull request with the label `spec` or `proof` gives the proof fields of
+`.github/pull_request_template.md` at the end of its description, which
+`cargo xtask formal guard` reads as
+[formal verification](docs/formal-verification.md#guard) states. The guard
+requires `Review`, `Approval` and `Approved-Statement-Hash` on every pull
+request with the label `spec`. For a component at tier A2, whose
+specification is checked and not proved, `Approval` gives the id of the same
+A2 review as `Review`, and the owner checks such reviews by sampling; the
+other fields are given as the template says. A pull request that removes an
+entry of the module list of a contract, or makes one narrower, gives
+`Module-List-Approval: <id>`, the id of the owner's approval of that change,
+on a line of its own at the end of the description; a new entry needs none.
 
 ## Commit messages
 

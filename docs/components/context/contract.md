@@ -556,6 +556,15 @@ clock and the probe are boxed trait objects in the adapter, which the
 extraction is to cut. None of this code has been extracted: no proof target
 is registered for it yet.
 
+The module list of the component, the files that the `subset` step of
+`cargo xtask check` checks against the provable subset and that
+`cargo xtask formal check` inventories, holds the accounting core; the limits,
+the storage and the observer adapter below `src/context/` are not listed:
+
+```paths
+src/context.rs
+```
+
 ## Current deviations
 
 None: the code and the tests follow every rule above.

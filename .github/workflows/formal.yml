@@ -1,0 +1,294 @@
+# The proof gate in CI. The job `formal run` runs `cargo xtask formal run`
+# in the pinned proof-tool image on the head of every pull request to main
+# and on every push to main, and uploads its receipt; it is not a required
+# check. Before the gate, on a pull request that changes the package, the
+# Lake project, the contracts of the components, xtask or this workflow, a
+# step of that job replays the vectors fixture of xtask in the image.
+# Actions are pinned to full commit SHAs; the comment names the release.
+name: formal
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# `bash` runs every step with `-eo pipefail`, so that a failed command in a
+# pipeline, such as `docker run ... | tee`, fails its step.
+defaults:
+  run:
+    shell: bash
+
+env:
+  # The image that verification/image-pin.json pins. The workflows step of
+  # `cargo xtask check` requires every mention of the image's repository in
+  # this file to be this reference.
+  IMAGE: ghcr.io/casxi-lab/krepi-formal@sha256:cd3bd69b780538593e4cfe247c45145d82a0c351048bcc21882062537300f013
+  # The flags of every container that runs the gate or its tools, besides
+  # the user, which is the runner's own, the mount and the working directory.
+  GATE_FLAGS: "--pull never --init --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges --network none"
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  gate:
+    name: formal run
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    # 15 minutes before the vectors step, its 13, then the gate's 7,200 s and
+    # the 300 s of its receipt.
+    timeout-minutes: 153
+    permissions:
+      contents: read
+    concurrency:
+      group: formal-gate-${{ github.event.pull_request.number || github.sha }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - name: Check out the candidate commit with its history
+        timeout-minutes: 2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Record the runner and pull the image
+        timeout-minutes: 8
+        run: |
+          mkdir -p artifacts/formal
+          {
+            echo "== prepare started $(date -u +%FT%TZ)"
+            echo "commit $HEAD_SHA, event $GITHUB_EVENT_NAME, ref $GITHUB_REF," \
+              "run $GITHUB_RUN_ID, attempt $GITHUB_RUN_ATTEMPT"
+            echo "user: $(id)"
+            echo "processors: $(nproc)"
+            free -b
+            df -B1 /
+            uname -srvm
+            docker info --format 'Docker {{.ServerVersion}}, cgroup version {{.CgroupVersion}}'
+            docker info --format 'security options {{json .SecurityOptions}}'
+            if [ "$(id -u)" = 0 ]; then
+              echo "the runner's user is root; the gate is to run as another user" >&2
+              exit 1
+            fi
+            owner=$(stat -c %u "$GITHUB_WORKSPACE")
+            if [ "$owner" != "$(id -u)" ]; then
+              echo "the checkout belongs to user $owner, not to the runner's user" >&2
+              exit 1
+            fi
+            echo "the checkout belongs to the runner's user"
+            echo "== docker pull $IMAGE"
+            docker pull "$IMAGE"
+            docker image inspect --format 'pulled {{json .RepoDigests}}, {{.Size}} bytes' "$IMAGE"
+            df -B1 /
+            cp "$GITHUB_EVENT_PATH" artifacts/formal/event.json
+            echo "the event is copied to artifacts/formal/event.json"
+          } 2>&1 | tee artifacts/formal/job.txt
+
+      - name: Build xtask
+        timeout-minutes: 3
+        run: |
+          {
+            echo "== build xtask, started $(date -u +%FT%TZ)"
+            rustup toolchain install
+            cargo build --locked --manifest-path xtask/Cargo.toml
+            ls -l xtask/target/debug/xtask
+          } 2>&1 | tee -a artifacts/formal/job.txt
+
+      # The probe fails unless the container runs as a user other than root,
+      # on a read-only root file system, without capabilities, new privileges
+      # or a network, and unless every attempt to write or re-mode the
+      # installation fails; it also starts xtask in the image.
+      - name: Probe the container of the gate
+        id: probe
+        timeout-minutes: 1
+        run: |
+          read -r -a gate_flags <<< "$GATE_FLAGS"
+          echo "== probe: docker run $GATE_FLAGS --user $(id -u):$(id -g)" \
+            | tee -a artifacts/formal/job.txt
+          docker run --rm -i "${gate_flags[@]}" --user "$(id -u):$(id -g)" \
+            --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE:ro" --workdir "$GITHUB_WORKSPACE" \
+            "$IMAGE" bash -s 2>&1 <<'PROBE' | tee -a artifacts/formal/job.txt
+          status=0
+          fail() { echo "FAILED: $*"; status=1; }
+          echo "user: $(id)"
+          [ "$(id -u)" != 0 ] || fail "the container runs as root"
+          root=$(awk '$2 == "/" { line = $0 } END { print line }' /proc/self/mounts)
+          echo "root file system: $root"
+          case ",$(echo "$root" | awk '{ print $4 }')," in
+            *,ro,*) ;;
+            *) fail "the root file system is not read-only" ;;
+          esac
+          grep -E '^(CapBnd|CapEff|NoNewPrivs):' /proc/self/status
+          grep -q '^CapBnd:[[:space:]]*0*$' /proc/self/status || fail "capabilities are left"
+          grep -q '^NoNewPrivs:[[:space:]]*1$' /proc/self/status || fail "new privileges are allowed"
+          echo "network interfaces: $(ls /sys/class/net)"
+          [ "$(ls /sys/class/net)" = lo ] || fail "the container has a network"
+          echo "process 1: $(cat /proc/1/comm)"
+          for dir in lean backend bin rustup cargo; do
+            path=/opt/krepi-formal/$dir
+            if touch "$path/.probe" 2>&1; then
+              fail "created $path/.probe"
+            fi
+            if chmod u+w "$path" 2>&1; then
+              fail "changed the mode of $path"
+            fi
+          done
+          if "$PWD/xtask/target/debug/xtask" help > /dev/null; then
+            echo "xtask starts in the image"
+          else
+            fail "xtask does not start in the image"
+          fi
+          exit "$status"
+          PROBE
+          echo "== the probe passed; prepare ended $(date -u +%FT%TZ)" \
+            | tee -a artifacts/formal/job.txt
+
+      - name: Check the pull request with formal guard
+        if: github.event_name == 'pull_request'
+        timeout-minutes: 1
+        run: |
+          xtask/target/debug/xtask formal guard --event artifacts/formal/event.json 2>&1 \
+            | tee artifacts/formal/guard.txt
+
+      # On a pull request that changes the package, the Lake project, the
+      # contracts of the components, xtask or this workflow since the merge
+      # base: builds the tests of xtask and replays the vectors fixture of
+      # xtask with the pinned Lean in a container of the gate. The container
+      # is removed when it ends, and its limit, with that of the build
+      # before it, ends it within the step's. Its failure fails the job; the
+      # gate still runs.
+      - name: Compare the test vectors in the image
+        if: ${{ !cancelled() && steps.probe.outcome == 'success' && github.event_name == 'pull_request' }}
+        timeout-minutes: 13
+        run: |
+          read -r -a gate_flags <<< "$GATE_FLAGS"
+          # Runs the command after the first two arguments in a container of
+          # the gate named after the first, for at most the time of the second.
+          in_image() {
+            local name="formal-vectors-$1-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" limit=$2 status=0
+            shift 2
+            timeout --kill-after 1m "$limit" docker run --rm --name "$name" "${gate_flags[@]}" \
+              --user "$(id -u):$(id -g)" \
+              --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" --workdir "$GITHUB_WORKSPACE" \
+              "$IMAGE" "$@" || status=$?
+            docker rm --force "$name" > /dev/null 2>&1 || true
+            return "$status"
+          }
+          {
+            echo "== vectors started $(date -u +%FT%TZ)"
+            status=0
+            base=$(jq -er .pull_request.base.sha artifacts/formal/event.json)
+            merge_base=$(git merge-base "$base" "$HEAD_SHA")
+            paths=(Cargo.toml Cargo.lock src verification docs/components xtask .github/workflows/formal.yml)
+            if git diff --quiet "$merge_base" "$HEAD_SHA" -- "${paths[@]}"; then
+              echo "no change in the paths that select the comparison: 0 components"
+            else
+              timeout 5m cargo test --locked --manifest-path xtask/Cargo.toml --bin xtask --no-run \
+                --message-format=json-render-diagnostics \
+                | jq -r 'select(.profile.test == true and .executable != null) | .executable' \
+                > artifacts/formal/vectors-tests.txt
+              [ "$(wc -l < artifacts/formal/vectors-tests.txt)" = 1 ]
+              in_image fixture 6m "$(cat artifacts/formal/vectors-tests.txt)" --exact --ignored --nocapture \
+                formal::vectors::tests::the_fixture_replays_with_the_pinned_lean \
+                > artifacts/formal/vectors-fixture.txt 2>&1 || status=1
+              cat artifacts/formal/vectors-fixture.txt
+              grep -q '^test result: ok\. 1 passed; 0 failed' artifacts/formal/vectors-fixture.txt || status=1
+            fi
+            echo "== vectors ended $(date -u +%FT%TZ) with exit status $status"
+            exit "$status"
+          } 2>&1 | tee artifacts/formal/vectors.txt
+
+      # The gate ends by its own deadline; the step's limit is a backstop one
+      # minute after it. The receipt is the gate's verdict, so the step fails
+      # whenever the gate does, `REJECTED` included.
+      - name: Run the gate in the image
+        id: gate
+        if: ${{ !cancelled() && steps.probe.outcome == 'success' }}
+        timeout-minutes: 126
+        run: |
+          read -r -a gate_flags <<< "$GATE_FLAGS"
+          echo "== gate started $(date -u +%FT%TZ)" | tee -a artifacts/formal/job.txt
+          status=0
+          docker run --rm --name "formal-gate-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" "${gate_flags[@]}" \
+            --user "$(id -u):$(id -g)" \
+            --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" --workdir "$GITHUB_WORKSPACE" \
+            --env GITHUB_EVENT_NAME --env GITHUB_REF --env GITHUB_RUN_ID --env GITHUB_RUN_ATTEMPT \
+            --env GITHUB_EVENT_PATH="$GITHUB_WORKSPACE/artifacts/formal/event.json" \
+            --env KALYX_FORMAL_IMAGE="$IMAGE" \
+            "$IMAGE" "$GITHUB_WORKSPACE/xtask/target/debug/xtask" formal run || status=$?
+          echo "== gate ended $(date -u +%FT%TZ) with exit status $status" \
+            | tee -a artifacts/formal/job.txt
+          exit "$status"
+
+      - name: Remove the container of the gate
+        if: always()
+        run: |
+          if docker rm --force "formal-gate-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" > /dev/null 2>&1; then
+            echo "removed the container of the gate"
+          else
+            echo "no container of the gate is left"
+          fi
+
+      - name: Summarize the receipt
+        if: always()
+        env:
+          GATE_OUTCOME: ${{ steps.gate.outcome }}
+        run: |
+          shopt -s nullglob
+          receipts=(artifacts/formal/runs/*/receipt.json)
+          {
+            echo "## formal run"
+            echo
+            echo "Image \`$IMAGE\`; the gate step: $GATE_OUTCOME."
+            echo
+            if [ "${#receipts[@]}" = 0 ]; then
+              echo "The gate left no receipt."
+            fi
+            for receipt in "${receipts[@]}"; do
+              jq -r --arg path "$receipt" '
+                "- Receipt `\($path)`: `\(.status)`, complete \(.complete), \(.seconds) s",
+                "- Phases: " + ([.phases | to_entries[] | "\(.key) \(.value.seconds) s"] | join(", ")),
+                "- Units: " + ([.units[].status] | group_by(.) | map("\(length) \(.[0])") | join(", ")),
+                "- Image: " + (.image | if . == null then "none" else
+                  "`\(.reference)`, user \(.uid), writable \(.writable), " +
+                  "versions.json SHA-256 `\(.versions_sha256)`" end),
+                "- Resources: disk available at the start \(.resources.disk_available_at_start) B, " +
+                  "least \(.resources.disk_least_available) B; largest process " +
+                  "\(.resources.largest_process_max_rss) B; cgroup memory peak " +
+                  "\(.resources.cgroup_memory_peak) B",
+                (.guard // empty | .rules | to_entries[] | "- Guard rule `\(.key)`: \(.value // "holds")"),
+                "",
+                "Units that are not VERIFIED:",
+                "",
+                (.units | to_entries[] | select(.value.status != "VERIFIED")
+                  | "- `\(.key)`: \(.value.status)"),
+                "",
+                "Failures:",
+                "",
+                (if .failures == [] then "- none" else
+                  .failures[] | "- \(.status): \(.message | .[0:500])" end)
+              ' "$receipt"
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "${#receipts[@]}" = 0 ] && [[ "$GATE_OUTCOME" =~ ^(success|failure)$ ]]; then
+            echo "the gate step ran and left no receipt" >&2
+            exit 1
+          fi
+
+      - name: Upload the receipt and the logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: formal-receipt-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: |
+            artifacts/formal/job.txt
+            artifacts/formal/guard.txt
+            artifacts/formal/vectors.txt
+            artifacts/formal/vectors-tests.txt
+            artifacts/formal/vectors-fixture.txt
+            artifacts/formal/event.json
+            artifacts/formal/runs/*/receipt.json
+            artifacts/formal/runs/*/logs/
+          if-no-files-found: warn

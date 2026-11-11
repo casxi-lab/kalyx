@@ -485,6 +485,15 @@ and instead of `if let`, and have at most one loop each; `log2_upper` in
 `src/number/power.rs` is a `const fn` over machine integers. No proof target
 is registered for this component.
 
+The module list of the component, the files that the `subset` step of
+`cargo xtask check` checks against the provable subset and that
+`cargo xtask formal check` inventories, holds the coefficient-field trait
+alone; the numbers are not listed:
+
+```paths
+src/coefficient.rs
+```
+
 ## Current deviations
 
 None: the code and the tests follow every rule above.

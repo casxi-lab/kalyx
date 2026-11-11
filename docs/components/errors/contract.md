@@ -339,6 +339,14 @@ closure, combinator, function value, borrow or `?`, and the only allocation is
 the owned string of `Cap::message`, built by `String::from`. They have not
 been extracted: no proof target is registered for them yet.
 
+The module list of the component, the files that the `subset` step of
+`cargo xtask check` checks against the provable subset and that
+`cargo xtask formal check` inventories, holds the errors and result states:
+
+```paths
+src/error.rs
+```
+
 ## Current deviations
 
 None: the code and the tests follow every rule above.
