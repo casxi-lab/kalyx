@@ -1,8 +1,19 @@
 //! Format checks for the answer vectors in `vectors/r02.tsv`: seven columns,
 //! unique ids, results from the fixed table of result kinds and limits named
-//! by `Limits` fields. `vectors/README.md` describes the format.
+//! by `Limits` fields. Format checks for the six files of the full vectors:
+//! plain TSV, the header row, the columns of every row, unique ids and the
+//! number of rows. `vectors/README.md` describes the formats.
+
+#![allow(
+    clippy::unwrap_used,
+    reason = "the helpers of the negative tests unwrap the embedded files and the rejections, as the tests do"
+)]
+
+mod full_vectors;
 
 use std::collections::BTreeSet;
+
+use full_vectors::{FILES, File};
 
 const VECTORS: &str = include_str!("../vectors/r02.tsv");
 
@@ -218,4 +229,234 @@ fn rejects_comment_and_empty_lines_after_the_header() {
         empty.contains("line 2: an empty or comment line"),
         "{empty}"
     );
+}
+
+// ---------------------------------------------------------------------------
+// The full vectors
+
+/// The five format checks of a file of the full vectors, in this order:
+/// `plain TSV`, the reading of `full_vectors::lines`; `header`, the header
+/// row names the columns of the file; `columns`, every row has as many
+/// columns as the header; `ids`, the ids in the first column are unique;
+/// and `rows`, the file has the number of rows that `vectors/README.md`
+/// states. Returns the number of rows, or the first check that fails, named
+/// after the file.
+fn check_full(file: &File, bytes: &[u8]) -> Result<usize, String> {
+    let name = file.name;
+    let lines =
+        full_vectors::lines(bytes).map_err(|error| format!("{name}: plain TSV: {error}"))?;
+    let Some((header, rows)) = lines.split_first() else {
+        return Err(format!("{name}: header: no header row"));
+    };
+    if header.as_slice() != file.columns {
+        return Err(format!(
+            "{name}: header: the header row is not {}",
+            file.columns.join(" ")
+        ));
+    }
+    for (index, row) in rows.iter().enumerate() {
+        if row.len() != file.columns.len() {
+            return Err(format!(
+                "{name}: columns: line {}: {} columns instead of {}",
+                index + 2,
+                row.len(),
+                file.columns.len()
+            ));
+        }
+    }
+    let mut ids = BTreeSet::new();
+    for (index, row) in rows.iter().enumerate() {
+        if !ids.insert(row[0]) {
+            return Err(format!(
+                "{name}: ids: line {}: duplicate id {}",
+                index + 2,
+                row[0]
+            ));
+        }
+    }
+    if rows.len() != file.rows {
+        return Err(format!(
+            "{name}: rows: {} rows instead of {}",
+            rows.len(),
+            file.rows
+        ));
+    }
+    Ok(rows.len())
+}
+
+/// The text of `file` with its line `index`, counted from 0 at the header
+/// row, replaced by what `change` makes of it.
+fn changed_line(file: &File, index: usize, change: impl Fn(&str) -> String) -> String {
+    let text = std::str::from_utf8(file.bytes).unwrap();
+    let mut lines: Vec<String> = text.split_terminator('\n').map(str::to_owned).collect();
+    lines[index] = change(&lines[index]);
+    lines.iter().map(|line| format!("{line}\n")).collect()
+}
+
+/// Asserts that the format checks reject `bytes`, a corrupted copy of
+/// `file`, in the check `check`, with an error that contains `detail`.
+fn assert_rejected(file: &File, bytes: &[u8], check: &str, detail: &str) {
+    let error = check_full(file, bytes).unwrap_err();
+    assert!(
+        error.starts_with(&format!("{}: {check}: ", file.name)),
+        "{error}"
+    );
+    assert!(error.contains(detail), "{error}");
+}
+
+// Each of the six files passes the five checks and has the number of rows
+// that `vectors/README.md` states.
+#[test]
+fn the_full_vectors_have_the_documented_format() {
+    let rows: Vec<(&str, usize)> = FILES
+        .iter()
+        .map(|file| (file.name, check_full(file, file.bytes).unwrap()))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            ("cli_cases.tsv", 402),
+            ("integration_tests.tsv", 968),
+            ("library.tsv", 12_573),
+            ("terminal_session.tsv", 471),
+            ("terminal_collections.tsv", 35),
+            ("root_calls.tsv", 1_782),
+        ]
+    );
+}
+
+// The plain TSV check rejects a copy of each file with a byte that is not
+// UTF-8, a comment line, an empty line, an empty field, a control byte that
+// is not escaped, a backslash that starts no escape, or a last line without
+// its line feed.
+#[test]
+fn rejects_a_full_vector_file_that_is_not_plain_tsv() {
+    for file in FILES {
+        let mut bytes = file.bytes.to_vec();
+        let second = file.bytes.iter().position(|&byte| byte == b'\n').unwrap() + 1;
+        bytes.insert(second, 0xff);
+        assert_rejected(file, &bytes, "plain TSV", "not UTF-8");
+        let comment = changed_line(file, 1, |line| format!("# {line}"));
+        assert_rejected(
+            file,
+            comment.as_bytes(),
+            "plain TSV",
+            "line 2: a comment line",
+        );
+        let empty = changed_line(file, 1, |line| format!("\n{line}"));
+        assert_rejected(file, empty.as_bytes(), "plain TSV", "line 2: an empty line");
+        let field = changed_line(file, 1, |line| line.replacen('\t', "\t\t", 1));
+        assert_rejected(
+            file,
+            field.as_bytes(),
+            "plain TSV",
+            "line 2, column 2: an empty field",
+        );
+        let control = changed_line(file, 1, |line| line.replacen('\t', "\t\r", 1));
+        assert_rejected(
+            file,
+            control.as_bytes(),
+            "plain TSV",
+            "line 2, column 2: the control byte 0x0d is not escaped",
+        );
+        let escape = changed_line(file, 1, |line| format!("{line}\\q"));
+        assert_rejected(
+            file,
+            escape.as_bytes(),
+            "plain TSV",
+            "a backslash that starts no escape",
+        );
+        let unterminated = &file.bytes[..file.bytes.len() - 1];
+        assert_rejected(
+            file,
+            unterminated,
+            "plain TSV",
+            "the last line does not end with a line feed",
+        );
+    }
+}
+
+// The header check rejects a copy of each file whose header row renames its
+// first column or leaves out its last one.
+#[test]
+fn rejects_a_full_vector_file_with_another_header_row() {
+    for file in FILES {
+        let renamed = changed_line(file, 0, |line| line.replacen("id", "name", 1));
+        assert_rejected(
+            file,
+            renamed.as_bytes(),
+            "header",
+            "the header row is not id ",
+        );
+        let short = changed_line(file, 0, |line| line.rsplit_once('\t').unwrap().0.to_owned());
+        assert_rejected(file, short.as_bytes(), "header", "the header row is not");
+    }
+}
+
+// The column check rejects a copy of each file with a row that leaves out
+// its last field or adds one.
+#[test]
+fn rejects_a_full_vector_file_with_a_row_of_other_columns() {
+    for file in FILES {
+        let columns = file.columns.len();
+        let short = changed_line(file, 2, |line| line.rsplit_once('\t').unwrap().0.to_owned());
+        assert_rejected(
+            file,
+            short.as_bytes(),
+            "columns",
+            &format!("line 3: {} columns instead of {columns}", columns - 1),
+        );
+        let long = changed_line(file, 2, |line| format!("{line}\t-"));
+        assert_rejected(
+            file,
+            long.as_bytes(),
+            "columns",
+            &format!("line 3: {} columns instead of {columns}", columns + 1),
+        );
+    }
+}
+
+// The id check rejects a copy of each file whose third line has the id of
+// the second.
+#[test]
+fn rejects_a_full_vector_file_with_a_duplicate_id() {
+    for file in FILES {
+        let text = std::str::from_utf8(file.bytes).unwrap();
+        let first = text.split('\n').nth(1).unwrap().split('\t').next().unwrap();
+        let duplicate = changed_line(file, 2, |line| {
+            let (_, rest) = line.split_once('\t').unwrap();
+            format!("{first}\t{rest}")
+        });
+        assert_rejected(
+            file,
+            duplicate.as_bytes(),
+            "ids",
+            &format!("line 3: duplicate id {first}"),
+        );
+    }
+}
+
+// The row check rejects a copy of each file without its last row, and one
+// with an extra row under a new id.
+#[test]
+fn rejects_a_full_vector_file_with_another_number_of_rows() {
+    for file in FILES {
+        let text = std::str::from_utf8(file.bytes).unwrap();
+        let (rest, last) = text.strip_suffix('\n').unwrap().rsplit_once('\n').unwrap();
+        let shorter = format!("{rest}\n");
+        assert_rejected(
+            file,
+            shorter.as_bytes(),
+            "rows",
+            &format!("{} rows instead of {}", file.rows - 1, file.rows),
+        );
+        let (_, fields) = last.split_once('\t').unwrap();
+        let longer = format!("{text}an_extra_row\t{fields}\n");
+        assert_rejected(
+            file,
+            longer.as_bytes(),
+            "rows",
+            &format!("{} rows instead of {}", file.rows + 1, file.rows),
+        );
+    }
 }
