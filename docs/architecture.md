@@ -395,8 +395,8 @@ does not enter $u$ in `derivative(u, x, n)`.
 constructor builds a call yet. The contract of the term core fixes the rules
 below once, with their charges.
 
-A rule $L \to R$ is applied by the call constructor, or by the term core with
-a call head or a constant as its trigger, exactly when
+A rule $L \to R$ is eligible for the call constructor, or for the term core
+with a call head or a constant as its trigger, exactly when
 
 ```math
 [L]\rho = [R]\rho \quad \text{for every assignment } \rho
@@ -407,11 +407,14 @@ undefined value: both sides have the same domain, and the rule needs no
 assumption. A rule that holds only under an assumption, or whose left side
 is defined at fewer points than its right side, belongs to the scoped
 rewriting of function expressions, the planned command `f-refine`, which
-keeps the domain of the left side as a condition. Only such rules let a
-canonical form keep the meaning of its input,
-$[\mathrm{canon}(t)]\rho = [t]\rho$ at every assignment: a rule that widens
-the domain would hide a point where its input is undefined. The rules are
-placed as follows.
+keeps the domain of the left side as a condition. An eligible rule keeps
+the meaning of the term it rewrites, so it never widens a domain, which
+would hide a point where its input is undefined. The rules of sums,
+products and powers treat a call as a total atom, and the function value
+carries the domain of the call ([domains of calls](#domains-of-calls)).
+Not every eligible rule is applied: the rules are placed as follows, and
+the last item of the list after the table names rewritings that the
+constructors of release 0.2 do not apply.
 
 | Rule | Where it applies |
 | --- | --- |
@@ -487,13 +490,13 @@ true, false or undefined. Its shapes are the truth values `true` and
 - **Strict atoms.** The domain of a comparison or a property predicate is
   the intersection of the domains of its operands, and an ordered comparison
   also needs real operands: it is undefined where an operand is not real.
-- **Strong Kleene connectives.** For each of the three values $y$, undefined
-  included, $\mathrm{false} \land y = \mathrm{false}$,
-  $\mathrm{true} \land y = y$, $\mathrm{true} \lor y = \mathrm{true}$ and
-  $\mathrm{false} \lor y = y$; in every other case a connective with an
-  undefined operand is undefined, and so is `not` of an undefined operand.
-  So `and` and `or` are commutative, associative and idempotent on the three
-  values, and $x = 0 \lor 1/x \gt 1$ is true at $x = 0$.
+- **Strong Kleene connectives.** An `and` with a false operand is false and
+  an `or` with a true operand is true, whatever the other operands are,
+  undefined included. Otherwise a connective with an undefined operand is
+  undefined, and so is `not` of an undefined operand; on defined operands
+  the connectives are the Boolean ones. So `and` and `or` are commutative,
+  associative and idempotent on the three values, and
+  $x = 0 \lor 1/x \gt 1$ is true at $x = 0$.
 - **Structural normalization only.** The constructor of conditions flattens
   nested `and` and `or`, sorts their operands and removes repeated ones,
   rewrites $\lnot\lnot c$ to $c$, and absorbs `true` and `false`. Under the
@@ -592,8 +595,8 @@ conditions of the children are conjoined.
 
 - When the builder builds a call of `tan`, `asin`, `acos`, `atan`, `log` or
   `rootn`, it adds the domain of the call to the condition; the functions
-  defined on all their arguments add nothing. A formal call adds
-  `defined(…)` of itself.
+  defined on all their arguments add nothing. A call of `derivative` or
+  `substitute` adds `defined(…)` of itself.
 - The term core treats every call as a total uninterpreted atom
   ([negative exponents](#negative-exponent-invariant)), so the condition is
   the one record of the domains of calls. A term built with the term
@@ -646,11 +649,11 @@ undefined at $x = 1$.
 ### Removing negative exponents
 
 A strict position of a term is a position that is reached from the root
-without passing into a branch of `piecewise` or into an argument of a formal
-call: the operands of sums, products, powers and registered calls, the
-operands of comparisons and predicates, and the condition of `piecewise`.
-Where a subterm at a strict position is undefined, the whole term is
-undefined.
+without passing into a branch of `piecewise` or into an argument of
+`derivative` or `substitute`: the operands of sums, products, powers and
+registered calls, the operands of comparisons and predicates, and the
+condition of `piecewise`. Where a subterm at a strict position is
+undefined, the whole term is undefined.
 
 The operation that removes negative exponents under conditions works on the
 strict positions. There it merges the factors with the same base and
@@ -658,11 +661,11 @@ exponents of opposite signs and removes the three witnesses, and it adds to
 the condition $b \ne 0$ for each base $b$ that it cancels. At a
 $\mathrm{piecewise}(c, a, e)$ in a strict position, it works on each branch
 separately and joins the conditions $C_a^{\ast}$ and $C_e^{\ast}$ of the two
-results as $(c \land C_a^{\ast}) \lor (\lnot c \land C_e^{\ast})$. A formal
-call is an atom. The result has the same domain and the same value as the
-input: where a base that occurs with a negative exponent at a strict position
-is 0, the input is undefined, and a base that occurs only in a branch is
-carried by the condition of that branch.
+results as $(c \land C_a^{\ast}) \lor (\lnot c \land C_e^{\ast})$. A call
+of `derivative` or `substitute` is an atom. The result has the same domain
+and the same value as the input: where a base that occurs with a negative
+exponent at a strict position is 0, the input is undefined, and a base that
+occurs only in a branch is carried by the condition of that branch.
 
 - $x^2 x^{-1}$ gives $x$ with $x \ne 0$, and $0 \cdot x^{-1}$ gives 0 with
   $x \ne 0$; $1/x$ stays as it is. `at` at $x = 0$ therefore fails with
@@ -813,8 +816,8 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
 
 **Status:** planned for release 0.2; not implemented. Algebraic numbers
 build on the factorization of polynomials over $\mathbb{Q}$ and on real root
-isolation, which the coefficient fields of the same release provide. Every
-step below uses exact rational arithmetic only, never floating point.
+isolation, which are planned for the same release. Every step below uses
+exact rational arithmetic only, never floating point.
 
 Write $m$ for a minimal polynomial and $d$ for its degree. The principal
 argument is $\mathrm{Arg} \in (-\pi, \pi]$, the principal root of a rational
@@ -832,10 +835,13 @@ $q$ is $q^{1/n} = \lvert q \rvert^{1/n} e^{i \mathrm{Arg}(q)/n}$, and
 - **Complex algebraic numbers.** The identity of a complex algebraic
   number, one that is not real, is the pair $(m, k_c)$, where $k_c$ is its
   position among all the roots of $m$ in ascending order of the pair (real
-  part, imaginary part), counted from 0. In this order the root of a conjugate pair with the negative imaginary part
-  comes first, and a real root comes between the conjugate pairs with the
-  same real part. A real number is never of the complex type, and a complex
-  algebraic number is never stored as a pair of real algebraic numbers.
+  part, imaginary part), counted from 0. In this order the root of a
+  conjugate pair with the negative imaginary part comes first, and a real
+  root comes after the roots with the same real part and a negative
+  imaginary part and before those with a positive one, between the two
+  roots of each such conjugate pair. A real number is never of the complex
+  type, and a complex algebraic number is never stored as a pair of real
+  algebraic numbers.
 - **Equality.** Two algebraic numbers are equal exactly when their
   identities are structurally equal, which needs no refinement, and equal
   values have equal identities. The identity holds $m$ in its monic rational
@@ -989,12 +995,13 @@ arithmetic on algebraic numbers:
    the $p$-th power of a rational, $q^{1/p}$ and $n/p$ replace $q$ and $n$,
    until no such prime remains;
 4. for $q \lt 0$ and $n = 2$, $\sqrt{q} = i\sqrt{-q}$;
-5. for $q = -4t^4$ and $n = 4$, the root is $t + ti$;
+5. for $q = -4t^4$ with a rational $t \gt 0$ and $n = 4$, the root is
+   $t + ti$;
 6. any other root stays a call.
 
-After step 3, $x^n - q$ is irreducible by Capelli's theorem (S. Lang,
-Algebra, chapter VI, §9): $x^n - a$ is irreducible over a field $K$ exactly
-when $a \notin K^p$ for every prime $p$ that divides $n$, and
+For $q \gt 0$, after step 3, $x^n - q$ is irreducible by Capelli's theorem
+(S. Lang, Algebra, chapter VI, §9): $x^n - a$ is irreducible over a field
+$K$ exactly when $a \notin K^p$ for every prime $p$ that divides $n$, and
 $a \notin -4K^4$ when $4$ divides $n$. The test is an integer $p$-th root, at
 most about $\log_2 n$ of them. Steps 4 and 5 cover every principal root in
 $\mathbb{Q}(i)$ that is not rational. The parsed `sqrt(2)` and the algebraic
