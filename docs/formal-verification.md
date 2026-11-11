@@ -94,9 +94,9 @@ the Lean toolchain that Aeneas names, the Charon commit of its `charon-pin`,
 the Rust nightly of Charon's `rust-toolchain`, the digests of the patch and
 of the Lake lock of the Aeneas Lean library and its Mathlib commit, the
 commits of both trees, the Lean archive of each host, the Rust targets (the
-extraction triple `aarch64-unknown-linux-gnu`, the triple of the image's host,
-needs none) and the two host columns. Each tool command of the gate runs with exactly the
-variables that the gate gives it: offline Cargo with the Cargo and rustup
+extraction triple `aarch64-unknown-linux-gnu`, the triple of the image's
+host, needs none) and the two host columns. Each tool command of the gate
+runs with exactly the variables that the gate gives it: offline Cargo with the Cargo and rustup
 homes of the installation, Lake's artifact cache turned off, Git without
 system or global configuration, a `PATH` of the installation and the system
 directories, and a home and a temporary directory of the run.
@@ -358,8 +358,9 @@ command that was a tool failure is concluded `TOOL_FAILURE`, and one with a
 command that met a budget, or did not start because its limit was used up,
 `BUDGET`, whatever its phase concludes. The status of a run is the first of
 `TOOL_FAILURE`, `BUDGET`, `STALE` and `REJECTED` that its failures and the
-conclusions of its units give, `SCOPED` for a run of named targets, and
-otherwise `VERIFIED`. A run of the whole gate is complete when its only
+conclusions of its units give, `TOOL_FAILURE` when a unit is `NOT_RUN` and
+none of these is given, `SCOPED` for a run of named targets, and otherwise
+`VERIFIED`. A run of the whole gate is complete when its only
 failures are `STALE` and no unit is `NOT_RUN` or `BUDGET`.
 
 The command exits with 0 for `VERIFIED` and `SCOPED` and with 1 for any

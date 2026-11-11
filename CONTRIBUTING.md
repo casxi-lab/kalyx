@@ -25,7 +25,7 @@ The first command enables the commit message hook in `.githooks/commit-msg`.
 The second installs the Rust toolchain that `rust-toolchain.toml` pins. The
 third builds the library and the program, and `cargo xtask check` runs the
 [checks](#checks), which format-check, lint and test both the package and the
-checks and run the guard. The last two report whitespace errors in unstaged
+checks, check the Lean sources and the provable subset, and run the guard. The last two report whitespace errors in unstaged
 and staged changes.
 
 ## Library rules

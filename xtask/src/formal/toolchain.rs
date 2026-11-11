@@ -400,8 +400,13 @@ pub fn check_targets(manifest: &Manifest, layout: &Layout) -> Finding {
             .iter()
             .any(|target| target == layout.triple)
     {
+        let installs = if host {
+            "the toolchain"
+        } else {
+            "the manifest"
+        };
         Ok(format!(
-            "the manifest installs the standard library for {}",
+            "{installs} installs the standard library for {}",
             layout.triple
         ))
     } else {
