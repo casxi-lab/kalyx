@@ -49,7 +49,7 @@ the gate are planned, and this page changes with them.
 | `verification/image-pin.json` | The proof-tool image that the CI job runs, by its digest ([tools](#tools)) |
 | `verification/lakefile.toml`, `lean-toolchain`, `lake-manifest.json` | The Lake project of the hand-written Lean and of the generated definitions, with the library `KalyxRoot` of the root module that the base round writes |
 | `verification/extraction.toml` | How Charon compiles each extracted crate ([extraction](#extraction)) |
-| `verification/Kalyx/Qualification/` | The proofs about the qualification shapes, with the definitions in `Models/` that three reviewed external declarations use |
+| `verification/Kalyx/Qualification/` | The proofs about the qualification shapes, with the definitions in `Models/` that the reviewed external declarations of three qualification cases use |
 | `verification/externals/` | The reviewed external declarations of the qualification cases |
 | `verification/qualification/` | The qualification crate, a workspace of its own, and its cases, `cases.json` ([qualification](#qualification)) |
 | `verification/targets.json`, `models.json`, `axioms.json`, `tcb.json` | The registries of proof targets, models, library axioms and the trusted base; all empty |
