@@ -1,0 +1,36 @@
+id	input	output
+line_1	let L = list(5, 7, "a")	L = list(5, 7, "a")\n
+line_2	col-len L	3\n
+line_3	col-elem L; 1	7\n
+line_4	col-slice L; 1; 3	list(7, "a")\n
+line_5	let s = "aé😀"	s = "aé😀"\n
+line_6	col-len s	3\n
+line_7	col-elem s; 2	"😀"\n
+line_8	col-concat L; list(tuple(5), list())	list(5, 7, "a", tuple(5), list())\n
+line_9	col-concat s; "|;"	"aé😀|;"\n
+line_10	col-equal L; list(5, 7, "a")	true\n
+line_11	col-equal list(5); tuple(5)	false\n
+line_12	let p = x	p = x\n
+line_13	let q = y	q = y\n
+line_14	col-equal list(p); list(q)	unknown\n
+line_15	col-elem L; 3	line 15: element access: position 3 is out of range for length 3\n
+line_16	col-slice L; 2; 1	line 16: slice: start 2 is after end 1\n
+line_17	col-concat L; tuple(1)	line 17: concatenation: type mismatch: list and tuple\n
+line_18	"a\\qb"	line 18: invalid escape in a string literal\n
+line_19	let t = "x --work 1"	t = "x --work 1"\n
+line_20	col-len "x --work 1" --work 0	line 20: resource limit exceeded: work units\n
+line_21	"tab\\there\\u{1}"	"tab\\there\\u{1}"\n
+line_22	:get L	list(5, 7, "a")\n
+line_23	L+1	line 23: typed objects are not scalar expressions\n
+line_24	:vars	L\np\nq\ns\nt\n
+line_25	let yes = col-contains map("x":1); "x"	yes = true\n
+line_26	let flags = data-column "boolean"; 2; list(2); list(yes)	flags = column(schema=boolean, rows=2, cells=[true, missing])\n
+line_27	let sheet = data-table 2; list("ready"); list(flags)	sheet = table(rows=2, columns=["ready": column(schema=boolean, rows=2, cells=[true, missing])])\n
+line_28	fn readrow(row) := { data-table-cell sheet; "ready"; row }	fn readrow(row) := { data-table-cell sheet; "ready"; row }; captures: [sheet]\n
+line_29	let sheet = data-table 0; list(); list()	sheet = table(rows=0, columns=[])\n
+line_30	call readrow; 0	record(missing: false, present: tuple(true))\n
+line_31	call readrow; 1	record(missing: true, present: tuple())\n
+line_32	let result = program { let r = roots (x+1)^2*(x-2)^3 | let weights = col-specialized r; multiplicity | let a = array list(2); weights | fn weight(idx) := { array-index a; list(idx) } | let out = list() | for i in iter-range 0; 2 do { let n = call weight; i | let cell = call readrow; i | let out = col-concat out; list(tuple(n, cell)) } | out }	result = list(tuple(2, record(missing: false, present: tuple(true))), tuple(3, record(missing: true, present: tuple())))\n
+line_33	let result = col-concat result; result --work 0	line 33: resource limit exceeded: work units\n
+line_34	:get result	list(tuple(2, record(missing: false, present: tuple(true))), tuple(3, record(missing: true, present: tuple())))\n
+line_35	:quit	session completed with errors\n
