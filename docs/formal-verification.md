@@ -93,8 +93,9 @@ checkouts of Aeneas and Charon and the Aeneas patch against the manifest:
 the Lean toolchain that Aeneas names, the Charon commit of its `charon-pin`,
 the Rust nightly of Charon's `rust-toolchain`, the digests of the patch and
 of the Lake lock of the Aeneas Lean library and its Mathlib commit, the
-commits of both trees, the Lean archive of each host, the Rust targets and
-the two host columns. Each tool command of the gate runs with exactly the
+commits of both trees, the Lean archive of each host, the Rust targets (the
+extraction triple `aarch64-unknown-linux-gnu`, the triple of the image's host,
+needs none) and the two host columns. Each tool command of the gate runs with exactly the
 variables that the gate gives it: offline Cargo with the Cargo and rustup
 homes of the installation, Lake's artifact cache turned off, Git without
 system or global configuration, a `PATH` of the installation and the system
@@ -542,11 +543,6 @@ rules are met as follows:
 
 ## Limitations
 
-- The tool manifest is krepi's: its Rust targets name
-  `aarch64-unknown-none`, the triple of krepi's kernel, and not
-  `aarch64-unknown-linux-gnu`, for which the root package is extracted, and
-  the check of the Rust targets of `cargo xtask formal toolchain-check`
-  reports this.
 - The image and its tools are krepi's, taken by digest; a change of a tool
   needs a new image from krepi.
 - The gate's CI job is not required, and no receipt decides whether a change

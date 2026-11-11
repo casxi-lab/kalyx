@@ -388,13 +388,17 @@ pub fn check_lake_lock(manifest: &Manifest, lake_manifest: &[u8]) -> Finding {
     }
 }
 
-/// The Rust targets include the extraction triple of `layout`.
+/// The Rust targets include the extraction triple of `layout`, unless that
+/// is `aarch64-unknown-linux-gnu`, the triple of the host `linux-aarch64` of
+/// the image, whose standard library the toolchain installs with itself.
 pub fn check_targets(manifest: &Manifest, layout: &Layout) -> Finding {
-    if manifest
-        .rust
-        .targets
-        .iter()
-        .any(|target| target == layout.triple)
+    let host = layout.triple == "aarch64-unknown-linux-gnu";
+    if host
+        || manifest
+            .rust
+            .targets
+            .iter()
+            .any(|target| target == layout.triple)
     {
         Ok(format!(
             "the manifest installs the standard library for {}",
@@ -1145,7 +1149,13 @@ mod tests {
     fn rust_targets_without_the_extraction_triple_fail() {
         let mut manifest = fixture();
         manifest.rust.targets = vec!["riscv64gc-unknown-none-elf".to_string()];
-        assert_eq!(failing(&manifest, &sources()), ["rust targets"]);
+        let cross = Layout {
+            triple: "aarch64-unknown-none",
+            ..Layout::PRODUCTION
+        };
+        assert!(check_targets(&manifest, &cross).is_err());
+        // The triple of the image's host needs no target of the manifest.
+        assert_eq!(failing(&manifest, &sources()), Vec::<&str>::new());
     }
 
     #[test]
