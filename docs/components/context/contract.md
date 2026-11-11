@@ -1,5 +1,10 @@
 # Context and limits
 
+The paragraph "Co-signed" at the start of the
+[contract of the command entry](../command/contract.md#command-entry) states
+which parts of this contract krepi has co-signed and when a change to them
+needs krepi's co-signature again.
+
 This contract states how a kalyx request is accounted for: the `Limits` of
 the request, the `Context` that every stage of the request charges, how a
 charge observes cancellation and the deadline, how output is bounded, and

@@ -8,7 +8,10 @@ kinds. It also states the design rules of the
 [function values](#function-values) and the
 [algebraic numbers](#algebraic-numbers), which are planned for release 0.2
 and which the extension of the term core in that release follows. The
-interface conventions that all public items follow are in
+section [requests and results](#requests-and-results) states the rules of
+the same release for the extension of the input grammar, the operands of a
+request, its results with their output lines, and the table of value kinds.
+The interface conventions that all public items follow are in
 [the public API conventions](conventions/public-api.md).
 
 **Status.** kalyx ships the errors and result states, the context and
@@ -184,10 +187,11 @@ measures the stack and the heap of requests on one host.
 | Condition (reserved for conditions) | 7 |
 
 A new kind takes a new rank and never changes the relative order of the
-existing kinds. Ranks 0 to 6 are the value kinds and rank 7 is the kind of
-the [conditions](#conditions), and the two classes are kept apart (planned):
-a condition is never an operand of a sum, a product, a power or a value
-argument of a call. Terms are totally ordered by rank first. Within a rank:
+existing kinds. Ranks 0 to 6 are the value classes and rank 7 is the kind of
+the [conditions](#conditions), and values and conditions are kept apart
+(planned): a condition is never an operand of a sum, a product, a power or a
+value argument of a call. Terms are totally ordered by rank first. Within a
+rank:
 
 - numbers by value;
 - constants (planned): the named constants first, by the bytes of their
@@ -286,7 +290,7 @@ set:
 N(\mathrm{input}) \subseteq N(\mathrm{output})
 ```
 
-The invariant is stated for the value kinds, ranks 0 to 6. A
+The invariant is stated for the value classes, ranks 0 to 6. A
 [condition](#conditions) (planned) can lose a base by absorption, as
 $\mathrm{false} \land (1/x \gt 0) = \mathrm{false}$ loses $x$, but only where
 the condition has a value.
@@ -505,6 +509,53 @@ true, false or undefined. Its shapes are the truth values `true` and
   [call constructor](#rules-of-the-call-constructor), and the domain of an
   absorbed operand needs no record. The term core decides no comparison;
   deciding one belongs to the function expressions.
+- **Spelling.** The input writes a condition as `true` or `false`; as a
+  comparison of two values with one of the relations `==`, `!=`, `<`, `<=`,
+  `>` and `>=`; as a predicate `is_<property>(u)` or `defined(u)`; or as a
+  connective in call form, `not(c)` with one condition and `and(c, c, …)`
+  and `or(c, c, …)` with two or more. A comparison has one relation and is
+  not associative, so `0 < x < 1` fails with `Syntax`. There are no infix
+  connectives and no conditions in parentheses. The operands of a
+  comparison and the argument of a predicate are value positions, and the
+  property names are those of the list of the assumption system. The
+  example of the strong Kleene connectives above is written
+  `piecewise(or(x == 0, 1/x > 1), 1, 2)`.
+- **A start symbol of its own.** A condition operand is read by a start
+  symbol of its own, `condition_input`: the condition operands of the
+  planned commands `ineq`, `rel-and`, `rel-or` and `rel-not` use it, and so
+  does the condition column of an [answer line](#answers-and-output-lines)
+  when it is read back. The first argument of `piecewise` and the operands
+  of the connectives are read by the same production.
+- **Reading the start of a condition.** Two tokens decide the production,
+  by the same rule as in a value position, where only a name followed by
+  `(` is a call:
+  1. `true` and `false` are the truth values, which take precedence over a
+     symbol as reserved keywords, and no relation may follow them:
+     `true == x` fails with `Syntax`, while `x == true` compares the
+     symbol `true`.
+  2. An identifier followed by `(` is looked up among the condition heads:
+     `not`, `and` and `or` are connectives, and `defined` and the names
+     that start with `is_` are predicates; `is_` followed by a name outside
+     the list of properties fails with `Syntax`, with the span of the name.
+     A head of a value position starts a comparison, as in `sin(x) > 0`,
+     and any other head is unknown and fails with `Syntax`, as in a value
+     position. The condition heads and the heads of value positions are
+     disjoint.
+  3. Any other token starts a comparison. An identifier that `(` does not
+     follow is a symbol, `not`, `defined` and `is_foo` included, so
+     `is_foo == 1` compares the symbol `is_foo`.
+
+  A condition head that a later change adds, such as a new property or a
+  new predicate, turns only a `name(` that failed with `Syntax` into a
+  condition, so every accepted condition keeps its meaning. In 0.2,
+  `stable(…)` is no condition and fails as an unknown head.
+- **Display.** A relation has one space on each side, as in `x != 0`, and
+  the connectives are written in call form, in the order that the
+  normalization above gives. When the first token of the displayed left
+  side of a comparison is `true` or `false`, the whole left side is in
+  parentheses, as in `(true) == x` and `(true + x) == y`, so the display of
+  a condition always reads back. The other condition heads need no
+  parentheses, since the display of a value never has one followed by `(`.
 
 ### Reserved names
 
@@ -525,6 +576,31 @@ value that is not a number. On its own, as an argument of any other call, as
 an operand, or where removing it leaves a false condition, it fails with
 `OutsideDomain`. The head names `piecewise`, `derivative` and `substitute`
 are reserved for the special forms of the [call nodes](#call-nodes).
+
+**Words by position** (planned). An identifier that is valid in 0.1 is a
+symbol in every value position, in 0.2 and in every later release. A word
+takes a new meaning only where 0.1 fails: where `(` follows it, under a new
+[start symbol](#one-grammar-read-by-role), or in an argument position of a
+special form. By position, the words read as follows:
+
+| Word | Value position | Followed by `(` | Condition position | Binding name, variable position |
+| --- | --- | --- | --- | --- |
+| `pi`, `i` | the constant | `Syntax` | in an operand, the constant | a binding name fails with `InvalidBinding`; a variable position fails with `Unsupported`, as in 0.1 |
+| `undefined` | only a whole branch of `piecewise`; elsewhere `OutsideDomain` | `Syntax` | — | as for `pi` and `i` |
+| the names of the eleven registered functions, such as `sin` and `rootn`; `piecewise`, `derivative` and `substitute`; `root` and `croot` | a symbol | a call, a special form or a literal | as in a value position | an ordinary name |
+| `true`, `false` | a symbol | `Syntax` | at the start of a condition, the truth value, which takes precedence over a symbol as a reserved keyword; in an operand of a comparison, a symbol | an ordinary name |
+| `and`, `or`, `not`, `defined`, `is_<name>` | a symbol | in a value position, `Syntax`, as an unknown head | followed by `(`, a connective or a predicate, where `is_` followed by a name outside the list of properties fails with `Syntax`; otherwise a symbol | an ordinary name |
+| `field`, `field_element`, the interval heads, `union`, `reals` | a symbol | a head only under its own start symbol | — | an ordinary name |
+| `a` | a symbol | — | — | an ordinary name |
+| `e`, `E`, `I`, `Pi`, `inf`, `empty` | a symbol, and never a constant in a later release | — | — | an ordinary name |
+
+So `pi(2)` fails with `Syntax`; `(undefined)` as a branch is `undefined`,
+and `-undefined` fails with `OutsideDomain`; $i\pi$ and $2i$ display as
+`i*pi` and `2*i` and read back as the same terms; and `Pi`, `I` and
+`undefined_` stay symbols. In an element position of a
+[number field](#extensions-of-the-grammar), `a` is the generator. How a
+condition decides between its heads and a symbol is stated in
+[conditions](#conditions).
 
 ### Size and depth
 
@@ -1045,6 +1121,543 @@ $x^3 + 2$ is $-\mathrm{rootn}(2, 3)$, and its principal root is
 `rootn(-2, 3)`. An algebraic constant is never rational, so it is an exact
 number other than 0, as the [constants](#constants) need.
 
+## Requests and results
+
+**Status:** planned for release 0.2; not implemented. In release 0.1 the
+grammar reads only values, a request has no operand table, and every value
+that an operation returns is a term. The rules below are those that the
+parser, the command entry and the operations of release 0.2 follow when
+they land; the [input syntax](semantics.md), the
+[contract of the command entry](components/command/contract.md) and the
+contracts of the other components write them out then. The commands named
+here other than `eval`, `expand` and `diff` are planned commands of that
+release. An input that 0.1 accepts reads the same, and the kinds of lines
+that 0.1 writes keep their fields.
+
+### One grammar, read by role
+
+- **One grammar.** Every text operand of a request is read by the one
+  grammar of the [input syntax](semantics.md#the-single-grammar-rule),
+  which chooses its start symbol by the role of the operand. The names of
+  the start symbols are working names; the input syntax fixes them when
+  they land.
+
+  | Start symbol | Reads | Used by |
+  | --- | --- | --- |
+  | `input` | a value, as in 0.1 | the input of an operation that reads a value, and every value role that no row below names |
+  | `condition_input` | a [condition](#conditions) | the `input` and the `right` of `ineq` and of the `rel-` commands, and the condition column of an `answer` line read back |
+  | `binding_input` | a binding `name = value` | the role `binding` |
+  | `set_input` | an interval or a set of reals | the set operands of `interval`, `set`, `contains` and the set commands |
+  | `field_input` | a number field `field(p, k)` | the role `field` |
+  | `element_input` | an element `field_element(field(p, k), e)` | the self-contained text of an element read back |
+  | `scope_input` | facts `x: positive, y: real` | the role `scope`, and the assumptions column of an `answer` line read back |
+  | `names_input` | names `x, y`, or the empty text for none | the role `variables` |
+  | `keyword_input` | one identifier | the roles `property` and `monomial_order` |
+
+- **The call table, at reading.** The parser looks every head up in a call
+  table while it reads: the names, the numbers of arguments and the roles
+  of the arguments of the function registry, the three special forms, the
+  heads of literals and the heads of conditions. An unknown head, a wrong
+  number of arguments and an argument of the wrong class fail with
+  `Syntax` when they are read. The checks of domains and of numeric
+  arguments, such as the degree of `rootn`, come when the term is built,
+  and every syntax error still comes before any term is built, as in 0.1.
+  So an input with two failures reports the first in the order of reading:
+  `rootn(x, 0) + foo(y)` fails with `Syntax` at the unknown head `foo`,
+  and not with `OutsideDomain` at the degree 0.
+- **Reserved words by position.** A word that is a valid identifier in 0.1
+  is a symbol in every value position; new meanings arise only where 0.1
+  fails, as the table of the [reserved names](#reserved-names) states.
+- **Two tokens of lookahead.** A name followed by `(` is a call in a value
+  position, and the start of a condition is decided by the same two tokens,
+  as [the conditions](#conditions) state.
+
+### Extensions of the grammar
+
+| Extension | Spelling | Where it is read |
+| --- | --- | --- |
+| Calls | `head(arg, …)`, each argument read by the role that the call table gives its position | value positions |
+| Constants | `pi` and `i` are constants; `undefined` only as a whole branch of `piecewise` | value positions |
+| Conditions | `true`, `false`; `u REL v` with one of `==`, `!=`, `<`, `<=`, `>` and `>=`, not associative; `is_<property>(u)`, `defined(u)`; `not(c)`, `and(c, c, …)`, `or(c, c, …)` | `condition_input`; the first argument of `piecewise`; the operands of the connectives |
+| Bindings | `name = value` | the arguments of `substitute` from the second on; `binding_input` |
+| Real algebraic numbers | `root(p, k)` | value positions |
+| Complex algebraic numbers | `croot(p, k)`; a general complex number is written `3 + 4*i` | value positions |
+| Principal roots | `sqrt(u)` and `rootn(u, n)`, with no other spelling | value positions |
+| Number fields and their elements | `field(p, k)`; an element in the generator `a`; `field_element(field(p, k), e)` | `field_input`; element positions; `element_input` |
+| Intervals and sets | `Icc(a, b)`, `Ico(a, b)`, `Ioc(a, b)`, `Ioo(a, b)`; `Ici(a)`, `Iic(b)`, `Ioi(a)`, `Iio(b)`; `reals()`; `union(I1, …)`, with `union()` the empty set | `set_input` |
+
+- **Calls.** Arguments are separated by `,`, with no trailing comma, and a
+  call has no arguments only when its head takes none, as `reals()` does.
+  Whitespace may stand between the name and `(`, as in 0.1. An unknown
+  head fails with `Syntax` and the span of the name, and a wrong number of
+  arguments with `Syntax` and the span of the whole call. Besides the
+  eleven registered functions, the call table gives `piecewise` a condition
+  and two values, `derivative` a value, a variable and a value,
+  `substitute` a value and one or more bindings, and `root` and `croot` a
+  polynomial and a value. Degrees, orders and indices are value arguments,
+  checked by their canonical forms when the call is built, so
+  `rootn(x, 1+2)` is `rootn(x, 3)`. The variable of `derivative` takes only
+  an identifier, and a reserved name there fails with `Unsupported`, as in
+  0.1. Each argument is one level deeper for `max_depth`, and the syntax
+  nodes of a call count against `max_nodes`.
+- **Orders.** The order of `derivative`, and the role `order`, must have a
+  canonical form that is an integer from 0 to `max_exponent`, and the order
+  0 gives the operand itself. A larger order fails with `ResourceLimit` on
+  `max_exponent`; a negative order, an order that is not an integer, a
+  constant and an order that holds a symbol fail with `OutsideDomain`, and
+  no call is built. Unlike a symbolic degree of `rootn`, which builds a call
+  ([rules of the call constructor](#rules-of-the-call-constructor)), a
+  symbolic order builds none.
+- **Bindings.** A binding of the wrong shape, with no `=`, a name position
+  that is not an identifier, a reserved name, an empty value or a name
+  bound twice, fails with `InvalidBinding` and the index of its operand. An
+  error inside a value that is not empty is the error of that value, so
+  `x = 1/0` fails with `DivisionByZero`. Bindings display as `x = v`,
+  sorted by name. `=` stands only in a binding, and `==` is a comparison.
+- **Algebraic numbers.** In `root(p, k)` and `croot(p, k)`, `p` is a
+  polynomial with rational coefficients in exactly one symbol, which is
+  local to the literal; `p` need not be irreducible. `k` is a position,
+  counted from 0: among the distinct real roots of `p` in ascending order
+  for `root`, and among its distinct complex roots in the order of their
+  [identity](#identity) for `croot`. A literal embeds as
+  [a term](#algebraic-numbers-as-terms): `root(x^2-2, 1)` is `sqrt(2)`,
+  the same term as the parsed `sqrt(2)`, and `croot(x^2+1, 0)` is only
+  $(-1) \cdot i$. An algebraic constant displays as `root(m, k)` or
+  `croot(m, k)` with its monic minimal polynomial `m` written in `x` as the
+  term core displays it, such as `root(1 - 3*x + x^3, 0)`. There is no
+  `complex(re, im)`. The kinds of the errors for a polynomial that does not
+  qualify and for an index out of range are fixed with the component.
+- **Principal roots.** In an operand of an operation on algebraic numbers,
+  `rootn(u, n)` with a positive integer degree evaluates to the principal
+  root; in a term it stays a call, as
+  [the principal roots of rationals](#principal-roots-of-rationals) state.
+- **Number fields.** In `field(p, k)`, `p` is irreducible and `k` is the
+  canonical index of the generator $\alpha$ among all the complex roots of
+  `p`; a reducible or constant `p` fails with `OutsideDomain`. An element
+  operand is a polynomial in the generator `a`. In
+  `field_element(field(p, k), e)` the `a` is local and `e` is reduced, of a
+  degree below that of the minimal polynomial, and this text is the
+  display of an element. The kind of the error for a symbol other than `a`
+  in `e` is fixed with the component.
+- **Intervals and sets.** In the names of the interval heads, `c` is a
+  closed end and `o` an open end, for the left end and then the right end;
+  `Ici`, `Iic`, `Ioi` and `Iio` are rays, and `reals()` is the real line.
+  The canonical form of each end point must be a real algebraic number. A
+  lower end above the upper end fails with `InvalidInterval`; `Icc(a, a)` is
+  a point, and `Ico(a, a)`, `Ioc(a, a)` and `Ioo(a, a)` are empty. A set
+  displays as its interval when it is one, and otherwise as `union(…)` of
+  its intervals sorted by their lower ends. The interval operands of
+  `interval`, `set`, `contains` and the set commands read `set_input`, so
+  the head states whether each end is open. The bounds `lower` and `upper`
+  of `count-roots` are optional value roles, and a missing one is
+  unbounded.
+
+The new productions, in the notation of [the grammar](semantics.md#grammar);
+`expression`, `term`, `unary`, `power`, `number`, `identifier` and the
+lexical rules are those of 0.1, and the new tokens are `,`, `=`, `==`,
+`!=`, `<`, `<=`, `>` and `>=`, with `:` a token only under `scope_input`:
+
+```text
+input           = expression ;
+condition_input = condition ;
+binding_input   = binding ;
+set_input       = set ;
+field_input     = field ;
+element_input   = element ;
+scope_input     = fact , { "," , fact } ;
+names_input     = [ identifier , { "," , identifier } ] ;
+keyword_input   = identifier ;
+
+primary    = number | identifier | call | "(" , expression , ")" ;
+call       = head , "(" , [ argument , { "," , argument } ] , ")" ;
+head       = ? an identifier that the call table holds for a value position ? ;
+argument   = ? the production of the role that the call table gives the
+               position: expression, condition, binding or identifier ? ;
+condition  = "true" | "false" | predicate | connective | comparison ;
+comparison = expression , relation , expression ;
+relation   = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+predicate  = predicate_head , "(" , expression , ")" ;
+predicate_head = "defined" | property ;
+property   = ? "is_" followed by a property name of the assumption system ? ;
+connective = "not" , "(" , condition , ")"
+           | ( "and" | "or" ) , "(" , condition , "," , condition ,
+             { "," , condition } , ")" ;
+binding    = identifier , "=" , expression ;
+fact       = identifier , ":" , identifier ;
+field      = "field" , "(" , expression , "," , expression , ")" ;
+element    = "field_element" , "(" , field , "," , expression , ")" ;
+set        = interval | "reals" , "(" , ")"
+           | "union" , "(" , [ interval , { "," , interval } ] , ")" ;
+interval   = ( "Icc" | "Ico" | "Ioc" | "Ioo" ) ,
+             "(" , expression , "," , expression , ")"
+           | ( "Ici" | "Iic" | "Ioi" | "Iio" ) , "(" , expression , ")" ;
+```
+
+### Only additions
+
+- **Accepted input keeps its meaning.** Every extension gives a meaning
+  only to input that 0.1 rejects, as the
+  [single-grammar rule](semantics.md#the-single-grammar-rule) requires:
+  under `input`, every input that 0.1 accepts reads the same and has the
+  same canonical form. Input that 0.1 rejects may give a value or another
+  error: `sin(x)` fails with `Unsupported` in 0.1, and in 0.2 it is a call
+  that holds a free symbol, so `eval` of it fails with `UnknownSymbol`.
+- **Notation kept free.** The grammar takes no brackets, no braces, no
+  quotes and no `:` in a value position, which stay free for the collection
+  values of 0.3 and for the notation of matrices and vectors. It has no
+  `..`, no juxtaposition, no infix keywords and no word for infinity or for
+  the empty set, such as `inf` or `empty`.
+- **Rules for later releases.** Five rules keep later releases within the
+  same grammar:
+  1. a new constant takes only a reserved name or a spelling that is an
+     error in 0.1;
+  2. a physical constant never takes a bare name such as `c` or `h`;
+  3. a user function, which joins the call table, never takes the name of
+     a condition head;
+  4. `=` never stands for an equation, only in a binding, and an equation
+     is written with `==`;
+  5. the branch of a general power $u^{1/n}$ agrees with that of
+     `rootn(u, n)`.
+
+### The operands of a request
+
+- **Fields.** `Request` keeps every field, the constructor
+  `Request::new(operation, variable, input)` and the modifiers of 0.1, and
+  `Settings` stays an empty record, so a value other than the default still
+  fails with `Unsupported`. A new public field `operands: Vec<Operand>`
+  holds the operand table, which `Request::new` leaves empty. `Operand` is a
+  `#[non_exhaustive]` record that derives `Clone`, `Debug`, `PartialEq` and
+  `Eq`, as `Request` does, with the public fields `role: String` and
+  `text: String` and the constructor `Operand::new(role: &str, text: &str)`.
+  `Request::with_operand(self, role: &str, text: &str) -> Self`, marked
+  `#[must_use]` as the other modifiers are, appends an entry. `Operand` and
+  `Answer` are in `kalyx::command`, as `Settings` is, and not in the crate
+  root.
+- **Indices.** The operand index 0 is `input`, and an index $k \ge 1$ is
+  `operands[k-1]`.
+- **Signatures.** Each operation declares its signature in its component
+  contract: the roles that it reads, whether each role is required,
+  optional with a stated default, or repeatable, and the start symbol that
+  reads it. `operation` and `variable` stay typed fields.
+- **Text is an operand.** Every text that a caller writes is an operand
+  with a role, read by the one grammar with the start symbol of its role,
+  and the only typed fields of a request are those of 0.1. Settings change
+  the meaning of every operation alike, while an operand is data of one
+  operation, so the scope of assumptions of an operation is an operand.
+- **The scope.** The role `scope` is optional, and its default holds no
+  facts. It is written `x: positive, y: real`: each name follows the rule
+  of [symbol names](components/terms/contract.md#symbol-names) and is not a
+  reserved name, and each property is a name of the list of the assumption
+  system. An unknown property fails with `Syntax`, and properties of one
+  name whose intersection is empty fail with `ContradictoryAssumptions`,
+  each with its span.
+- **Rings.** A multivariate ring takes two required roles: `variables`, a
+  list of names that may be empty, where the empty text is the ring without
+  variables and a repeated name fails with `Syntax`; and `monomial_order`,
+  one of `lex`, `grlex` and `grevlex`, where any other name fails with
+  `Syntax`. The coefficients are $\mathbb{Q}$ in 0.2; an optional role
+  `coefficients` arrives in 0.4.
+- **Orders and centers.** The role `order` is optional in `f-diff`, with the
+  default 1, and the truncation order of `f-series` has the same name; both
+  follow the [rule of orders](#extensions-of-the-grammar). The role
+  `center` is required in `f-series` and must be an exact term without
+  symbols, such as `pi/2`; a symbol in it fails with `UnknownSymbol`.
+- **Role names.** The planned operations share 19 role names: the value
+  roles `point`, `order`, `center`, `inner`, `divisor`, `right`, `value`,
+  `lower`, `upper`, `width`, `index`, `degree` and `embedding`; `binding`;
+  `scope`; `variables`; the keyword roles `property` and `monomial_order`;
+  and `field`. The `input` and the `right` of `ineq` and of the `rel-`
+  commands read conditions, and the set operands of `interval`, `set`,
+  `contains` and the set commands read sets.
+- **Limits.** New bounds fall on the existing fields, and `Limits` keeps its
+  nine fields: orders, degrees and root indices on `max_exponent`; the
+  entries of the operand table and the checks of required roles on
+  `max_work`; the sum of the bytes of the text operands on
+  `max_input_bytes`; scopes on `max_storage_bytes`; and nested operations
+  on `max_frames`.
+- **The command-line program** of 0.2 reaches only the operations that read
+  no more than the variable and the input.
+
+### The order of the checks
+
+The command entry checks a request in this order and stops at the first
+failure:
+
+1. The settings, as in 0.1.
+2. The operation name, as in 0.1.
+3. The entries of the operand table, in the order of the table: the command
+   entry charges one work unit for each entry, then looks up its role. An
+   unknown role fails with `Fault(Unsupported)`, as an unknown operation
+   does, and a second entry of a role that is not repeatable fails with
+   `Fault(Syntax)`; both have no span, and their location is the index of
+   the entry, in an `error-at` line.
+4. The required table roles of the signature, other than `input`, one by
+   one in the order of the signature: the command entry charges one work
+   unit for each, then checks that it occurs. A missing role fails with
+   `Fault(Syntax)`, with no span and no location, and its message names the
+   role of the signature. The operations of 0.1 have no table roles, so
+   this step charges nothing for them. An empty `input` is not checked
+   here: the parser reports it in step 7, as in 0.1, with the empty span at
+   the end of the input.
+5. The variable: an operation that reads it checks it by the rule of symbol
+   names, without a charge, and its ring charges it, as in 0.1.
+6. When the operand table is not empty, the sum of the bytes of all text
+   operands, the input and every entry, is checked against
+   `max_input_bytes`; this check is not a charge point. A larger sum fails
+   with `ResourceLimit` on `Field(max_input_bytes)`, with no span and no
+   location and the amount `Required(n)` for the sum $n$. The sum is
+   accumulated with checked addition, and on an overflow the amount is
+   `Bound(u64::MAX)`, which fails under every `max_input_bytes`,
+   `u64::MAX` included. With an empty table the command entry skips this
+   step, and the parser checks `input` before it reads it, as in 0.1, with
+   the same fields and at the same point.
+7. The operands, read in the order of the signature; an error carries the
+   index of its operand.
+8. The operation itself.
+
+- **No fallback.** A missing operand never falls back to another operation,
+  and an entry outside the signature is an unknown role.
+- **Requests of the form of 0.1.** A request with an empty table whose
+  signature has no required table role runs the steps of the command entry
+  in the order and with the charges of 0.1. Such are the requests of the
+  three operations of 0.1 with an empty table, and so every request of
+  `vectors/r02.tsv`. Whether all the work of such a request stays that of
+  0.1 once the parser reads the call table is not part of this: work is not
+  compared across releases.
+- **The first charge.** Every entry of the table and every required role is
+  charged before it is checked, so an error of a role comes after a charge
+  point, and with cancellation set the request fails with `Cancelled`. A
+  request whose table is not empty, or whose signature has a required table
+  role, fails before its first charge only for settings other than the
+  default and for an unknown operation; every other request keeps the list
+  of 0.1.
+- **Determinism.** A result depends on the order of the table only through
+  the operand indices and the order of the entries of one repeatable role.
+
+### Answers and output lines
+
+- **The outcome.** `Outcome` stays a struct with private fields that only
+  `execute` builds; its version accessors and the signatures of `execute`
+  and `serialize` stay as they are. `result()` returns
+  `&Result<Settled<Answer>>`, and `into_result()` returns the same result
+  by value.
+- **Answers.** `Answer` is a `#[non_exhaustive]` enum with one variant for
+  each value kind that an operation can return. `Answer::Term(Term)` is the
+  one variant of 0.1, and every value that the operations of 0.1 return is
+  one. A result therefore falls into one of three classes, a value of some
+  variant, a state or an error, and new variants add no class. Each
+  operation names the variant that it returns in its component contract
+  and in the index of operations of the command entry.
+- **States.** The result states are those of `MathState` only. A status
+  that carries data, such as the completeness of a list of roots or an
+  unknown truth value, is part of the answer, so an answer whose
+  completeness is unsolved is still a value.
+- **Errors.** `ErrorKind` does not change. The fault kinds of 0.2, such as
+  `OutsideDomain`, `InvalidBinding`, `InvalidInterval` and
+  `ContradictoryAssumptions`, are new variants of `FaultKind`, of the class
+  `Input`, and fall under `Fault(_)`.
+
+The common rules of the [output lines](semantics.md#output-lines) do not
+change: one line of UTF-8 text per request, fields separated by one tab and
+the line ended by one line feed, versions in decimal, the same escaping,
+every byte charged as output with the output of a line exactly its length,
+no partial line, and the same bytes for the same outcome under every
+context. The kinds of lines that 0.1 writes keep their number of fields and
+the form of every field, and new information comes as a new kind of line or
+as a new field at the end of a line:
+
+| Kind | Fields | Written for |
+| --- | --- | --- |
+| `value` | 5, as in 0.1: `value`, the three versions and the display of the term | an answer `Answer::Term` |
+| `state` | 5, as in 0.1: `state`, the three versions and the name of the state | a state |
+| `error` | 11, as in 0.1: `error`, the three versions, the kind, the span, the limit, the scope, the allowed value, the amount and the message | an error without a location, or whose location is the operand 0 with no nested frame |
+| `answer` | 8: `answer`, the three versions, KIND, TEXT, CONDITION and ASSUMPTIONS | an answer of every value kind other than a term |
+| `error-at` | 12: `error-at`, fields 2 to 11 as in an `error` line, and LOCATION | every other error |
+
+- **The `answer` line.** KIND is the name of the value kind in
+  [the table of value kinds](#the-table-of-value-kinds): lowercase ASCII
+  letters and `-`, never renamed and never reused. TEXT is the display of
+  the value. CONDITION is the condition of the value in the spelling of
+  [the conditions](#conditions), `true` for a function value whose
+  condition is true, and `-` for a kind that has no condition part.
+  ASSUMPTIONS is the scope of the value in the spelling of the role
+  `scope`, and `-` for a kind that has no scope part or for a scope
+  without facts. The three fields hold printable ASCII. TEXT parses by the
+  input grammar or by the display grammar that the table of value kinds
+  names for its kind; CONDITION and ASSUMPTIONS read back with
+  `condition_input` and `scope_input`. The condition and the scope are
+  fields of their own, so a display text never holds them.
+- **The `error-at` line.** Fields 2 to 11 have the meaning and the form of
+  fields 2 to 11 of an `error` line: the three versions, the kind, the
+  span, the limit, the scope, the allowed value, the amount and the
+  message, so a program that reads `error` lines reads these ten fields at
+  the same positions. Field 12, LOCATION, is
+
+  ```text
+  location = operand , { ">" , frame } ;
+  operand  = decimal ;                (* the operand index of frames()[0]; 0 is input *)
+  frame    = name , "#" , decimal ;   (* frames()[1..]: a nested operation or step, its operand index *)
+  name     = ? [a-z][a-z0-9-]* : an operation of the dispatch table
+               or a name of the fixed list of nested categories ? ;
+  decimal  = ? ASCII digits without a sign, separators or leading zeros,
+               written as the versions are ? ;
+  ```
+
+  LOCATION holds only decimal numbers, `>`, `#` and names that the library
+  defines, so it needs no escaping. Its `operand` is the operand index of
+  the first [cause frame](#locations-and-cause-frames), whose operation is
+  the operation of the request and is not written, and the nested frames
+  follow in order. The span, field 6, counts bytes of the text of the
+  operand that the innermost frame names, and is `-` when the error has no
+  span.
+- **Examples.** In these lines `⇥` stands for a tab; the kind names and the
+  values of the `answer` lines are only illustrations:
+
+  ```text
+  value⇥0⇥0⇥0⇥1/2
+  answer⇥0⇥0⇥0⇥function-value⇥log(x)⇥x != 0⇥-
+  answer⇥0⇥0⇥0⇥function-value⇥log(x)⇥x != 0⇥x: positive
+  error⇥0⇥0⇥0⇥Syntax⇥1..2⇥-⇥-⇥-⇥-⇥<message>
+  error-at⇥0⇥0⇥0⇥Syntax⇥0..3⇥-⇥-⇥-⇥-⇥<message>⇥1
+  error-at⇥0⇥0⇥0⇥Unsupported⇥-⇥-⇥-⇥-⇥-⇥<message>⇥2
+  error-at⇥0⇥0⇥0⇥OutsideDomain⇥3..5⇥-⇥-⇥-⇥-⇥<message>⇥0>ineq#0
+  ```
+
+  They are a value line of 0.1; a function value with the term `log(x)`,
+  the condition $x \ne 0$ and no scope; the same function value built by
+  `fexpr` under the scope `x: positive`, which `fexpr` does not read, so
+  the condition stays `x != 0` and the scope is its own field; an error
+  line of 0.1; an error at bytes 0 to 3 of the first entry of the operand
+  table; an error of the second entry without a span, such as an unknown
+  role; and a nested error, where the left relation of `rel-and` fails in
+  `ineq`.
+- **The answer vectors of 0.1.** The 58 requests of `vectors/r02.tsv`
+  use only `eval`, `expand` and `diff` and write only `value` and `error`
+  lines. For each of them the result, the kind of line, the number of
+  fields and every field other than the message stay as `v0.1.0` writes
+  them. The message is not part of this, since its wording is not part of
+  the interface. The replay of the vectors compares the canonical form,
+  the kind of the error and the fields of the limit, as in 0.1; the display
+  text and the spans stay as they are because the grammar only adds and the
+  display rules of terms and the span rules of the parser do not change for
+  the input of 0.1.
+
+### Locations and cause frames
+
+`Error` keeps `kind()`, `span()`, `message()` and `exceeded()` and gains
+`frames()`, which returns `&[CauseFrame]`, the cause frames of the error,
+outer first. A `CauseFrame` is a `#[non_exhaustive]` record of a frame name
+and an operand index, with a constructor and accessors only. It belongs to
+the errors component, together with `Error`, so the crate root re-exports
+it; the name differs from that of `kalyx::context::Frame`, the token that
+`enter_frame` returns.
+
+- **The entry frame.** The command entry adds the first frame, which records
+  the operation of the request and the index of the operand where the error
+  arose: an entry of the table that fails its check, an operand that fails
+  to read, or an error of the operation that belongs to one operand. An
+  error that concerns no operand, of the settings, the operation name, a
+  missing role, the sum of the bytes or the variable, has no frame, and
+  neither has an error of a library function that is called directly.
+- **Nested frames.** The other frames are nested frames: each records an
+  operation, or a fixed step of the library, that an operation enters, and
+  the index of the operand there. The left relation of `rel-and` that fails
+  in `ineq` has the location `0>ineq#0`.
+- **Records only.** Frames are records on the error. They are not opened
+  with `enter_frame`, are not charged and do not count against
+  `max_frames`, so the work and the line bytes of the requests of 0.1 do not
+  change.
+- **The span.** `span()` keeps its signature and counts bytes of the text of
+  the operand that the innermost frame names; with no frame, or with only
+  the entry frame of the index 0, that text is the input, as in 0.1. The
+  command-line program of 0.3, whose spans count bytes of a whole line,
+  converts them from the index and the offset.
+
+### The fallback line
+
+The [fallback step](components/command/contract.md#the-fallback-line) does
+not change: when the line of a failed request cannot be written under the
+context of the request, the host writes it again under
+`Context::new(Limits::new(), CancelFlag::new())`. The step stays sound
+because the length of an error line depends only on constants of the
+library, and not on the input or on the limits that the caller sets:
+
+- **No text of the caller.** An error line holds no display text, and
+  neither the message nor the `Parameter(name)` of a `ResourceLimit` holds
+  any text that the caller gave: the operation name, the variable, a role
+  name or the text of an operand. Text is pointed at only by the span and
+  the location. Every place in the library that builds a
+  `LimitId::Parameter`, through `check_parameter` or directly, takes its
+  name from one fixed list of parameter names of the form `[a-z][a-z0-9_]*`,
+  which the contract of the command entry keeps with its fallback line from
+  the first place that builds one.
+- **Frame names from the library.** A nested frame takes the name of an
+  operation when its step is an operation of the dispatch table, and
+  otherwise a name from a fixed list of category names of the library. A
+  frame name is never a binding name, a variable, a role name of the
+  request or the name of a user function. A category name never equals the
+  name of an operation, and a later operation never takes a category name.
+  Every frame name has the form `[a-z][a-z0-9-]*`, as every operation name
+  of the release has.
+- **A bound $d$ on the nested frames.** The number of nested frames of an
+  error, the number of `>` in its location, is at most $d$, which is fixed
+  together with the list of nested categories in the contract of the
+  command entry. $d$ is not taken from `max_frames`, which the caller can
+  set to any `u64`, while the fallback line is written under
+  `Limits::new()`. Two conditions make $d$ independent of the input and of
+  the limits:
+  1. no nested category occurs twice along one chain of an error, so $d$ is
+     at most the number of nested categories;
+  2. nesting in the syntax adds no frame: nesting inside one operand, of
+     parentheses, calls and the arguments of connectives, is shown only by
+     the span, and a frame is added only where an operation enters a nested
+     category through a fixed step of the library.
+
+  A user function of 0.3 that made nesting follow the input recursively
+  would break the first condition, and so change the fallback step.
+
+So the bytes of an `error-at` line are bounded by the longest kind, limit,
+message and frame name of the library and by $d$, and an `error` line is
+shorter. The contract of the command entry states the bound with its
+current values and keeps it at most 65,536 bytes, the default
+`max_output_bytes`. Since the fallback line charges one work unit per
+byte, it also fits the default `max_work` of 100,000 units, and under a
+fresh flag without a deadline its writing reports neither `Cancelled` nor
+`DeadlineExceeded`.
+
+### The table of value kinds
+
+Every value kind that an answer can have, and every shape of a term that has
+a display rule, is a row of one table in the documentation of kalyx, at a
+place that the implementation of the command entry fixes, and a test checks
+the table against the code:
+
+- **Columns.** A row holds the name of the kind, which is the KIND of an
+  `answer` line; whether it is an answer or a shape in a term; its
+  component; its kind of line; whether it has a condition part and a scope
+  part; the name of its display test; and how its display text reads, in
+  one of two forms: "the input grammar reads it back", with the name of its
+  round-trip test, or "display grammar", with the place of that grammar in
+  [the input syntax](semantics.md) or in the component contract and the
+  name of its parse test. So the display text of every value kind can be
+  parsed. A composite result without an input spelling, such as `divrem`,
+  `gcdex` or `root-list`, takes the second form.
+- **Granularity.** Each kind with a display rule has one row, marked as an
+  answer or as a shape in a term, and each composite result is a kind of
+  its own, not an instance of a generic tuple.
+- **Rows with their code.** The change that delivers a kind adds its row in
+  the same change. Every variant of `Answer` has exactly one row, which a
+  test checks.
+- **Start and close.** The table starts with the answer `term` and the
+  five shapes of terms: number, symbol, power, product and sum. The
+  release closes it with its file, commit and number of rows, and the value
+  model and the encoding of 0.3 start from that.
+- **Display rules** are written in the component contracts; the table only
+  links to them.
+- **Enums.** Every public enum is `#[non_exhaustive]`, with `ZeroTest` the
+  one exception
+  ([convention 3](conventions/public-api.md#3-extensible-enums-and-records)).
+
 ## Context API
 
 **Status:** implemented in `src/context.rs`; its
@@ -1367,14 +1980,33 @@ defines a synonym. `Completeness` and `Evidence` are planned for 0.2, and
 
 ### At the command entry
 
-The command entry maps an outcome to the state of the job that runs it:
-`ResourceLimit` and every `Fault` to failed, `Settled::State` to completed,
-with the state attached, and `Cancelled` and `DeadlineExceeded` to the
-terminal states that the contract of the command entry defines together with
-krepi: its
+The command entry maps an outcome to the state of the job that runs it, by
+class: a value to completed, with its line; `Settled::State` to completed,
+with the state attached; `ResourceLimit` and every `Fault` to failed, with
+its line; and `Cancelled` and `DeadlineExceeded` to the terminal states that
+the contract of the command entry defines together with krepi: its
 [Table 1](components/command/contract.md#table-1-outcomes-and-the-terminal-states-of-a-job)
 maps them to `cancelled` and `resource_exhausted`, and the contract states
-the terminal state of a job of several requests. In 0.1,
-function-call syntax, the reserved names `pi`, `i` and `undefined`, an
-unknown operation and a non-default setting fail with `Unsupported`, and a
-missing operand fails with `Syntax`.
+the terminal state of a job of several requests.
+
+The classes take in what later releases add (planned). A value of any
+variant of `Answer` has a `value` line for a term and an
+[`answer` line](#answers-and-output-lines) otherwise, and an error has an
+`error` or `error-at` line. A new variant of `Answer` or of `MathState`,
+and a new `FaultKind` of the class `Input` or `Internal`, fall into an
+existing class and leave Table 1 as it is; Table 1 changes only for a new
+request failure (a new kind of the class `Context`), a new variant of
+`Settled`, a new fault kind of another class or a new terminal state for an
+existing class. An answer whose completeness is unsolved, such as an
+incomplete list of roots, is a value, and its job completes: the terminal
+state says whether the request finished, not whether its answer is
+complete.
+
+In 0.1, function-call syntax, the reserved names `pi`, `i` and `undefined`,
+an unknown operation and a non-default setting fail with `Unsupported`, and
+a missing operand fails with `Syntax`. In 0.2 (planned), calls and the
+constants have a meaning; an unknown head of a call, a wrong number of
+arguments, a second entry of a role that is not repeatable and a missing
+operand, a missing required role included, fail with `Syntax`, and an
+unknown role fails with `Unsupported`, as an unknown operation and a
+non-default setting still do.
