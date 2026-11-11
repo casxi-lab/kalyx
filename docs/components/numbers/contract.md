@@ -97,8 +97,10 @@ operators (`E0369`).
   The bits of a rational are the larger bit length of its parts, at least 1.
 - **Size.** Every rational that an operation returns has at most
   `max_integer_bits` bits. A rational built under one context and used under
-  another is checked against the limits of the receiving context: its bits
-  are part of every bound below.
+  another is checked against the limits of the receiving context wherever an
+  operation checks a bound: its bits are part of every bound below, and
+  `compare` checks them only where it forms cross products, as Comparison
+  under [checks and charges](#checks-and-charges) states.
 
 ### Decimal literals
 
@@ -198,13 +200,18 @@ an exponent $e$.
   checked: for $p \gt q$ it shifts $c$ to $\lvert c \rvert + p - q$ bits,
   fewer than the bound of the cross products, which is at least
   $\lvert c \rvert + p + 1$. Two equal rationals therefore compare `Equal`
-  under every limit, and an operand above the receiving limit is checked
-  only where it takes part in cross products. With $N = 2^{2048}$, under
-  the default limits $E = (N + 1)/(N - 1)$, of 2049 and 2048 bits, compares
-  `Equal` with itself, though its difference with itself needs 4098 bits
-  and is rejected; $(N - 1)/(N - 3)$ and $(N - 3)/(N - 5)$ need 4096 bits
-  and are ordered; and $E$ and $(N - 1)/(N - 3)$ need 4097 bits and are
-  rejected.
+  under every `max_integer_bits`, though the charge still observes
+  `max_work`, cancellation and the deadline, and an operand above the
+  receiving limit is checked only where it takes part in cross products.
+  With $N = 2^{2048}$, under the default limits $E = (N + 1)/(N - 1)$, of
+  2049 and 2048 bits, compares `Equal` with itself, though its difference
+  with itself needs 4098 bits and is rejected; $(N - 1)/(N - 3)$ and
+  $(N - 3)/(N - 5)$ need 4096 bits and are ordered; and $E$ and
+  $(N - 1)/(N - 3)$ need 4097 bits and are rejected. The cross products of
+  $-E$ and $(N - 1)/(N - 3)$ would need 4097 bits too, but their signs
+  order them; so do the binary points of $(2^{2047} + 1)/2^{2047}$ and
+  $(2^{2048} + 1)/2^{2048}$, whose cross products would also need 4097
+  bits.
 - **The result check.** The bits of every result are checked with
   `check(IntegerBits, bits)` as in the earlier implementation; since every
   bound is at least the bits of the result, the check fails only if a bound
@@ -462,7 +469,7 @@ cancellation, the value is returned.
   `tests/coefficient.rs`, and in `src/number/positive_compare_tests.rs`
   `positive_comparison_matches_an_independent_small_integer_oracle`,
   `equal_adjacent_and_disjoint_product_bit_ranges_remain_exact`,
-  `hundred_thousand_bit_widths_preserve_the_subtraction_bound` and
+  `hundred_thousand_bit_widths_check_only_the_bound_of_the_cross_products` and
   `positive_comparison_preserves_every_small_bit_work_boundary_and_priority`.
 
 ### Literals, without an identifier

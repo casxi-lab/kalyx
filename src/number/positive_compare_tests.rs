@@ -170,7 +170,7 @@ fn equal_adjacent_and_disjoint_product_bit_ranges_remain_exact() {
 }
 
 #[test]
-fn hundred_thousand_bit_widths_preserve_the_subtraction_bound() {
+fn hundred_thousand_bit_widths_check_only_the_bound_of_the_cross_products() {
     let n = BigInt::one() << 100_000_usize;
     let one = Rational::from(1_i64);
     let tiny = q(1.into(), n.clone());
@@ -222,7 +222,7 @@ fn hundred_thousand_bit_widths_preserve_the_subtraction_bound() {
             assert_eq!(new.work_used(), 0);
         }
     }
-    // Equal parts decide under every limit, at any width.
+    // Equal parts decide under every `max_integer_bits`, at any width.
     let copy = q(&n + 1, n.clone());
     let mut none = context(0, 1);
     assert_eq!(compare(&left, &copy, &mut none), Ok(Ordering::Equal));

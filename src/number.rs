@@ -476,8 +476,9 @@ impl Rational {
     /// $\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert)$,
     /// against `max_integer_bits`. Every path then charges one unit, and only
     /// then compares. Two equal rationals therefore compare `Equal` under
-    /// every limit, even where their difference would exceed
-    /// `max_integer_bits`.
+    /// every `max_integer_bits`, even where their difference would exceed
+    /// it; the charge still observes `max_work`, cancellation and the
+    /// deadline.
     ///
     /// ```
     /// use std::cmp::Ordering;
@@ -493,7 +494,8 @@ impl Rational {
     /// // Equal parts decide without a bound.
     /// let mut none = Context::new(Limits::new().with_max_integer_bits(0), CancelFlag::new());
     /// assert_eq!(third.compare(&third, &mut none)?, Ordering::Equal);
-    /// // 1/3 and 1/2 need the cross products 1 * 2 and 1 * 3, of 3 bits.
+    /// // 1/3 and 1/2 need the cross products 1 * 2 and 1 * 3, whose bound
+    /// // max(|1| + |2|, |1| + |3|) is 3 bits.
     /// let error = third.compare(&half, &mut none).unwrap_err();
     /// assert_eq!(error.kind(), ErrorKind::ResourceLimit);
     /// assert_eq!(third.compare(&half, &mut context)?, Ordering::Less);
