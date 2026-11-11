@@ -4,7 +4,11 @@ This document lists the components of the kalyx library, the verification
 tier that each is to reach and its first production caller, and states the
 design rules of four foundations that every later part builds on: the term
 representation, the coefficient-field trait, the context and the error
-kinds. The interface conventions that all public items follow are in
+kinds. It also states the design rules of the
+[function values](#function-values) and the
+[algebraic numbers](#algebraic-numbers), which are planned for release 0.2
+and which the extension of the term core in that release follows. The
+interface conventions that all public items follow are in
 [the public API conventions](conventions/public-api.md).
 
 **Status.** kalyx ships the errors and result states, the context and
@@ -107,7 +111,7 @@ when each release is planned, except where the plan already fixes them.
 
 | Component | Release | Planned tiers | First production caller |
 | --- | --- | --- | --- |
-| Term core extension: function-call nodes and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, `undefined`), 0.2 |
+| Term core extension: constants, function-call nodes, conditions and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, conditions and `piecewise`), 0.2 |
 | Coefficient fields beyond $\mathbb{Q}[x]$: integer kernel, $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Function registry | 0.2 | A3 upgrade in 0.2 | the function-expression baseline, Taylor series and derivatives of function expressions, 0.2 |
 | Shared result types: `Completeness`, `Evidence`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | set when planned | root lists and real sets (`Completeness`), zero tests of algebraic numbers and assumption queries (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
@@ -125,9 +129,16 @@ when each release is planned, except where the plan already fixes them.
 
 ## Term representation
 
-**Status:** implemented in `src/term.rs`; its
-[contract](components/terms/contract.md) writes the rules below out as
-invariants, with the display grammar, the charges and the tests.
+**Status:** implemented in `src/term.rs` for numbers, symbols, powers,
+products and sums; its [contract](components/terms/contract.md) writes the
+rules of these kinds out as invariants, with the display grammar, the charges
+and the tests. The constants, the rules of calls and the conditions are
+planned for release 0.2 and not implemented: no constructor builds a
+constant, a call or a condition yet. The subsections
+[constants](#constants), [rules of the call constructor](#rules-of-the-call-constructor)
+and [conditions](#conditions), and the parts of the other subsections that
+are marked as planned, state the design rules that their code follows when
+it lands; the contract writes them out then.
 
 ### One shared immutable tree
 
@@ -170,11 +181,18 @@ measures the stack and the heap of requests on one host.
 | Power | 4 |
 | Product | 5 |
 | Sum | 6 |
+| Condition (reserved for conditions) | 7 |
 
 A new kind takes a new rank and never changes the relative order of the
-existing kinds. Terms are totally ordered by rank first. Within a rank:
+existing kinds. Ranks 0 to 6 are the value kinds and rank 7 is the kind of
+the [conditions](#conditions), and the two classes are kept apart (planned):
+a condition is never an operand of a sum, a product, a power or a value
+argument of a call. Terms are totally ordered by rank first. Within a rank:
 
 - numbers by value;
+- constants (planned): the named constants first, by the bytes of their
+  names, so $i$ comes before $\pi$, then the algebraic constants, in the
+  structural order of [their identities](#order-and-cache);
 - symbols by their UTF-8 bytes;
 - calls by the bytes of the head name, the head class, the arguments one by
   one, and the number of arguments;
@@ -182,7 +200,10 @@ existing kinds. Terms are totally ordered by rank first. Within a rank:
 - products by their factors one by one, the number of factors, then the
   coefficient;
 - sums by their monomials one by one (core, then coefficient), the number of
-  monomials, then the constant.
+  monomials, then the constant;
+- conditions (planned): by shape first, then by the relation or the
+  property, then by their subterms one by one, then by the number of
+  subterms.
 
 Comparison is structural, and each step is charged. It takes the children
 of two nodes one pair at a time, so every step does a bounded amount of work,
@@ -198,7 +219,8 @@ The constructors keep every term in canonical form:
   $(2x + 2y) z = 2 (x + y) z$. Factors with the same base and the same sign
   of exponent are merged by adding exponents, so
   $(2x + 2y)(x + y) = 2 (x + y)^2$; factors with exponents of opposite sign
-  are not merged. Factors are sorted, and a product contains no number and
+  are not merged, except over a [constant](#constants) base, which is
+  planned. Factors are sorted, and a product contains no number and
   no product as a factor. A product with coefficient 1 and a single factor
   is that factor, and a coefficient other than 0 and 1 times a single sum
   is that sum scaled by the coefficient.
@@ -245,6 +267,10 @@ subterm fails at once and cannot be absorbed by the term around it:
 - under the default limits, $x / x^{2^{32}}$ fails with `ResourceLimit` on
   `max_exponent` before any large value is built.
 
+A branch of `piecewise` that a decided condition discards is never built,
+so it cannot fail ([branches](#branches), planned); every subterm that is
+built is evaluated strictly.
+
 ### Negative-exponent invariant
 
 Write $N(t)$ for the set of bases that occur with a negative exponent in a
@@ -252,17 +278,29 @@ term $t$, and $\max N(t)$ for those elements of $N(t)$ that do not themselves
 occur with a negative exponent inside another element. A base that is a sum
 is taken by its primitive part, also inside the witnesses below: a power of
 a sum $s = c \cdot p$ raises $p$, and since $c \ne 0$, $s$ and $p$ are 0 at
-the same points. Canonicalization never shrinks this set:
+the same points. A [constant](#constants) (planned) is never 0 and, like a
+number, never an element of $N(t)$. Canonicalization never shrinks this
+set:
 
 ```math
 N(\mathrm{input}) \subseteq N(\mathrm{output})
 ```
 
+The invariant is stated for the value kinds, ranks 0 to 6. A
+[condition](#conditions) (planned) can lose a base by absorption, as
+$\mathrm{false} \land (1/x \gt 0) = \mathrm{false}$ loses $x$, but only where
+the condition has a value.
+
 The negative power that `power` and `divide` introduce is kept as well: the
 result is undefined wherever the base or the divisor is 0, unless the
 construction fails with `DivisionByZero`. A canonical form therefore never
-hides a point where its input is undefined. Where a simplification would lose
-a base, the term keeps a witness instead:
+hides a point where its input is undefined. With calls (planned), this holds
+because a call is a total uninterpreted atom of the term core, and the
+partiality of a function is carried by the condition of a
+[function value](#domains-of-calls), not by the term: as terms,
+$0 \cdot \log x$ and $\log x - \log x$ are 0 and $(\log x)^0$ is 1, and the
+function value of each keeps the condition $x \ne 0$. Where a simplification
+would lose a base, the term keeps a witness instead:
 
 - a product whose coefficient is 0 is $0 \cdot \prod_{b \in \max N} b^{-1}$,
   and the number 0 when the set is empty;
@@ -277,7 +315,42 @@ a base, the term keeps a witness instead:
 So $x^2 x^{-1}$, $x x^{-1}$, $(x^{-1})^{-1}$, $0 \cdot x^{-1}$ and
 $(x^{-1})^0$ each stay as written, while $x^{-1} x^{-2} = x^{-3}$ and
 $0 \cdot (2x + 2y)^{-1} = 0 \cdot (x + y)^{-1}$. Removing negative exponents
-under conditions is an explicit operation, never part of a constructor.
+under conditions is an explicit operation of the
+[function values](#removing-negative-exponents), never part of a
+constructor.
+
+### Constants
+
+**Status:** planned for release 0.2; no constant exists yet, and `pi` and
+`i` are [reserved names](#reserved-names).
+
+Rank 1 holds the named constants $\pi$ and $i$ and the
+[algebraic constants](#algebraic-numbers-as-terms). The named constants are
+a crate-internal `#[non_exhaustive]` enumeration, ordered by name and not by
+variant, so adding a constant changes no existing order. Every constant is
+an exact number other than 0, and the term core uses this:
+
+- **Not a base of $N$.** A constant never enters $N(t)$, so a power of a
+  constant leaves no witness: $c^0 = 1$ and $0 \cdot c^{-1} = 0$ for a
+  constant $c$. A term whose negative powers all have constant bases, such
+  as $\pi^{-1}$, has an empty $N$.
+- **Exponents of both signs merge.** Factors with the same constant base add
+  their exponents whatever their signs, so $\pi \cdot \pi^{-1} = 1$.
+- **Powers of $i$.** $i^k$ is $1$, $i$, $-1$ or $(-1) \cdot i$ by
+  $k \bmod 4$, for every integer $k$, and the result returns to the merging
+  worklist, so $i \cdot i = -1$ and $i^{-3} = i$. A power of $\pi$ or of an
+  algebraic constant is not reduced.
+- **Why only constants.** The reduction of the powers of a constant is
+  defined for every integer exponent and agrees with the addition of
+  exponents: it is a homomorphism from $\mathbb{Z}$, which keeps the
+  canonical form of a product independent of its grouping when exponents of
+  both signs merge. A call is never such a base, also when its arguments are
+  rational: $\sqrt{2}$ is a call, its powers follow the rule of root powers
+  only for positive exponents, and $\sqrt{2}^{-1}$ keeps $\sqrt{2}$ in $N$.
+- **Algebraic constants are atoms.** For the call constructor an algebraic
+  constant is an opaque atom other than 0, and no constructor folds
+  arithmetic between algebraic constants into one constant: for an algebraic
+  constant $c$ of degree 3, $c^3$ stays $c^3$.
 
 ### Call nodes
 
@@ -296,14 +369,162 @@ merging worklist. The 0.1 constructors never produce a call from input
 without calls, so the canonical form and the order of a call-free term do not
 depend on any rule about calls.
 
+The two classes of calls are planned as follows. The functions of the
+function registry, such as `sin`, `log`, `sqrt` and `rootn`, are calls of the
+class `Registered`, and the rules of the registry apply to these calls only.
+The three special forms `piecewise`, `derivative` and `substitute` are calls
+of the class `Formal`, with reserved head names and a variable number of
+arguments; a table of the special forms states the role of each argument,
+and the registry holds no record for them:
+
+- `piecewise(c, a, b)` takes a [condition](#conditions) $c$ and two values,
+  as the [function values](#branches) state;
+- `derivative(u, x, n)` takes an order $n$ between 1 and `max_exponent`, and
+  `derivative(u, x, 0)` is $u$;
+- `substitute(u, x1 = v1, …)` keeps its bindings sorted by name, and a name
+  bound twice fails with `InvalidBinding`.
+
+The call constructor simplifies neither `derivative` nor `substitute`. The
+free symbols of a term and substitution skip the variable and binding
+positions that the table of special forms names, so substituting $x := 2$
+does not enter $u$ in `derivative(u, x, n)`.
+
+### Rules of the call constructor
+
+**Status:** planned for release 0.2, with the function registry; no
+constructor builds a call yet. The contract of the term core fixes the rules
+below once, with their charges.
+
+A rule $L \to R$ is eligible for the call constructor, or for the term core
+with a call head or a constant as its trigger, exactly when
+
+```math
+[L]\rho = [R]\rho \quad \text{for every assignment } \rho
+```
+
+with values in $\mathbb{C} \cup \lbrace \bot \rbrace$, where $\bot$ marks an
+undefined value: both sides have the same domain, and the rule needs no
+assumption. A rule that holds only under an assumption, or whose left side
+is defined at fewer points than its right side, belongs to the scoped
+rewriting of function expressions, the planned command `f-refine`, which
+keeps the domain of the left side as a condition. An eligible rule keeps
+the meaning of the term it rewrites, so it never widens a domain, which
+would hide a point where its input is undefined. The rules of sums,
+products and powers treat a call as a total atom, and the function value
+carries the domain of the call ([domains of calls](#domains-of-calls)).
+Not every eligible rule is applied: the rules are placed as follows, and
+the last item of the list after the table names rewritings that the
+constructors of release 0.2 do not apply.
+
+| Rule | Where it applies |
+| --- | --- |
+| A name that the registry does not hold, and a wrong number of arguments, fail with `Syntax`; the number of arguments is checked before any domain | call constructor |
+| The degree $n$ of `rootn(u, n)`: a literal positive integer is accepted; 0, a negative integer, a rational that is not an integer, $\pi$ and $i$ fail with `OutsideDomain`, and a degree beyond `max_exponent` fails with `ResourceLimit`; any other degree, such as a symbol or a sum, builds the call and leaves "$n$ is a positive integer" to the condition of the function value | call constructor |
+| An argument `undefined` fails with `OutsideDomain` | call constructor |
+| $\mathrm{rootn}(u, 2) = \sqrt{u}$ and $\mathrm{rootn}(u, 1) = u$, for a literal degree | call constructor |
+| The domain fails with `OutsideDomain` on these arguments only: $\log 0$; $\tan(q\pi)$ with $2q$ an odd integer; `asin` and `acos` on a rational $q$ with $\lvert q \rvert \gt 1$; `asin`, `acos` and `atan` on $c \cdot i$ with a rational $c \ne 0$. A zero witness counts as 0 here, as it does for division, so $\log(0 \cdot x^{-1})$ fails. On any other argument, such as `asin` on $q\pi$, the call is built and its domain goes into the condition of the function value | call constructor |
+| Parity: `sin`, `tan`, `asin` and `atan` are odd and `cos` and `abs` are even, and `acos` is reflected, $\arccos(-u) = \pi - \arccos u$. They apply when the argument $u$ is a negative number, a product with a negative coefficient or a sum whose content is negative: $f(u)$ becomes $-f(-u)$ for an odd $f$, $f(-u)$ for an even $f$, and $\arccos u$ becomes $\pi - \arccos(-u)$ | call constructor |
+| Point values: $\sin 0 = \tan 0 = 0$, $\cos 0 = \exp 0 = 1$, $\log 1 = 0$, $\sqrt{0} = 0$, $\sqrt{1} = 1$, $\mathrm{rootn}(0, n) = 0$ and $\mathrm{rootn}(1, n) = 1$ for a literal $n$, `asin`, `acos` and `atan` at $-1$, 0 and 1, and $\lvert i \rvert = 1$ | call constructor |
+| Quarter turns: `sin`, `cos` and `tan` at $q\pi$ with $2q$ an integer, where `tan` at an odd multiple of $\pi/2$ fails as above | call constructor |
+| Principal roots of rationals, normalized as [their section](#principal-roots-of-rationals) states | call constructor |
+| Absolute values: $\lvert q \rvert$, $\lvert c\pi \rvert = \lvert c \rvert \pi$ and $\lvert c i \rvert = \lvert c \rvert$ for rationals $q$ and $c$, and $\lvert \lvert u \rvert \rvert = \lvert u \rvert$ | call constructor |
+| Powers of roots: for a literal degree $n$ and every $k \ge 1$, $(\sqrt[n]{u})^k = u^{\lfloor k/n \rfloor} (\sqrt[n]{u})^{k \bmod n}$, read from the registry, with the factors returning to the same worklist; a negative $k$ leaves the power as it is | term core, with the head names `sqrt` and `rootn` as trigger |
+| Powers of $i$: $i^k = i^{k \bmod 4}$ for every integer $k$, as stated for [constants](#constants) | term core, with the constant $i$ as trigger |
+| $\mathrm{piecewise}(\mathrm{true}, a, b) = a$ and $\mathrm{piecewise}(\mathrm{false}, a, b) = b$ | term core, with the head name `piecewise` as trigger |
+| Periodicity, also by literal multiples: `sin` and `cos` drop $2k\pi$, `tan` drops $k\pi$ and `exp` drops $2k\pi i$ from their argument | `f-refine`; a literal $k$ needs no assumption, a symbolic $k$ needs $k \in \mathbb{Z}$ |
+| Rules that need an assumption: $\sqrt{u^2} = \lvert u \rvert$ for a real $u$, $\log(\exp u) = u$ for $-\pi \lt \mathrm{Im}(u) \le \pi$, and the sign rules of `abs` | `f-refine` |
+| Rules whose left side has a smaller domain: $\exp(\log u) = u$, $\sin(\arcsin u) = u$, $\cos(\arccos u) = u$ and $\tan(\arctan u) = u$ | `f-refine`, which keeps the domain of the left side |
+| The instances of these rules on exact constants, such as $\exp(\log 2) = 2$ and $\sqrt{\pi^2} = \pi$ | `f-refine`, which decides them in the empty scope |
+| Merging equal branches, $\mathrm{piecewise}(c, a, a) = a$, and removing negative exponents under conditions | [function values](#function-values) |
+
+- **Registered calls only.** No rule of the registry applies to a formal
+  call; the three rules of the term core are triggered by a head name or a
+  constant, not looked up in the registry, except that the powers of roots
+  read their identity from it.
+- **Shapes, not properties.** The value tables, the point values, quarter
+  turns, principal roots and absolute values, match only the shape of the
+  argument: a number, $\pi$, $i$, or a rational multiple of $\pi$ or $i$. A
+  zero witness matches none of them, since $\cos(0 \cdot x^{-1}) = 1$ would
+  lose $x$ from $N$, so $\cos(x^{-1} - x^{-1})$ stays
+  $\cos(0 \cdot x^{-1})$. The rules on the degree of `rootn` apply only to a
+  literal degree, so $\mathrm{rootn}(0, n)$ stays as it is for a symbol $n$.
+  The call constructor infers no property of its arguments:
+  $\lvert \sqrt{2} \rvert$ stays as it is, and every rule that needs a
+  property is in `f-refine`.
+- **Order of the rules.** In one call the constructor checks the number of
+  arguments, then the degree, applies the two rules of `rootn`, checks the
+  domain, applies parity, then the value tables, then
+  $\lvert \lvert u \rvert \rvert = \lvert u \rvert$. The rules terminate and
+  give the same result in every order, so the order fixes only the charges.
+- **Examples.** $\sin(x - y) + \sin(y - x) = 0$, and $\sin(1 - x)$ is
+  $-\sin(-1 + x)$. With $s = \sqrt{x}$, the products $s \cdot s \cdot s \cdot s$
+  and $(s \cdot s) \cdot (s \cdot s)$ are both $x^2$, and
+  $\mathrm{rootn}(x, 3)^6 = x^2$, while $\sqrt{x}^{-2}$ stays as it is.
+  $\lvert -\lvert x \rvert \rvert = \lvert x \rvert$. $\cos(x + 2\pi)$ stays
+  as it is until `f-refine` rewrites it. $\arcsin \pi$ builds a call, and its
+  function value fails with `OutsideDomain`.
+- **Not in the constructors of release 0.2.**
+  $\exp a \cdot \exp b = \exp(a + b)$; special values
+  beyond the tables, such as $\sin(\pi/6)$ and $\log(-1) = \pi i$;
+  $\mathrm{rootn}(\mathrm{rootn}(u, m), n) = \mathrm{rootn}(u, mn)$;
+  $\lvert c u \rvert = \lvert c \rvert \lvert u \rvert$ and
+  $\sqrt{c u} = \sqrt{c}\sqrt{u}$ for a rational $c \gt 0$;
+  $\sqrt{u}\sqrt{v} = \sqrt{uv}$; extraction from radicals, such as
+  $\sqrt{8} = 2\sqrt{2}$; general powers $u^v$; $\arcsin(\sin u) = u$ and the
+  other inverse compositions; arithmetic between algebraic constants; and
+  $0 \cdot \mathrm{piecewise}(c, a, b) = \mathrm{piecewise}(c, 0 \cdot a, 0 \cdot b)$.
+
+### Conditions
+
+**Status:** planned for release 0.2; no condition exists yet.
+
+A condition is a term of rank 7. At each assignment of its symbols it is
+true, false or undefined. Its shapes are the truth values `true` and
+`false`, comparisons of values, property predicates of a value,
+`defined(u)`, which states that $u$ is defined, and the connectives `not`,
+`and` and `or`; the set of shapes is `#[non_exhaustive]`.
+
+- **Two classes.** The operands of the connectives and the first argument of
+  `piecewise` are conditions; every other operand and argument is a value.
+  An operand of the wrong class fails with `Fault(Syntax)`.
+- **Strict atoms.** The domain of a comparison or a property predicate is
+  the intersection of the domains of its operands, and an ordered comparison
+  also needs real operands: it is undefined where an operand is not real.
+- **Strong Kleene connectives.** An `and` with a false operand is false and
+  an `or` with a true operand is true, whatever the other operands are,
+  undefined included. Otherwise a connective with an undefined operand is
+  undefined, and so is `not` of an undefined operand; on defined operands
+  the connectives are the Boolean ones. So `and` and `or` are commutative,
+  associative and idempotent on the three values, and
+  $x = 0 \lor 1/x \gt 1$ is true at $x = 0$.
+- **Structural normalization only.** The constructor of conditions flattens
+  nested `and` and `or`, sorts their operands and removes repeated ones,
+  rewrites $\lnot\lnot c$ to $c$, and absorbs `true` and `false`. Under the
+  strong Kleene connectives each of these is an identity on the three
+  values, so it meets the criterion of the
+  [call constructor](#rules-of-the-call-constructor), and the domain of an
+  absorbed operand needs no record. The term core decides no comparison;
+  deciding one belongs to the function expressions.
+
 ### Reserved names
 
-`pi`, `i` and `undefined` are reserved for constants. In 0.1 the parser and
-`Term::symbol` reject them with `Unsupported`, as they reject function-call
-syntax. An input accepted by 0.1 therefore keeps its meaning and its
-canonical form when the constants arrive; otherwise $i \cdot i$ would change
-from $i^2$ to $-1$, and the rank of `pi` from 2 to 1. Later constant names
-are taken only from this list or from spellings that are errors in 0.1.
+`pi` and `i` are reserved for the constants $\pi$ and $i$, and `undefined`
+for the branch of a `piecewise` that has no value. In 0.1 the parser and
+`Term::symbol` reject all three with `Unsupported`, as they reject
+function-call syntax. An input accepted by 0.1 therefore keeps its meaning
+and its canonical form when the constants arrive; otherwise $i \cdot i$
+would change from $i^2$ to $-1$, and the rank of `pi` from 2 to 1. Later
+constant names are taken only from the reserved names or from spellings that
+are errors in 0.1.
+
+As planned, `undefined` is neither a constant nor a term, and it has no
+rank. It is accepted only as a branch of `piecewise`, and building the
+function value [removes it](#branches), so the condition is the one record of
+where a function value is undefined, and the term core needs no rule for a
+value that is not a number. On its own, as an argument of any other call, as
+an operand, or where removing it leaves a false condition, it fails with
+`OutsideDomain`. The head names `piecewise`, `derivative` and `substitute`
+are reserved for the special forms of the [call nodes](#call-nodes).
 
 ### Size and depth
 
@@ -323,6 +544,140 @@ are taken only from this list or from spellings that are errors in 0.1.
 - Every step is charged, including the scans of monomials and the
   collection loops, which are charged per monomial they pass. There is no
   hidden cap, and a broken internal invariant returns an `Internal` error.
+
+## Function values
+
+**Status:** planned for release 0.2, with the function-expression baseline;
+not implemented. The commands named here, `fexpr`, `f-refine`, `ask`,
+`f-ask` and `at`, are planned commands of that baseline and do not exist
+yet.
+
+The term core keeps no domain and no assumption. A function value adds
+them: it is a triple $(t, C, S)$ of a term $t$, a [condition](#conditions)
+$C$ and a scope $S$, an explicit value that holds assumptions about names.
+
+### Meaning of a function value
+
+- **Terms and conditions.** The meaning $[t]$ of a term is a strict partial
+  function of the assignments of its symbols to complex numbers: a node is
+  defined where its children are defined and lie in the domain of its
+  operation. A condition $c$ is true, false or undefined at each assignment,
+  and $D_c$ is the set of assignments where it is defined.
+- **Function values.** At an assignment that satisfies $S$, the value
+  $(t, C, S)$ is $[t]$ where $C$ is true and $[t]$ is defined, and undefined
+  elsewhere. At an assignment that does not satisfy $S$, it asserts nothing.
+- **The scope is the premise of the assertion.** Building a function value
+  (`fexpr`), the term constructors and the decision of conditions never read
+  the scope; only the scoped rewriting `f-refine` and the assumption queries
+  `ask` and `f-ask` read it. So with the scope "$x$ is positive", the
+  function value of $\sqrt{x^2}$ keeps $\sqrt{x^2}$, and `f-refine` rewrites
+  it to $x$.
+- **Substitution.** Write the scope of a value as $S' \land (x : M)$, where
+  $M$ holds its facts about $x$. Substituting the value $(t_u, C_u, S_u)$ for
+  $x$ turns these facts into a condition $F_M(t_u)$ on the substituted term:
+
+  ```math
+  \bigl( t[x := t_u],\ C[x := t_u] \land C_u \land F_M(t_u),\ S' \land S_u \bigr)
+  ```
+
+  An operation on two values joins their scopes by intersecting their facts
+  about each name, and fails with `ContradictoryAssumptions` when an
+  intersection is empty. The facts about a name are a set of classes that
+  partition the complex numbers, and every property is a union of classes,
+  so a query about one name is exact; the assumption system fixes the
+  classes and the properties.
+
+### Domains of calls
+
+The builder of function values works bottom-up and gives each subterm $u$ a
+condition $C_u$. At a [strict position](#removing-negative-exponents) the
+conditions of the children are conjoined.
+
+- When the builder builds a call of `tan`, `asin`, `acos`, `atan`, `log` or
+  `rootn`, it adds the domain of the call to the condition; the functions
+  defined on all their arguments add nothing. A call of `derivative` or
+  `substitute` adds `defined(…)` of itself.
+- The term core treats every call as a total uninterpreted atom
+  ([negative exponents](#negative-exponent-invariant)), so the condition is
+  the one record of the domains of calls. A term built with the term
+  constructors alone can hide the points where its calls are undefined, and
+  the contract of the term core is to state this when calls land.
+
+### Branches
+
+The meaning of $\mathrm{piecewise}(c, a, b)$ is $[a]$ where $c$ is true,
+$[b]$ where $c$ is false, and undefined where $c$ is undefined, so its domain
+is
+
+```math
+D_{\mathrm{piecewise}(c, a, b)} = D_c \cap \bigl( (c \cap D_a) \cup (\lnot c \cap D_b) \bigr)
+```
+
+and the builder gives it the condition
+
+```math
+C_c \land \bigl( (c \land C_a) \lor (\lnot c \land C_b) \bigr)
+```
+
+which states this domain exactly, because a false operand makes a conjunction
+false under the strong Kleene connectives, whatever the other operand is.
+So $\mathrm{piecewise}(x \ne 0, \log(\log x), 0)$ is 0 at $x = 0$ and
+undefined at $x = 1$.
+
+- **Equal branches.** $\mathrm{piecewise}(c, a, a)$ is $a$, and the builder
+  keeps $D_c$ in the condition: $\mathrm{piecewise}(1/x \gt 0, 1, 1)$ is 1
+  with a condition that still requires $x \ne 0$.
+- **The branch `undefined`.** $\mathrm{piecewise}(c, a, \mathrm{undefined})$
+  is $a$ with $c$ added to the condition, and
+  $\mathrm{piecewise}(c, \mathrm{undefined}, b)$ is $b$ with $\lnot c$, with
+  the same value and the same domain. Where `undefined` occurs anywhere else,
+  or where the condition is false after the removal, the builder fails with
+  `OutsideDomain`.
+- **Lazy branches.** The builder builds the condition first. When it is
+  `true` or `false`, the other branch is parsed but never built, so
+  $\mathrm{piecewise}(\mathrm{true}, 7, 1/0)$ is 7, while $1/0$ alone fails
+  with `DivisionByZero`. When it is undecided, both branches are built
+  strictly, so $\mathrm{piecewise}(x \gt 0, \log 0, 3)$ fails with
+  `OutsideDomain`. Substitution, `at` and `f-refine` decide the condition
+  first as well when they rebuild a `piecewise`. Every term that is built is
+  evaluated [strictly](#strict-numeric-evaluation).
+- **A known limit.** The zero product keeps the bases of negative powers
+  inside the branches: $0 \cdot \mathrm{piecewise}(x = 0, 1, 1/x)$ is
+  $0 \cdot x^{-1}$, which fails at $x = 0$, where the input has the value 0.
+  Such an input fails; it never gives a wrong value.
+
+### Removing negative exponents
+
+A strict position of a term is a position that is reached from the root
+without passing into a branch of `piecewise` or into an argument of
+`derivative` or `substitute`: the operands of sums, products, powers and
+registered calls, the operands of comparisons and predicates, and the
+condition of `piecewise`. Where a subterm at a strict position is
+undefined, the whole term is undefined.
+
+The operation that removes negative exponents under conditions works on the
+strict positions. There it merges the factors with the same base and
+exponents of opposite signs and removes the three witnesses, and it adds to
+the condition $b \ne 0$ for each base $b$ that it cancels. At a
+$\mathrm{piecewise}(c, a, e)$ in a strict position, it works on each branch
+separately and joins the conditions $C_a^{\ast}$ and $C_e^{\ast}$ of the two
+results as $(c \land C_a^{\ast}) \lor (\lnot c \land C_e^{\ast})$. A call
+of `derivative` or `substitute` is an atom. The result has the same domain
+and the same value as the input: where a base that occurs with a negative
+exponent at a strict position is 0, the input is undefined, and a base that
+occurs only in a branch is carried by the condition of that branch.
+
+- $x^2 x^{-1}$ gives $x$ with $x \ne 0$, and $0 \cdot x^{-1}$ gives 0 with
+  $x \ne 0$; $1/x$ stays as it is. `at` at $x = 0$ therefore fails with
+  `DivisionByZero` on $1/x$ and with `OutsideDomain` on $x^2 x^{-1}$.
+- $\mathrm{piecewise}(x = 0, 1, x/x)$ is 1 everywhere, and `at` at $x = 0$
+  gives 1.
+- The operation has a name in the function expressions and is never part of
+  a constructor: it reads terms through the accessors and rebuilds them with
+  the public constructors. Every command that builds a function value, such
+  as `fexpr`, calls it as its last step, so the function value of $x/x$ is 1
+  with the condition $x \ne 0$, and the term of a function value can differ
+  from the canonical form of the same input.
 
 ## Coefficient-field trait
 
@@ -456,6 +811,239 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   `Polynomial<K = Rationals>`. The other subtraits and structures, and the
   implementation of `CoefficientRing` for `PolynomialRing<K>`, arrive with
   their first users from 0.2 on.
+
+## Algebraic numbers
+
+**Status:** planned for release 0.2; not implemented. Algebraic numbers
+build on the factorization of polynomials over $\mathbb{Q}$ and on real root
+isolation, which are planned for the same release. Every step below uses
+exact rational arithmetic only, never floating point.
+
+Write $m$ for a minimal polynomial and $d$ for its degree. The principal
+argument is $\mathrm{Arg} \in (-\pi, \pi]$, the principal root of a rational
+$q$ is $q^{1/n} = \lvert q \rvert^{1/n} e^{i \mathrm{Arg}(q)/n}$, and
+`sqrt(u)` is `rootn(u, 2)`.
+
+### Identity
+
+- **Real algebraic numbers.** The identity of a real algebraic number is
+  the pair $(m, k_r)$: $m$ is its minimal polynomial over $\mathbb{Q}$,
+  monic, with rational coefficients, irreducible and of degree at least 2,
+  and $k_r$ is its position among the real roots of $m$ in ascending order,
+  counted from 0. An algebraic number of degree 1 is a rational and is a
+  number.
+- **Complex algebraic numbers.** The identity of a complex algebraic
+  number, one that is not real, is the pair $(m, k_c)$, where $k_c$ is its
+  position among all the roots of $m$ in ascending order of the pair (real
+  part, imaginary part), counted from 0. In this order the root of a
+  conjugate pair with the negative imaginary part comes first, and a real
+  root comes after the roots with the same real part and a negative
+  imaginary part and before those with a positive one, between the two
+  roots of each such conjugate pair. A real number is never of the complex
+  type, and a complex algebraic number is never stored as a pair of real
+  algebraic numbers.
+- **Equality.** Two algebraic numbers are equal exactly when their
+  identities are structurally equal, which needs no refinement, and equal
+  values have equal identities. The identity holds $m$ in its monic rational
+  form; bounds are computed from its primitive integer form, which is taken
+  only for the computation.
+
+### Order and cache
+
+- **Order of algebraic constants.** Within rank 1 the algebraic constants
+  come after the named constants, real before complex, then by degree, by
+  the coefficients of $m$ and by the index. The order is total and
+  deterministic and needs no refinement; it is not the order by size.
+- **Cache.** Each algebraic number carries an isolating region as a cache:
+  for a real number the canonical isolating interval of real root isolation,
+  and for a complex number an isolating rectangle with dyadic corners. A
+  root in the lower half-plane takes the mirror image of the rectangle of its
+  conjugate, and a real root of $m$, where the complex order needs it, takes
+  $(l, u) \times (-c_0, c_0)$ from its interval $(l, u)$, with $c_0$ as
+  below. The cache is a deterministic function of the identity and never
+  part of it. Refinement happens only in a workspace of the operation that
+  needs it, so no result and no charge depends on what an earlier operation
+  refined ([convention 8](conventions/public-api.md#8-determinism)). The
+  cache counts in the storage cost of the number, by a formula that is fixed
+  with the component.
+
+### Isolating complex roots
+
+Complex roots are isolated on the irreducible factors of a polynomial only,
+by the argument principle with Sturm sequences (H. S. Wilf, 1978;
+J. R. Pinkert, 1976; G. E. Collins and W. Krandick, 1992):
+
+- The real roots come from real root isolation. The non-real roots in the
+  upper half-plane lie in the rectangle $[-B, B] \times [c_0, B]$, where $B$
+  is a [root bound](#bounds) and $c_0$ is the largest power of 2 that is not
+  above $s/2$, with the separation bound $s$: every non-real root $\alpha$
+  has $\lvert \mathrm{Im}(\alpha) \rvert \gt s/2$, so the band
+  $0 \lt \lvert \mathrm{Im}(z) \rvert \le c_0$ holds no root. The roots in
+  the lower half-plane are the mirror images.
+- The rectangle is split into four, recursively. The number of roots in a
+  rectangle is the winding number of $m$ along its boundary: along each
+  edge, $m(z(t)) = A(t) + iB(t)$ with real polynomials $A$ and $B$, and Sturm
+  sequences, computed with subresultants, give the Cauchy index of the edge.
+  The count is taken only on rectangles with no root on their boundary,
+  where the algebraic winding number equals the number of roots inside
+  (M. Eisermann, 2012). At an end point of an edge a crossing counts half,
+  and an edge on a vertical line along which $m$ takes real values counts 0.
+- A split line through a root, also at the crossing of two lines, shows as a
+  real root of $\gcd(A, B)$ on the line, which the real root count detects,
+  and the line moves. The lines tried are the middle, then the middle
+  $\pm w/4$, $\pm w/8$ and so on for a width $w$, and one of the first $d + 1$
+  holds no root.
+- Isolation always ends with the complete list of roots, builds no
+  polynomial of degree above $d$, and has an a priori bound on the depth of
+  subdivision, which can be checked against the limits before the work
+  starts.
+
+### Comparing values
+
+Equality is structural, as stated above. The order by value, which sorts
+real algebraic numbers by size and complex roots by real part and then
+imaginary part, is decided by exact refinement in grades, and never by a
+projection:
+
+- Two real numbers with the same $m$ compare by index; with different
+  minimal polynomials, their intervals are refined until they are disjoint.
+- Two complex roots compare by their real parts first, then by their
+  imaginary parts. While their real-part intervals meet, three grades decide
+  in turn whether the real parts are equal: (1) the roots are conjugate, with
+  the same $m$ and mirrored rectangles; (2) a rational vertical line holds
+  both: for the simplest rational $a$ in the intersection of their real-part
+  intervals, the greatest common divisor of the real and imaginary parts of
+  the restriction of each factor to the line $\mathrm{Re}(z) = a$ has a root
+  in the imaginary-part interval of that root; (3) the caches are refined
+  until the real-part intervals are disjoint, which orders the roots, or
+  until the sum of their widths is below $\delta_{\mathrm{Re}}$ of the
+  [bounds](#bounds) while they still meet, which shows that the real parts
+  are equal.
+- No grade builds a polynomial of a degree above $\max(d_1, d_2)$. The third
+  grade needs a precision that grows with $d_1^2 d_2^2$: for the minimal
+  polynomials of $\sqrt{2} + i$ and $\sqrt{2} + i\sqrt{2}$, of degree 4, the
+  bound is about $2^{-1469}$ and the refinement exceeds the default
+  `max_integer_bits`. Such a comparison fails with `ResourceLimit`, never
+  with a wrong answer, and a larger `max_integer_bits` lets it finish.
+- No representation, isolation, equality test or comparison computes a
+  projection, the polynomials of degree $d^2$ whose roots are the real parts
+  or the imaginary parts of the roots of $m$. A projection appears only in an
+  operation whose answer is that projection, such as the real part, the
+  imaginary part or the squared modulus of a complex algebraic number.
+
+### Bounds
+
+| Use | Bound | Applied to | Degree |
+| --- | --- | --- | --- |
+| The band $c_0$ and the depth of subdivision | Mahler–Landau | the primitive integer form of $m$ | $d$ |
+| Ordering real algebraic numbers with different $m_1$, $m_2$ | Mahler–Landau | $m_1 m_2$ | $d_1 + d_2$ |
+| Selecting the root of the result of arithmetic on algebraic numbers | refinement until the enclosure holds one root of $\mathrm{sqf}(R)$, by exact counting; $s(\mathrm{sqf}(R))$ only as an a priori bound | the squarefree part $\mathrm{sqf}(R)$ of the resultant $R$, the product of its distinct irreducible factors in primitive integer form | at most $d_1 d_2$ |
+| The third grade of equal real parts | $\delta_{\mathrm{Re}}$ | only the degrees, the leading coefficients and the root bounds | — |
+
+The root of an arithmetic result is selected on $\mathrm{sqf}(R)$ and not on
+the factor that holds it: before the selection it is not known which factor
+holds the result, and a root of another factor can be closer.
+
+**Mahler–Landau separation bound.** For a squarefree $f \in \mathbb{Z}[x]$ of
+degree $d \ge 2$ with the Mahler measure $M(f)$:
+
+```math
+\mathrm{sep}(f) > \sqrt{3}\, \lvert \mathrm{disc}(f) \rvert^{1/2}\, d^{-(d+2)/2}\, M(f)^{-(d-1)}
+```
+
+With $\lvert \mathrm{disc}(f) \rvert \ge 1$ and Landau's inequality
+$M(f) \le \lVert f \rVert_2$:
+
+```math
+\mathrm{sep}(f) > s(f) := \sqrt{3}\, d^{-(d+2)/2}\, \lVert f \rVert_2^{\,1-d}
+```
+
+(K. Mahler, An inequality for the discriminant of a polynomial, Michigan
+Math. J. 11 (1964) 257–262; E. Landau, Bull. Soc. Math. France 33 (1905);
+M. Mignotte, Mathematics for Computer Algebra, 1992.) So $c_0 = 2^{-k}$ for
+the least integer $k$ with $3 \cdot 4^k \ge 4 d^{d+2} N^{d-1}$, where
+$N = \lVert f \rVert_2^2$, which needs no square root: $2^{-7}$ for
+$x^3 - 2$ and $2^{-8}$ for $x^4 + 1$.
+
+**Cauchy root bound.** Every root $\alpha$ of
+$\sum_{i \le d} a_i x^i$ satisfies
+$\lvert \alpha \rvert \lt 1 + \max_{i \lt d} \lvert a_i / a_d \rvert$
+(A.-L. Cauchy, 1829; C. Yap, Fundamental Problems of Algorithmic Algebra,
+2000).
+
+**Bound for equal real parts.** Let $\ell_j$ be the leading coefficient of
+the primitive integer form of $m_j$ and $B_j$ an integer strict upper bound
+on the moduli of its roots. $2\ell_1\ell_2(\mathrm{Re}(\alpha) - \mathrm{Re}(\beta))$
+is an algebraic integer of degree at most $d_1^2 d_2^2$, whose norm is at
+least 1 when it is not 0, so
+
+```math
+\lvert \mathrm{Re}(\alpha) - \mathrm{Re}(\beta) \rvert \ge \delta_{\mathrm{Re}} := \frac{1}{2\ell_1\ell_2} \bigl( 2\ell_1\ell_2 (B_1 + B_2) \bigr)^{-(d_1^2 d_2^2 - 1)}
+```
+
+unless the real parts are equal.
+
+### Principal roots of rationals
+
+A principal root of a rational has the call `sqrt(q)` or `rootn(q, n)` as
+its canonical form, and the call constructor normalizes it cheaply, without
+arithmetic on algebraic numbers:
+
+1. $n = 1$ gives $q$;
+2. $q = 0$ gives 0;
+3. for $q \gt 0$, for each prime $p$ that divides $n$ and for which $q$ is
+   the $p$-th power of a rational, $q^{1/p}$ and $n/p$ replace $q$ and $n$,
+   until no such prime remains;
+4. for $q \lt 0$ and $n = 2$, $\sqrt{q} = i\sqrt{-q}$;
+5. for $q = -4t^4$ with a rational $t \gt 0$ and $n = 4$, the root is
+   $t + ti$;
+6. any other root stays a call.
+
+For $q \gt 0$, after step 3, $x^n - q$ is irreducible by Capelli's theorem
+(S. Lang, Algebra, chapter VI, §9): $x^n - a$ is irreducible over a field
+$K$ exactly when $a \notin K^p$ for every prime $p$ that divides $n$, and
+$a \notin -4K^4$ when $4$ divides $n$. The test is an integer $p$-th root, at
+most about $\log_2 n$ of them. Steps 4 and 5 cover every principal root in
+$\mathbb{Q}(i)$ that is not rational. The parsed `sqrt(2)` and the algebraic
+number $(x^2 - 2, 1)$ are therefore the same call `sqrt(2)`, and the complex
+algebraic number $(x^2 + 1, 0)$ embeds only as $(-1) \cdot i$, the same term
+as the parsed $-i$.
+
+Equal values give equal terms for every principal root of a positive
+rational, for the principal roots of negative rationals whose binomial
+$x^n - q$ is irreducible, and for the two classes $n = 2$ and $n = 4$. Two
+known exceptions remain: `rootn(-8, 3)` stays a call, while the algebraic
+number of the same value embeds as $1 + i\sqrt{3}$; and
+$\mathrm{rootn}(-4, 4)^4$ stops at $(1 + i)^4$, since a power of a sum is not
+expanded.
+
+### Algebraic numbers as terms
+
+An algebraic number becomes a term by these rules, which are the reverse
+direction of the normalization of principal roots; none of them needs a
+projection:
+
+1. degree 1 gives the number;
+2. degree 2, with $m = x^2 + px + r$, $a = -p/2$ and
+   $\Delta = p^2/4 - r$: for $\Delta \gt 0$ the closed form
+   $a \pm \sqrt{\Delta}$, by $k_r$; for $\Delta \lt 0$ the closed form
+   $a \pm i\sqrt{-\Delta}$, by the sign of the imaginary part;
+3. degree at least 3 with $m = x^n - q$: a real root is
+   $\pm\mathrm{rootn}(q, n)$ for $q \gt 0$, by $k_r$ when $n$ is even and the
+   positive one when $n$ is odd, and $-\mathrm{rootn}(-q, n)$ for $q \lt 0$
+   and odd $n$; the non-real root with $q \lt 0$ and $k_c = n - 1$, the
+   principal root, is $\mathrm{rootn}(q, n)$;
+4. every other real algebraic number is a real algebraic constant;
+5. every other complex algebraic number is a complex algebraic constant.
+
+In rule 3, $\mathrm{rootn}(q, n)$ for $q \lt 0$ has the argument $\pi/n$ and
+is not real, so the one real root is $-\mathrm{rootn}(-q, n)$, and the
+principal root comes last in the order of (real part, imaginary part). So
+the principal root of $-8$, the root $(x^2 - 2x + 4, 1)$, is
+$1 + i\sqrt{3}$; $(x^4 + 1, 3)$ is `rootn(-1, 4)`; the real root of
+$x^3 + 2$ is $-\mathrm{rootn}(2, 3)$, and its principal root is
+`rootn(-2, 3)`. An algebraic constant is never rational, so it is an exact
+number other than 0, as the [constants](#constants) need.
 
 ## Context API
 
