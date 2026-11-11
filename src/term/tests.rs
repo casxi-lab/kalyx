@@ -29,6 +29,22 @@ fn show(term: &Term, c: &mut Context) -> String {
     term.display(c).unwrap()
 }
 
+/// A test-only constructor of the reserved call node, which no constructor
+/// of this release builds: the tests pin its place in the order and in the
+/// rules of sums, products and powers.
+fn reserved_call(
+    name: &str,
+    class: CallClass,
+    arguments: &[Term],
+    context: &mut Context,
+) -> Result<Term> {
+    let head = node::CallHead {
+        name: Box::from(name),
+        class,
+    };
+    node::make(TermShape::Call(head), arguments.to_vec(), context)
+}
+
 fn call(name: &str, class: CallClass, arguments: &[Term], c: &mut Context) -> Term {
     reserved_call(name, class, arguments, c).unwrap()
 }

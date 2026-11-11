@@ -190,23 +190,6 @@ impl<E> PolynomialTerms<E> {
     }
 
     /// Appends the term `coefficient` $x^{\mathrm{degree}}$ whose coefficient
-    /// costs `element`, for the unit tests, which reach amounts beyond
-    /// `u64::MAX` with costs that no rational has.
-    ///
-    /// # Errors
-    ///
-    /// As [`append_term`](PolynomialTerms::append_term).
-    #[cfg(test)]
-    pub(super) fn push_with_cost(
-        &mut self,
-        degree: u64,
-        coefficient: E,
-        element: Storage,
-    ) -> Result<()> {
-        self.append_term(degree, coefficient, element)
-    }
-
-    /// Appends the term `coefficient` $x^{\mathrm{degree}}$ whose coefficient
     /// costs `element` and adds its cost to the measure. This is the only
     /// writer of the lists: it keeps the degrees strictly increasing.
     ///
@@ -371,4 +354,30 @@ fn beyond_every_limit(field: LimitField, context: &Context) -> Error {
 /// The fault of a broken internal invariant of the polynomials.
 pub(super) fn internal(message: &str) -> Error {
     Error::new(FaultKind::Internal, None, message)
+}
+
+/// The writer of terms with a given cost, for the unit tests of polynomials.
+#[cfg(test)]
+mod test_writer {
+    use super::PolynomialTerms;
+    use crate::Result;
+    use crate::context::Storage;
+
+    impl<E> PolynomialTerms<E> {
+        /// Appends the term `coefficient` $x^{\mathrm{degree}}$ whose
+        /// coefficient costs `element`, for the unit tests, which reach
+        /// amounts beyond `u64::MAX` with costs that no rational has.
+        ///
+        /// # Errors
+        ///
+        /// As [`append_term`](PolynomialTerms::append_term).
+        pub(in crate::polynomial) fn push_with_cost(
+            &mut self,
+            degree: u64,
+            coefficient: E,
+            element: Storage,
+        ) -> Result<()> {
+            self.append_term(degree, coefficient, element)
+        }
+    }
 }
