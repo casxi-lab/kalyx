@@ -38,10 +38,8 @@
   a change to a component's tier, first caller or foundation rule updates
   that document in the same change.
 - Code that is to become a proof target is written in the subset of Rust that
-  Charon and Aeneas translate into Lean 4, and its files are listed in the
-  module list of its contract, which the `subset` step of `cargo xtask check`
-  checks; [formal verification](docs/formal-verification.md) describes the
-  proof tooling. No proof target is registered yet.
+  Charon and Aeneas translate into Lean 4. The subset, the proof workflow and
+  the register of proof targets are added with the first proof target.
 - Code taken over from the earlier implementation of the casξ computer algebra
   system is ported module by module, never copied wholesale. Each port adds a
   row to [PORTING.md](PORTING.md) in the same change, with its source written
