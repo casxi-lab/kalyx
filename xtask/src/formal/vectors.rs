@@ -817,6 +817,9 @@ esac"#;
             .split("\n### ")
             .next()
             .expect("the section")
+            .split("\n## ")
+            .next()
+            .expect("the section")
             .replace('\n', " ");
         for path in &paths {
             assert!(section.contains(path), "{path}: {section}");
