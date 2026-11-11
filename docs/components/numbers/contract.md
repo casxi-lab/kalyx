@@ -467,6 +467,7 @@ cancellation, the value is returned.
   in `tests/command.rs`, `rationals_check_and_charge_new_elements`
   and `rationals_measure_their_elements_by_the_storage_formula` in
   `tests/coefficient.rs`, and in `src/number/positive_compare_tests.rs`
+  `the_comparison_takes_the_first_path_that_applies`,
   `positive_comparison_matches_an_independent_small_integer_oracle`,
   `equal_adjacent_and_disjoint_product_bit_ranges_remain_exact`,
   `hundred_thousand_bit_widths_check_only_the_bound_of_the_cross_products` and

@@ -1,14 +1,15 @@
 //! `Rational::compare` on positive rationals against a model of its rule,
 //! which checks the bound of the cross products only when the pair needs
 //! them and then charges one unit, and against an independent `u128` oracle,
-//! at every small bit and work boundary and with 100,000-bit operands.
+//! at every small bit and work boundary and with 100,000-bit operands; and
+//! the path that the comparison takes for one pair of each path.
 
 use std::cmp::Ordering;
 
 use num_bigint::BigInt;
 use num_traits::One;
 
-use super::arithmetic::canonical;
+use super::arithmetic::{canonical, order_path};
 use super::*;
 use crate::context::{CancelFlag, CancelProbe, Clock};
 use crate::{ErrorKind, LimitExceeded, Limits};
@@ -23,8 +24,9 @@ fn outcome(result: Result<Ordering>) -> Outcome {
 
 /// The bound of the cross products when `compare` must form them, by the
 /// paths of the contract written out here: `None` for equal parts, different
-/// signs, two power-of-two denominators, equal denominators, and cross
-/// products whose bit lengths differ by at least two.
+/// signs, two power-of-two denominators, equal denominators, and sums
+/// $|a| + |d|$ and $|c| + |b|$ of the bit lengths, which bound the bit
+/// lengths of the cross products, that differ by at least two.
 fn cross_bound(left: &Rational, right: &Rational) -> Option<u64> {
     let (a, b) = left.parts();
     let (c, d) = right.parts();
@@ -117,6 +119,70 @@ fn check_pair(left: &Rational, right: &Rational, expected: Ordering) {
     assert_eq!((left, right), (&original.0, &original.1));
 }
 
+/// The path of one pair of each path at about 2,048 bits, and of sums of bit
+/// lengths that differ by exactly two and by one. Equal parts share their
+/// denominator, so equal denominators or the binary points of two equal
+/// powers of two would give the same outcome, without a bound: no comparison
+/// can tell the first path apart from them, and only the path shows that it
+/// stops first.
+#[test]
+fn the_comparison_takes_the_first_path_that_applies() {
+    let n = BigInt::one() << 2048_usize;
+    let plus = |k: i64| &n + k;
+    let e = q(plus(1), plus(-1));
+    let pairs = [
+        // Equal parts, also of two equal powers of two and of two zeros.
+        (e.clone(), q(plus(1), plus(-1)), OrderPath::Same),
+        (
+            q(1.into(), n.clone()),
+            q(1.into(), n.clone()),
+            OrderPath::Same,
+        ),
+        (
+            Rational::from(0_i64),
+            Rational::from(0_i64),
+            OrderPath::Same,
+        ),
+        (
+            q(-plus(1), plus(-1)),
+            e.clone(),
+            OrderPath::Signs(Ordering::Less),
+        ),
+        (
+            q(1.into(), BigInt::one() << 4095_usize),
+            q(3.into(), BigInt::one() << 4000_usize),
+            OrderPath::Dyadic(4095, 4000),
+        ),
+        (e.clone(), q(plus(3), plus(-1)), OrderPath::SameDenominator),
+        // 2049 + 2048 and 1 + 2048 bits.
+        (
+            e.clone(),
+            q(1.into(), plus(-3)),
+            OrderPath::BitLengths(Ordering::Greater),
+        ),
+        // 2049 + 2049 and 2048 + 2048 bits.
+        (
+            e.clone(),
+            q(plus(-3), plus(3)),
+            OrderPath::BitLengths(Ordering::Greater),
+        ),
+        // 2049 + 2048 and 2048 + 2048 bits.
+        (
+            e.clone(),
+            q(plus(-1), plus(-3)),
+            OrderPath::CrossProducts(4097),
+        ),
+        (
+            q(plus(-1), plus(-3)),
+            q(plus(-3), plus(-5)),
+            OrderPath::CrossProducts(4096),
+        ),
+    ];
+    for (left, right, path) in &pairs {
+        assert_eq!(order_path(left.parts(), right.parts()), *path);
+    }
+}
+
 #[test]
 fn positive_comparison_matches_an_independent_small_integer_oracle() {
     // The oracle uses unreduced input integers and u128 arithmetic, independent
@@ -151,6 +217,8 @@ fn equal_adjacent_and_disjoint_product_bit_ranges_remain_exact() {
                 q((&n << 1_usize) - 1, (&n << 2_usize) + 1),
                 Ordering::Greater,
             ),
+            // For odd `bits`, 3 divides n + 1, and the sums of the bit
+            // lengths, `bits` and `bits` + 2, differ by exactly two.
             (q(1.into(), &n + 1), q(3.into(), &n + 1), Ordering::Less),
             (q(2.into(), &n * 6), q(3.into(), &n * 9), Ordering::Equal),
             (
@@ -265,12 +333,14 @@ fn observed(limits: Limits, cancelled: bool, expired: bool) -> Context {
 
 #[test]
 fn positive_comparison_preserves_every_small_bit_work_boundary_and_priority() {
-    // Equal parts, cross products, bit lengths, power-of-two denominators
-    // and equal denominators.
+    // Equal parts, cross products, sums of bit lengths that differ by seven
+    // and by exactly two (5 and 3 bits for 5/3 and 1/2), power-of-two
+    // denominators and equal denominators.
     let pairs = [
         (q(1.into(), 3.into()), q(1.into(), 3.into())),
         (q(3.into(), 7.into()), q(5.into(), 11.into())),
         (q(1.into(), 127.into()), Rational::from(2_i64)),
+        (q(5.into(), 3.into()), q(1.into(), 2.into())),
         (q(1.into(), 4.into()), q(3.into(), 8.into())),
         (q(1.into(), 5.into()), q(2.into(), 5.into())),
     ];

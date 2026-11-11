@@ -450,13 +450,16 @@ fn equal_rationals_compare_equal_where_their_difference_is_rejected() {
 
 // Each pair takes one path of the comparison: equal parts, the signs, the
 // binary points of two power-of-two denominators, equal denominators, the
-// bit lengths of the cross products and the cross products. Every
+// sums of the bit lengths that bound the cross products, and the cross
+// products; a test inside the crate checks the path of each. Every
 // comparison charges one unit and gives the same order under every
 // `max_integer_bits` that admits it: the first five check no bound, so 0
-// admits them, and the cross products of the last need 4096 bits. The
-// second and the third pair would also be decided without a bound by a later
-// path; `only_cross_products_beyond_max_integer_bits_are_rejected` has pairs
-// that only the signs and only the binary points decide.
+// admits them, and the cross products of the last need 4096 bits. The first
+// three pairs would also be decided without a bound by a later path. Equal
+// parts share their denominator, so no comparison can tell the first path
+// apart from equal denominators;
+// `only_cross_products_beyond_max_integer_bits_are_rejected` has pairs that
+// only the signs and only the binary points decide.
 #[test]
 fn each_path_of_the_comparison_charges_one_unit_under_every_admitting_limit() {
     let dyadic_small = two_to(-4095);
@@ -506,7 +509,10 @@ fn each_path_of_the_comparison_charges_one_unit_under_every_admitting_limit() {
 // the default limits, while $E$ and $L$ need 2049 + 2048 = 4097 bits and are
 // rejected before any charge. Pairs that share no denominator and whose
 // cross products would need 4097 bits are still ordered when their signs, or
-// the binary points of two power-of-two denominators, decide.
+// the binary points of two power-of-two denominators, decide; so are $E$ and
+// $(N - 3)/(N + 3)$, whose sums of bit lengths 2049 + 2049 = 4098 and
+// 2048 + 2048 = 4096 differ by exactly two, the least difference that
+// decides.
 #[test]
 fn only_cross_products_beyond_max_integer_bits_are_rejected() {
     let left = ratio(&n_plus(-1), &n_plus(-3));
@@ -535,11 +541,16 @@ fn only_cross_products_beyond_max_integer_bits_are_rejected() {
     let (farther, nearer) = (above_one(2047), above_one(2048));
     assert_eq!(farther.numerator().bits(), 2048);
     assert_eq!(nearer.denominator().bits(), 2049);
+    let below_one = ratio(&n_plus(-3), &n_plus(3));
+    assert_eq!(below_one.numerator().bits(), 2048);
+    assert_eq!(below_one.denominator().bits(), 2049);
     for (first, second, expected) in [
         (&minus_e, &left, Ordering::Less),
         (&left, &minus_e, Ordering::Greater),
         (&farther, &nearer, Ordering::Greater),
         (&nearer, &farther, Ordering::Less),
+        (&e(), &below_one, Ordering::Greater),
+        (&below_one, &e(), Ordering::Less),
     ] {
         let mut context = default_context();
         assert_eq!(first.compare(second, &mut context).unwrap(), expected);
