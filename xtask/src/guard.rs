@@ -433,7 +433,7 @@ fn check_sources(tree: &Tree, std_paths: &[String], report: &mut Report) {
         }
         let text = match entry {
             Entry::File(bytes) => std::str::from_utf8(bytes).ok(),
-            Entry::Symlink | Entry::Submodule => None,
+            Entry::Symlink(_) | Entry::Submodule => None,
         };
         let Some(text) = text else {
             report.problems.push(format!(
@@ -944,10 +944,10 @@ mod tests {
     #[test]
     fn a_rust_file_that_cannot_be_scanned_is_a_finding() {
         let mut tree = tree(&[]);
-        tree.insert("src/link.rs", Entry::Symlink);
+        tree.insert("src/link.rs", Entry::Symlink("lib.rs".to_string()));
         tree.insert("src/vendor.rs", Entry::Submodule);
         tree.insert("src/latin1.rs", Entry::File(vec![b'/', b'/', 0xe9, b'\n']));
-        tree.insert("tests/link.rs", Entry::Symlink);
+        tree.insert("tests/link.rs", Entry::Symlink("../src/lib.rs".to_string()));
         let report = check(&tree);
         assert_eq!(
             report.problems,

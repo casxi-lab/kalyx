@@ -22,8 +22,8 @@ pub fn root() -> PathBuf {
 pub enum Entry {
     /// A regular file and its content.
     File(Vec<u8>),
-    /// A symbolic link.
-    Symlink,
+    /// A symbolic link and its target as stored.
+    Symlink(String),
     /// A submodule.
     Submodule,
 }
@@ -60,12 +60,16 @@ impl Tree {
                 .split_once('\t')
                 .ok_or_else(|| format!("unexpected git ls-files record `{record}`"))?;
             let mode = meta.split(' ').next().unwrap_or_default();
+            let on_disk = root.join(path);
             let entry = match mode {
-                "120000" => Entry::Symlink,
+                "120000" => {
+                    let target = fs::read_link(&on_disk)
+                        .map_err(|error| format!("cannot read link {path}: {error}"))?;
+                    Entry::Symlink(target.to_string_lossy().into_owned())
+                }
                 "160000" => Entry::Submodule,
                 _ => Entry::File(
-                    fs::read(root.join(path))
-                        .map_err(|error| format!("cannot read {path}: {error}"))?,
+                    fs::read(&on_disk).map_err(|error| format!("cannot read {path}: {error}"))?,
                 ),
             };
             tree.entries.insert(path.to_string(), entry);
@@ -78,8 +82,7 @@ impl Tree {
     pub fn from_files(files: &[(&str, &str)]) -> Tree {
         let mut tree = Tree::default();
         for (path, content) in files {
-            tree.entries
-                .insert(path.to_string(), Entry::File(content.as_bytes().to_vec()));
+            tree.insert(path, Entry::File(content.as_bytes().to_vec()));
         }
         tree
     }
@@ -155,6 +158,14 @@ pub fn join(base: &str, relative: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
+/// Whether the repository-relative `path` is `dir` or lies below it.
+pub fn is_within(path: &str, dir: &str) -> bool {
+    path == dir
+        || path
+            .strip_prefix(dir)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,6 +179,13 @@ mod tests {
         assert_eq!(join("docs", "./a.md").as_deref(), Some("docs/a.md"));
         assert_eq!(join("", "../outside"), None);
         assert_eq!(join("docs", "/etc"), None);
+    }
+
+    #[test]
+    fn is_within_compares_whole_components() {
+        assert!(is_within("kernel/abi", "kernel"));
+        assert!(is_within("kernel", "kernel"));
+        assert!(!is_within("kernel-tools/x", "kernel"));
     }
 
     #[test]

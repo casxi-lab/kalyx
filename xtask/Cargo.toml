@@ -11,10 +11,93 @@ rust-version = "1.99"
 [workspace]
 
 [dependencies]
+# The command lines of `cargo xtask formal run`, `cargo xtask formal guard`,
+# `cargo xtask formal toolchain-check`, `cargo xtask formal check` and
+# `cargo xtask formal vectors`, with their help, usage and error texts. They
+# are defined with the builder, so the derive macros are left out. Their
+# texts are plain and do not depend on the terminal, so colour and wrapping
+# to the terminal width are left out, and so are the suggestions of similar
+# options, which need another crate.
+clap = { version = "=4.6.7", default-features = false, features = ["std", "help", "usage", "error-context"] }
+# The process groups of the commands of `cargo xtask formal run` and
+# `cargo xtask formal vectors`: `killpg` kills a command's group, `kill`
+# with signal 0 finds whether any of its processes remain, `waitid` with
+# `WNOWAIT` sees that a command has ended without collecting it, so that
+# the group's number cannot be reused before the kill, `signal` restores
+# the default disposition of `SIGCHLD` that this needs, and `sigaction`
+# reads whether SIGHUP is ignored. For the receipt of a run, `geteuid` gives
+# the effective user, `fstatvfs` the bytes available on the file system of
+# the run directory and `getrusage` the largest resident set of a process
+# that the run collected. Only the C declarations are used, which need no
+# standard-library support, so the default feature is left out.
+libc = { version = "=0.2.191", default-features = false }
+# The receipt of `cargo xtask check` keeps its fields in the order in which
+# they are written; the receipt of `cargo xtask formal run` is written, and
+# read back by its tests, through the derive macros of `serde`; the `subset`
+# step of `cargo xtask check` and `cargo xtask formal check` read the output
+# of `cargo metadata`; the proof tooling reads the qualification cases, the
+# statement, axiom, trusted-base and model registries, the
+# `translation.json` that Aeneas writes, the messages of `lean --json`, the
+# image pin `verification/image-pin.json`, the `versions.json` of the
+# proof-tool image and the event of a pull request that
+# `cargo xtask formal guard` reads; and `cargo xtask formal check` writes
+# `verification/open.json` with its keys in order. All are text in memory,
+# so the standard-library support of the default feature is left out.
+serde_json = { version = "=1.0.154", default-features = false, features = ["preserve_order"] }
+# `verification/toolchain.json`, `verification/targets.json`, the
+# qualification cases, the extraction configuration, the statement, axiom
+# and trusted-base registries, the `translation.json` that Aeneas writes,
+# the compile-fail cases of the `subset` step of `cargo xtask check` and the
+# `vectors` blocks of the contracts that `cargo xtask formal vectors` reads
+# are read into types that derive `Deserialize`, and the receipt of
+# `cargo xtask formal run`, whose paths are strings, is written through
+# types that derive `Serialize` and, for its tests, `Deserialize`, so only
+# the derive macros and the allocation support for strings, vectors and maps
+# are needed.
+serde = { version = "=1.0.229", default-features = false, features = ["alloc", "derive"] }
+# The guard step parses the Rust source of the package, and the inventory of
+# `cargo xtask formal check` and the `subset` step of `cargo xtask check`
+# parse each source file of the package that they read, all with the parser
+# of the full syntax; the inventory and the `subset` step walk its items
+# with the visitor and read their attributes, paths and tokens. Printing,
+# the `Clone` implementations and the procedural-macro support of the
+# default features are not used, so the default features are left out.
+syn = { version = "=3.0.9", default-features = false, features = ["full", "parsing", "visit"] }
+# The token type under `syn`: the guard step and the `subset` step report
+# the line of each finding, which the span locations give. They run outside
+# a procedural macro, so the procedural-macro support of the default feature
+# is left out.
+proc-macro2 = { version = "=1.0.107", default-features = false, features = ["span-locations"] }
+# SIGINT and SIGTERM, and SIGHUP unless it is ignored, stop
+# `cargo xtask formal run` and `cargo xtask formal vectors`: the crate's
+# handler sets a flag that the command reads while a tool runs, and the
+# command ends by the signal through the crate's emulation of its default
+# action. Only the flag and that emulation are used, so the iterator and the
+# channel of the default features are left out.
+signal-hook = { version = "=0.4.6", default-features = false }
+# The SHA-256 of files that `cargo xtask formal toolchain-check`,
+# `cargo xtask formal run` and `cargo xtask formal vectors` read into memory,
+# among them the output files of their commands, the Lean files that Aeneas
+# writes and the `versions.json` of the proof-tool image, so the allocation
+# and object-identifier support of the default features is left out.
+sha2 = { version = "=0.11.1", default-features = false }
+# `git archive` writes the gate inputs of the snapshot commit of
+# `cargo xtask formal run` as a tar archive, which the command unpacks into
+# its run directory. Extended attributes are not unpacked, so the default
+# `xattr` feature is left out.
+tar = { version = "=0.4.46", default-features = false }
+# The manifests and the lock file that `cargo xtask formal run` reads are
+# parsed into tables, which `serde` defines, and the extraction
+# configuration of `cargo xtask formal run`, the compile-fail cases of the
+# `subset` step of `cargo xtask check` and the `vectors` blocks of the
+# contracts that `cargo xtask formal vectors` reads into types that derive
+# `Deserialize`; none is written, so the writer and the standard-library
+# support of the default features are left out.
+toml = { version = "=1.2.0", default-features = false, features = ["parse", "serde"] }
+# The listing of the tool installation that `cargo xtask formal run` takes
+# at the start and end of a phase, to find a command that wrote to it: a
+# walk that does not follow symbolic links. The crate has no features.
+walkdir = "=2.5.0"
 # The workflows step uses the event parser on text that is already UTF-8,
 # so the input-decoding support of the default feature is left out.
 yaml-rust2 = { version = "=0.13.0", default-features = false }
-# The guard step parses the Rust source of the package. Line numbers of
-# findings need the span locations of proc-macro2.
-proc-macro2 = { version = "=1.0.107", default-features = false, features = ["span-locations"] }
-syn = { version = "=3.0.9", default-features = false, features = ["full", "parsing", "visit"] }

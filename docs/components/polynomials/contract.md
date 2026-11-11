@@ -764,6 +764,16 @@ their code has been extracted.
   string literals each add a `decide +native` axiom. `Debug` uses
   `fmt::Formatter::debug_struct`; it is not part of the arithmetic.
 
+The module list of the component, the files that the `subset` step of
+`cargo xtask check` checks against the provable subset and that
+`cargo xtask formal check` inventories, holds the polynomials with their
+submodules:
+
+```paths
+src/polynomial.rs
+src/polynomial
+```
+
 ## Current deviations
 
 None: the code and the tests follow every rule above.

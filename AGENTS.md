@@ -3,11 +3,12 @@
 - kalyx is the computer algebra library of casξ: the Rust package `kalyx` at
   the repository root, with a library and a command-line program, built from
   its foundations. The Rust workspace `xtask/` holds the repository checks,
-  which CI runs as `cargo xtask check`; one of them, the allocation check in
-  `checks/allocation/`, is a workspace of its own whose counting allocator is
-  the only `unsafe` code that the checks build. The file
-  `xtask/src/formal/process.rs` of the proof tooling, which no module declares
-  yet, calls libc in `unsafe` blocks.
+  which CI runs as `cargo xtask check`, and the proof tooling of
+  `cargo xtask formal`; one of the checks, the allocation check in
+  `checks/allocation/`, is a workspace of its own. Its counting allocator and
+  the libc calls of the proof tooling, in `xtask/src/formal/process.rs` and
+  in the tests of `xtask/src/formal/run.rs`, are the only `unsafe` code that
+  the checks build.
 - The library is an ordinary Rust `std` library for 64-bit targets. Keep exact
   values exact. Pass a request-local context through parsing and computation,
   and check limits, the deadline and cancellation before potentially expensive
@@ -37,8 +38,10 @@
   a change to a component's tier, first caller or foundation rule updates
   that document in the same change.
 - Code that is to become a proof target is written in the subset of Rust that
-  Charon and Aeneas translate into Lean 4. The subset, the proof workflow and
-  the register of proof targets are added with the first proof target.
+  Charon and Aeneas translate into Lean 4, and its files are listed in the
+  module list of its contract, which the `subset` step of `cargo xtask check`
+  checks; [formal verification](docs/formal-verification.md) describes the
+  proof tooling. No proof target is registered yet.
 - Code taken over from the earlier implementation of the casξ computer algebra
   system is ported module by module, never copied wholesale. Each port adds a
   row to [PORTING.md](PORTING.md) in the same change, with its source written
@@ -75,6 +78,7 @@
   rejects.
 - Before committing, run `cargo xtask check` from the repository root; it
   must pass. It format-checks, lints and tests both the package and the
-  checks, and runs the guard; [CONTRIBUTING](CONTRIBUTING.md#checks)
-  describes its steps. Also run `git diff --check` and
-  `git diff --cached --check` and review the staged diff.
+  checks, checks the Lean sources and the provable subset, and runs the
+  guard; [CONTRIBUTING](CONTRIBUTING.md#checks) describes its steps. Also
+  run `git diff --check` and `git diff --cached --check` and review the
+  staged diff.
