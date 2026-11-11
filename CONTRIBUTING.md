@@ -101,7 +101,9 @@ states. A global allocator implements the unsafe trait `GlobalAlloc`, and
 the kalyx package forbids `unsafe` code in every target, so the check is the
 package `checks/allocation/`, a workspace of its own outside the package that
 depends on it by path, like `xtask/`. Its allocator wrapper is the only
-`unsafe` code of the repository: the manifest of the check denies `unsafe`
+`unsafe` code that the checks build (the files of the proof tooling in
+`xtask/src/formal/`, which no module declares yet, call libc in `unsafe`
+blocks): the manifest of the check denies `unsafe`
 code and undocumented unsafe blocks, and only the wrapper allows `unsafe`
 code, with its reason, and states why each unsafe block is sound. The guard
 does not scan the check, which is not code of the package, and checks its
