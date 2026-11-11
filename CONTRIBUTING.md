@@ -97,9 +97,12 @@ fails:
 9. `guard`: the rules of the package that the compiler and Clippy do not
    check, described [below](#guard).
 
-The `docs`, `workflows`, `lean`, `subset` and `guard` steps read only files
-that Git tracks, so build output and ignored files do not change the result;
-add a new file to the index with `git add` before running the check.
+The `docs`, `workflows`, `lean` and `guard` steps read only files that Git
+tracks, so build output and ignored files do not change the result. The
+`subset` step reads the tracked files too, but takes the targets of the root
+package from `cargo metadata` on the working copy, and builds its compile-fail
+cases in a copy of the tracked files. Add a new file to the index with
+`git add` before running the check.
 
 ### Allocation check
 
