@@ -30,10 +30,12 @@ The six other files hold the full vectors of the earlier implementation: its
 402 command-line cases, the inventory of its 968 integration tests,
 12,573 observations of its library, two terminal sessions and the
 1,782 outcomes of its root calls. They were exported in one run of that
-implementation and record what it did; they are not answers checked against
-kalyx, and no test of kalyx reads them yet. [Full vectors](#full-vectors)
-states where they come from, how their fields are written and how their
-values map to kalyx.
+implementation and record what it did, not answers that kalyx must give.
+`tests/vectors.rs` checks the format of each file, and `tests/slices.rs`
+replays the rows of the slices whose commands kalyx has today and counts the
+rows of the pending slices. [Full vectors](#full-vectors) states where the
+files come from, how their fields are written, how their values map to kalyx
+and how the tests read them.
 
 ## Format
 
@@ -510,3 +512,108 @@ rows, the 66 that exceed the root degree and the 4 that exceed the integer
 bits have the same default in kalyx (`max_exponent` and `max_integer_bits`,
 4096), and the 12 that exceed the numeric root degree, the earlier degree
 bound 256, ran under a default that kalyx does not have.
+
+### Format checks
+
+`tests/vectors.rs` runs five checks on each of the six files, in this order:
+
+1. Plain TSV: UTF-8 text in lines that each end with a line feed, with no
+   empty line, no line that starts with `#` and no empty field, and every
+   field written as [Escaping](#escaping) states: no control byte is
+   written as it is, and every backslash starts an escape.
+2. The header row: the first line names the columns of the file, as the
+   sections above give them.
+3. The columns: every row has as many fields as the header row.
+4. The ids: no value occurs twice in the `id` column, the first one.
+5. The rows: the file has the number of rows of the table in
+   [Files](#files).
+
+A negative test for each check corrupts a copy of each of the six files in
+memory and shows that the check rejects it.
+
+### Slice replay
+
+A slice is the part of the full vectors that one capability of kalyx
+answers. `tests/slices.rs` holds the table of the slices. Each names the
+commands of its command-line cases, by the `command` column of
+`cli_cases.tsv`; the requests of its root calls, by the `request` column of
+`root_calls.tsv`; and the operations of its library observations, by the
+`operation` column of `library.tsv`, each with its kalyx command from the
+table of [Library observations](#library-observations) and the inputs that
+the slice takes, where it does not take all of them. Each slice also states
+the number of rows that it selects in each of the three files, and no row is
+in two slices. Three kinds of rows belong to no slice, and the test neither
+replays them nor counts them as pending: the sessions, which are the cases
+of the line mode, whose command is `repl`, and the two terminal sessions;
+the integration tests, which list tests and record no answers; and the rows
+of the commands, requests and inputs that no slice names. These are the
+227 other command-line cases, among them those of `program`, `cancel`,
+`solve` and `matrix`; the 2,720 `expand` observations of the 85 inputs other
+than the eight polynomial inputs; and the 810 root calls of the requests
+`limit 0+`, `limit +inf`, `integral`, `approximate 2` and `approximate -8`.
+A test checks these numbers.
+
+A slice is enabled when the dispatch table of the command entry registers
+every command that it names. The test reads this from the command entry,
+which fails a request whose operation the table does not hold with
+`Unsupported`, without a span and before any work. The other slices are
+pending: the test counts their rows, prints the counts and checks them, and
+replays none of them. The test reads the three files once and replays the
+rows of an enabled slice, each row that it runs as one request through
+`execute`:
+
+- A command-line case takes the input of the request from its arguments,
+  the variable from `--var NAME`, or `x` without it, and runs under the
+  default limits, with `max_work=0` for `--work 0`. Its expectation is its
+  `kind` and, for `ok`, its standard output without the final line feed. A
+  case with the kind `usage` is not compared, since the library entry has no
+  usage error, and neither is a case with `--work N` for an `N` other than
+  0.
+- A library observation runs the kalyx command of its operation on its
+  input, with the variable `x`: the budget 1000000 under the default limits,
+  the budget 0 under `max_work=0`, and the cancelled request under the
+  default limits with its flag cancelled before the request starts. The
+  rows under the other budgets, which depend on how the earlier
+  implementation counted work, are not compared. A row that needs an
+  operand which no request has yet is reported as a difference without
+  running: a row in a scope other than `none`, which needs a scope operand,
+  and a row of `diff` or `ask`, whose command also takes the order 1 or the
+  property `positive`. The polynomial expansion takes no scope operand,
+  since a scope assumes a property of `x`, which does not change a
+  polynomial, so its rows in all four scopes are the same request.
+- No request has the form of a root call yet, so a root call of an enabled
+  slice is reported as a difference.
+
+The comparison is the one of `r02.tsv`: a row that is `ok` needs a value
+equal by canonical form to its answer, read with `parse`; a result state
+needs the same state; and an error needs the same kind and, for a
+`ResourceLimit` under `max_work=0`, the field `max_work`. Display text and
+work are never compared, and a row whose outcome kalyx does not define is a
+difference. A negative test corrupts, each in a copy of its file, the answer
+of a library observation, the kind of a command-line case and the outcome of
+a cancelled request, and shows that each gives exactly one difference, at
+its row; another shows that a row that needs a scope, a property or an order
+is a difference.
+
+| Slice | Commands | Root-call requests | Library operations | Rows: cases, observations, root calls | State |
+| --- | --- | --- | --- | --- | --- |
+| `exact_numbers` | `eval` | | | 9, 0, 0 | enabled: 7 compared, 2 usage errors |
+| `polynomials` | `expand`, `diff` | | `expand` on the eight inputs of [Library observations](#library-observations) | 5, 256, 0 | enabled: 101 compared, 160 under other budgets |
+| `function_expressions` | `fexpr`, `simplify` | `parse` | `parse`, `simplify` | 7, 3,645, 162 | pending |
+| `questions_and_refinement` | `f-refine`, `ask`, `f-ask` | `refine positive`, `ask real` | `ask` | 3, 2,976, 324 | pending |
+| `substitution` | `f-subs`, `subs`, `at` | `substitute -8` | | 20, 0, 162 | pending |
+| `function_derivatives` | `f-diff`, `rat-diff` | `differentiate` | `diff` | 6, 2,976, 162 | pending |
+| `series` | `f-series` | `series` | | 2, 0, 162 | pending |
+| `univariate_polynomials` | `compose`, `discriminant`, `divrem`, `gcd`, `gcdex`, `resultant`, `squarefree` | | | 16, 0, 0 | pending |
+| `univariate_factorization` | `factor`, `apart` | | | 7, 0, 0 | pending |
+| `multivariate_polynomials` | `mdiff`, `mdiv`, `mfactor`, `mgcd`, `mp-at`, `mpoly`, `msubs`, `poly-ring` | | | 17, 0, 0 | pending |
+| `real_roots` | `roots`, `count-roots`, `refine` | | | 12, 0, 0 | pending |
+| `real_algebraic_numbers` | `alg`, `alg-root`, `radical`, `alg-compare`, `minpoly`, `alg-at` | | | 12, 0, 0 | pending |
+| `complex_algebraic_numbers` | `complex`, `complex-at`, `complex-equal`, `complex-imag`, `complex-minpoly`, `complex-real`, `complex-root`, `complex-roots`, `conjugate`, `norm2`, `principal-root` | | | 19, 0, 0 | pending |
+| `number_fields` | `field-element`, `field-value`, `number-field` | | | 6, 0, 0 | pending |
+| `real_sets_and_inequalities` | `contains`, `ineq`, `interval`, `rel-and`, `rel-not`, `rel-or`, `set`, `set-complement`, `set-difference`, `set-intersect`, `set-union` | | | 19, 0, 0 | pending |
+
+The two enabled slices hold the commands of release 0.1, and their rows
+replay without a difference. The 13 pending slices hold 146 command-line
+cases, 9,597 library observations and 972 root calls, and name commands
+that kalyx does not have yet.
