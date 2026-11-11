@@ -77,5 +77,6 @@
 - Before committing, run `cargo xtask check` from the repository root; it
   must pass. It format-checks, lints and tests both the package and the
   checks, checks the Lean sources and the provable subset, and runs the
-  guard; [CONTRIBUTING](CONTRIBUTING.md#checks) describes its steps. Also run `git diff --check` and
-  `git diff --cached --check` and review the staged diff.
+  guard; [CONTRIBUTING](CONTRIBUTING.md#checks) describes its steps. Also
+  run `git diff --check` and `git diff --cached --check` and review the
+  staged diff.
