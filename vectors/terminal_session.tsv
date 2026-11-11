@@ -1,0 +1,472 @@
+id	input	output
+line_1	let n = 1/3	n = 1/3\n
+line_2	let A = [[0,2],[3,4]]	A = [[0, 2], [3, 4]]\n
+line_3	let b = [[n],[2]]	b = [[1/3], [2]]\n
+line_4	let s = linsolve A; b	s = unique: x = [[4/9], [1/6]]\n
+line_5	:get s	unique: x = [[4/9], [1/6]]\n
+line_6	let B = inverse A	B = [[-2/3, 1/3], [1/2, 0]]\n
+line_7	mat-mul A; B	[[1, 0], [0, 1]]\n
+line_8	let saved = A	saved = [[0, 2], [3, 4]]\n
+line_9	let A = inverse [[0]]	line 9: singular matrix has no inverse\n
+line_10	:get A	[[0, 2], [3, 4]]\n
+line_11	A+1	line 11: typed objects are not scalar expressions\n
+line_12	let A = mat-scale A; 1/2	A = [[0, 1], [3/2, 2]]\n
+line_13	:get saved	[[0, 2], [3, 4]]\n
+line_14	let free = linsolve [[1,2]]; [[3]]	free = affine: x = [[3], [0]] + [[-2], [1]] * t; free columns = [1]\n
+line_15	let none = linsolve [[1,2],[2,4]]; [[1],[3]]	none = empty (variables: 2)\n
+line_16	let E = zeros(0,3)	E = zeros(0, 3)\n
+line_17	transpose E	zeros(3, 0)\n
+line_18	eval n+1	4/3\n
+line_19	solve x-1	finite solutions:\n1; multiplicity: 1\ndomain: all\n
+line_20	:clear s	cleared s\n
+line_21	:clear	cleared 8 bindings\n
+line_22	:vars	(empty)\n
+line_23	let p = integrate 3*x^2+2*x+1	p = x^3 + x^2 + x\n
+line_24	defint x^2; 1; 0	-1/3\n
+line_25	let q = cancel (x^2-1)/(x-1)	q = x + 1; domain: (x - 1) != 0\n
+line_26	let d = rat-diff q	d = 1; domain: (x - 1) != 0\n
+line_27	:get d	1; domain: (x - 1) != 0\n
+line_28	at d; 1	line 28: evaluation point is excluded by the source domain\n
+line_29	let p = integrate 1/x	line 29: division by a nonconstant polynomial is unsupported\n
+line_30	:get p	x^3 + x^2 + x\n
+line_31	let a = 1/3	a = 1/3\n
+line_32	integrate a*t^2 --var t	1/9*t^3\n
+line_33	defint t; 2; -2 --var t	0\n
+line_34	:clear	cleared 4 bindings\n
+line_35	let bez = gcdex x^2-1; x-1	bez = left: 0\nright: 1\ngcd: x - 1\n
+line_36	:get bez	left: 0\nright: 1\ngcd: x - 1\n
+line_37	resultant x^2-2; x-1	-1\n
+line_38	discriminant t^3-2 --var t	-108\n
+line_39	let pf = apart (x+1)/(x-1)	pf = polynomial: 1\nterms:\n  (2)/(x - 1)^1\ndomain: (x - 1) != 0\n
+line_40	at pf; 2	3\n
+line_41	at pf; 1	line 41: evaluation point is excluded by the source domain\n
+line_42	compose x^2; x+1	x^2 + 2*x + 1\n
+line_43	let c = rat-compose (x-1)/(x-1); 1/x	c = 1; domain: (x) != 0 and (x - 1) != 0\n
+line_44	let c = rat-compose 1/(x-1); 1	line 44: identically zero rational-function divisor\n
+line_45	:get c	1; domain: (x) != 0 and (x - 1) != 0\n
+line_46	:clear	cleared 3 bindings\n
+line_47	let q = ineq 1/x; >; 0	q = solutions: (0, inf)\ndomain: (-inf, 0) union (0, inf)\n
+line_48	let nq = rel-not q	nq = solutions: (-inf, 0)\ndomain: (-inf, 0) union (0, inf)\n
+line_49	set-complement q	(-inf, 0]\n
+line_50	let s = interval -1; 1; []	s = [-1, 1]\n
+line_51	let s = set-union s; (1,2]	s = [-1, 2]\n
+line_52	contains s; 2	true\n
+line_53	let flag = contains q; 0	flag = false\n
+line_54	let keep = flag	keep = false\n
+line_55	rel-and q; x <= 2	solutions: (0, 2]\ndomain: (-inf, 0) union (0, inf)\n
+line_56	rel-or q; x < 0	solutions: (-inf, 0) union (0, inf)\ndomain: (-inf, 0) union (0, inf)\n
+line_57	set-intersect s; q	(0, 2]\n
+line_58	set-difference s; q	[-1, 0]\n
+line_59	let s = interval 2; 1; []	line 59: lower endpoint exceeds upper endpoint\n
+line_60	:get s	[-1, 2]\n
+line_61	let q = ineq 1/(x-x); >; 0	line 61: identically zero rational-function divisor\n
+line_62	:get q	solutions: (0, inf)\ndomain: (-inf, 0) union (0, inf)\n
+line_63	set empty	empty set\n
+line_64	ineq t^2; <=; 0 --var t	solutions: [0, 0]\ndomain: (-inf, inf)\n
+line_65	:clear	cleared 5 bindings\n
+line_66	let a = alg-root x^2-2; 1	a = root(x^2 - 2, (1, 2))\n
+line_67	let b = radical 3; 2	b = root(x^2 - 3, (5/4, 5/2))\n
+line_68	let c = alg a+b	c = root(x^4 - 10*x^2 + 1, (3, 6))\n
+line_69	minpoly c	x^4 - 10*x^2 + 1\n
+line_70	alg-compare a; b	-1\n
+line_71	eval a^2	2\n
+line_72	let exact = alg-at x^2+1; a	exact = 3\n
+line_73	let interval_s = interval 0; a; []	interval_s = [0, root(x^2 - 2, (1, 2))]\n
+line_74	contains interval_s; a	true\n
+line_75	contains interval_s; b	false\n
+line_76	let a = alg 1/(a-a)	line 76: division by zero\n
+line_77	:get a	root(x^2 - 2, (1, 2))\n
+line_78	alg-at 0/(x^2-2); a	line 78: algebraic evaluation point is excluded by the source domain\n
+line_79	radical -8; 3	-2\n
+line_80	alg root(x^2-2,1)^2+1	3\n
+line_81	let c = alg c-c	c = 0\n
+line_82	:get c	0\n
+line_83	let roots_saved = roots (x-1)^2	roots_saved = 1; multiplicity: 2\n
+line_84	let selected = alg-root roots_saved; 0	selected = 1\n
+line_85	:clear	cleared 7 bindings\n
+line_86	let z = complex 1+2*i	z = (1) + (2)*i\n
+line_87	norm2 z	5\n
+line_88	conjugate z	(1) + (-2)*i\n
+line_89	complex-minpoly z	x^2 - 2*x + 5\n
+line_90	complex-real z	1\n
+line_91	complex-imag z	2\n
+line_92	eval z*z	(-3) + (4)*i\n
+line_93	complex-at x^2+1; i	0\n
+line_94	let z = complex 1/(z-z)	line 94: division by zero complex scalar\n
+line_95	:get z	(1) + (2)*i\n
+line_96	let cr = complex-roots (x^2+1)^2	cr = (0) + (-1)*i; multiplicity: 2\n(0) + (1)*i; multiplicity: 2\n
+line_97	let u = complex-root cr; 1	u = (0) + (1)*i\n
+line_98	principal-root -1; 2	(0) + (1)*i\n
+line_99	complex-equal u; i	true\n
+line_100	let K = number-field x^2+1; i	K = Q(a); minimal: a^2 + 1; embedding: (0) + (1)*i\n
+line_101	let e = field-element K; a^-1	e = -a\n
+line_102	field-value K; e	(0) + (-1)*i\n
+line_103	let fp = field-poly K; x^2+1	fp = (1)*x^2 + (1)\n
+line_104	let ff = field-factor K; fp	ff = field: Q(a); minimal: a^2 + 1; embedding: (0) + (1)*i\ncoefficient: 1\nfactors:\n  ((1)*x + (a))^1\n  ((1)*x + (-a))^1\n
+line_105	field-poly K; ff	(1)*x^2 + (1)\n
+line_106	let K = number-field x^2-1; 1	line 106: number field needs an irreducible polynomial of positive degree\n
+line_107	:get K	Q(a); minimal: a^2 + 1; embedding: (0) + (1)*i\n
+line_108	let z = complex i --work 0	line 108: resource limit exceeded: work units\n
+line_109	:get z	(1) + (2)*i\n
+line_110	complex i --work invalid	line 110: --work requires a nonnegative u64\n
+line_111	complex-equal principal(3+4*i,2); 2+i --work 1000000	true\n
+line_112	complex-equal croot(x^3-2,2)^3; 2 --work 1000000	true\n
+line_113	:clear	cleared 7 bindings\n
+line_114	:vars	(empty)\n
+line_115	let R = poly-ring x,y; lex	R = Q[x,y]; order: lex\n
+line_116	let p = mpoly R; (x+y)^2	p = x^2 + 2*x*y + y^2\n
+line_117	mdiff R; p; x	2*x + 2*y\n
+line_118	mint R; 2*x*y; y	x*y^2\n
+line_119	mp-at R; p; 1/2; -2/3	1/36\n
+line_120	msubs R; x+2*y; x=y; y=x	2*x + y\n
+line_121	let F = mfactor R; x^2-y^2	F = ring: Q[x,y]; order: lex\ncoefficient: 1\nfactors:\n  (x - y)^1\n  (x + y)^1\n
+line_122	mpoly R; F	x^2 - y^2\n
+line_123	let D = mdiv R; x*y^2; x*y-1; y^2-1	D = quotients: [y; 0]\nremainder: y\n
+line_124	:get D	quotients: [y; 0]\nremainder: y\n
+line_125	mgcd R; x^2-y^2; x+y	x + y\n
+line_126	let r = mcancel R; (x^2-y^2)/(x-y)	r = x + y; domain: (x - y) != 0\n
+line_127	mrat-diff R; r; x	1; domain: (x - y) != 0\n
+line_128	mrat-at R; r; 2; 1	3\n
+line_129	mrat-at R; r; 1; 1	line 129: point is excluded by the original multivariate domain\n
+line_130	let r = mrat-subs R; r; x=y	line 130: identically zero required multivariate condition\n
+line_131	:get r	x + y; domain: (x - y) != 0\n
+line_132	let m = mrat-subs R; x/y; x=y; y=x	m = (y)/(x); domain: (x) != 0\n
+line_133	mrat-at R; m; 0; 1	line 133: point is excluded by the original multivariate domain\n
+line_134	let R = poly-ring x,x; lex	line 134: polynomial variables must be distinct valid identifiers\n
+line_135	:get R	Q[x,y]; order: lex\n
+line_136	let p = mpoly Q[x,y]:grlex; p	line 136: polynomial rings require matching variables and monomial order\n
+line_137	:get p	x^2 + 2*x*y + y^2\n
+line_138	let keep = p	keep = x^2 + 2*x*y + y^2\n
+line_139	let p = mpoly R; 1 --work 0	line 139: resource limit exceeded: work units\n
+line_140	:get keep	x^2 + 2*x*y + y^2\n
+line_141	:clear	cleared 7 bindings\n
+line_142	:vars	(empty)\n
+line_143	mdiv Q[x,y]:lex; x+y	quotients: []\nremainder: x + y\n
+line_144	poly-ring []; lex	Q[]; order: lex\n
+line_145	let S = assumptions {x:real}	S = {x:real}\n
+line_146	let f = fexpr S; sqrt(x^2)	f = abs(x) assuming {x:real}\n
+line_147	let S = assume S; x; positive; true	S = {x:positive}\n
+line_148	:get f	abs(x) assuming {x:real}\n
+line_149	f-refine S; f	x assuming {x:positive}\n
+line_150	ask {}; x; positive	unknown\n
+line_151	let truth = f-ask {}; exp(i); nonzero	truth = true\n
+line_152	let truth_copy = truth	truth_copy = true\n
+line_153	let S = assume S; x; zero; true	line 153: contradictory assumptions for 'x'\n
+line_154	:get S	{x:positive}\n
+line_155	let d = f-diff {x:real}; sin(x^2); x	d = (2*cos((x)^(2))*x) assuming {x:real}\n
+line_156	f-subs {}; d; x=0	0\n
+line_157	let hole = fexpr {}; 0*(1/x)	hole = 0 where is_nonzero(x)\n
+line_158	let hole = f-subs {}; hole; x=0	line 158: function expression is outside its domain\n
+line_159	:get hole	0 where is_nonzero(x)\n
+line_160	f-subs {x:real}; piecewise(x == 0, 1, 1/x); x=0	1\n
+line_161	f-subs {x:real}; piecewise(x > 0, log(x), 7); x=-1	7\n
+line_162	let pair = fexpr {}; x-y	pair = (x + (-1*y))\n
+line_163	f-subs {}; pair; x=y; y=x	(y + (-1*x))\n
+line_164	let formal = f-diff {}; abs(x); x	formal = derivative(abs(x), x, 1) where defined(derivative(abs(x), x, 1))\n
+line_165	:get formal	derivative(abs(x), x, 1) where defined(derivative(abs(x), x, 1))\n
+line_166	f-subs {}; formal; x=0	substitute(derivative(abs(x), x, 1), x=0) where defined(substitute(derivative(abs(x), x, 1), x=0))\n
+line_167	let f = fexpr {}; sin(x) --work 0	line 167: resource limit exceeded: work units\n
+line_168	:get f	abs(x) assuming {x:real}\n
+line_169	let mask = assumptions {x:complex&!real}	mask = {x:!real&complex}\n
+line_170	ask mask; x; nonzero	true\n
+line_171	f-diff {x:integer}; sqrt(x^2); x	derivative(abs(x), x, 1) where defined(derivative(abs(x), x, 1)) assuming {x:integer}\n
+line_172	f-diff {x:real}; x^4; x; 4	24 assuming {x:real}\n
+line_173	fexpr {}; piecewise(true, 7, 1/0)	7\n
+line_174	f-subs {x:positive}; sqrt(x^2); x=-1	line 174: function expression is outside its domain\n
+line_175	:clear	cleared 9 bindings\n
+line_176	:vars	(empty)\n
+line_177	let R = poly-ring x,y; lex	R = Q[x,y]; order: lex\n
+line_178	let G = groebner R; x*y-1; y^2-x	G = Q[x,y]; order: lex\nideal: zero-dimensional\nbasis: [x - y^2; y^3 - 1]\n
+line_179	gb-reduce G; x^2	y\n
+line_180	let H = G	H = Q[x,y]; order: lex\nideal: zero-dimensional\nbasis: [x - y^2; y^3 - 1]\n
+line_181	m-eliminate R; 1; x*y-1; y^2-x	Q[y]; order: lex\nideal: zero-dimensional\nbasis: [y^3 - 1]\n
+line_182	let G = m-eliminate Q[x,y]:grlex; 1; x+y	line 182: elimination requires lexicographic order\n
+line_183	:get H	Q[x,y]; order: lex\nideal: zero-dimensional\nbasis: [x - y^2; y^3 - 1]\n
+line_184	let sol = msolve R; real; (x^2-1)/(x-1); y-x	sol = variables: [x,y]\ndomain: real\ncomplete distinct points: [(-1, -1)]\n
+line_185	let keep = sol	keep = variables: [x,y]\ndomain: real\ncomplete distinct points: [(-1, -1)]\n
+line_186	let sol = msolve R; complex; x^2+1; y-x --work 1	line 186: resource limit exceeded: work units\n
+line_187	:get sol	variables: [x,y]\ndomain: real\ncomplete distinct points: [(-1, -1)]\n
+line_188	let Q = f-solve {}; a*x; 1; x; real	Q = solve x in real assuming {x:complex}\ncomplete guarded union:\nx = (a)^(-1); multiplicity 1 where and(is_nonzero(a), is_real((a)^(-1)))\n
+line_189	solve-subs Q; a=2	solve x in real assuming {x:complex}\ncomplete guarded union:\nx = 1/2; multiplicity 1 where true\n
+line_190	solve-subs Q; a=0	solve x in real assuming {x:complex}\ncomplete: empty\n
+line_191	let Q = solve-subs Q; x=1	line 191: cannot substitute the bound solve variable\n
+line_192	solve-subs Q; a=3	solve x in real assuming {x:complex}\ncomplete guarded union:\nx = 1/3; multiplicity 1 where true\n
+line_193	let E = f-solve {}; exp(x); 1; x; complex	E = solve x in complex assuming {x:complex}\ncomplete guarded union:\nx = (2*pi*i*k); k in integers where true\n
+line_194	:get E	solve x in complex assuming {x:complex}\ncomplete guarded union:\nx = (2*pi*i*k); k in integers where true\n
+line_195	f-solve {}; x^2+1; 0; x; real	solve x in real assuming {x:complex}\ncomplete: empty\n
+line_196	f-solve {}; x^2+1; 0; x; complex	solve x in complex assuming {x:complex}\ncomplete guarded union:\nx = i; multiplicity 1 where true\nx = (-1*i); multiplicity 1 where true\n
+line_197	f-solve {}; sin(x); x; x; real	solve x in real assuming {x:complex}\ncondition set: sin(x) == x where true\n
+line_198	f-solve {}; log(x); 2*pi*i; x; complex	solve x in complex assuming {x:complex}\ncomplete: empty\n
+line_199	fexpr {k:integer}; sin(2*pi*k+pi/2)	1 assuming {k:integer}\n
+line_200	fexpr {}; asin(1)+atan(-1)	(1/4*pi)\n
+line_201	fexpr {}; asin(2)	line 201: function expression is outside its domain\n
+line_202	groebner Q[x]:lex	Q[x]; order: lex\nideal: positive-dimensional\nbasis: []\n
+line_203	msolve Q[]:lex; real	variables: []\ndomain: real\ncomplete distinct points: [()]\n
+line_204	:clear	cleared 7 bindings\n
+line_205	:vars	(empty)\n
+line_206	let P = precision 8; nearest; 1/64; 0; 0; 0; 64	P = bits: 8; rounding: nearest; abs: 1/64; rel: 0; guards: 0..0; iterations: 64\n
+line_207	let B = ball 8; 1; 2	B = real: [1, 2]; imaginary: [0, 0]\n
+line_208	let A = approx P; {}; 1/8	A = status: converged; method: Evaluation; bits: 8; working_bits: 8; iterations: 1; enclosure: (real: [1/8, 1/8]; imaginary: [0, 0]); rounded: (1/8, 0); max_error: 0; correct_rounding: true\n
+line_209	let U = approx P; {}; B	U = status: insufficient_precision; method: Evaluation; bits: 8; working_bits: 8; iterations: 1; enclosure: (real: [1, 2]; imaginary: [0, 0]); rounded: (3/2, 0); max_error: 1/2; correct_rounding: false\n
+line_210	let R = nroot P; {}; x^2-1; x; 0; 2	R = status: converged; method: Bisection; bits: 8; working_bits: 8; iterations: 1; enclosure: (real: [1, 1]; imaginary: [0, 0]); rounded: (1, 0); max_error: 0; correct_rounding: true\n
+line_211	let J = nquad P; {}; x; x; 0; 2	J = status: converged; method: Integration; bits: 8; working_bits: 8; iterations: 0; enclosure: (real: [2, 2]; imaginary: [0, 0]); rounded: (2, 0); max_error: 0; correct_rounding: true\n
+line_212	nroot P; {}; x^2+1; x; -1; 1	status: no_bracket; method: Bisection; bits: 8; working_bits: 8; iterations: 0\n
+line_213	nquad P; {}; 1/x; x; -1; 1	status: indeterminate_domain; method: Integration; bits: 8; working_bits: 8; iterations: 0\n
+line_214	round 2; nearest; -7/4	-2; bits: 2; rounding: nearest; relation: Less\n
+line_215	approx P; {}; A+1	status: converged; method: Evaluation; bits: 8; working_bits: 8; iterations: 1; enclosure: (real: [9/8, 9/8]; imaginary: [0, 0]); rounded: (9/8, 0); max_error: 0; correct_rounding: true\n
+line_216	let A = approx P; {}; pi --work 0	line 216: resource limit exceeded: work units\n
+line_217	:get A	status: converged; method: Evaluation; bits: 8; working_bits: 8; iterations: 1; enclosure: (real: [1/8, 1/8]; imaginary: [0, 0]); rounded: (1/8, 0); max_error: 0; correct_rounding: true\n
+line_218	let L = precision 32; nearest; 1/10000000; 0; 16; 16; 1	L = bits: 32; rounding: nearest; abs: 1/10000000; rel: 0; guards: 16..16; iterations: 1\n
+line_219	approx L; {}; exp(1)	status: iteration_limit; method: Evaluation; bits: 32; working_bits: 48; iterations: 1\n
+line_220	:clear	cleared 7 bindings\n
+line_221	:vars	(empty)\n
+line_222	let I = f-integrate {}; 2*x*cos(x^2); x	I = primitive: sin((x)^(2)) assuming {x:real}\n
+line_223	let P = analysis-value I	P = sin((x)^(2)) assuming {x:real}\n
+line_224	let D = analysis-derivative I	D = (2*cos((x)^(2))*x) assuming {x:real}\n
+line_225	let F = integral-family I	F = primitive: sin((x)^(2)) assuming {x:real}; constant: C (independent on each connected domain component)\n
+line_226	let S = f-series {}; sin(x)/x; x; 0; 5	S = series(x, center: 0, order: 5; coefficients: [0: 1, 2: -1/6, 4: 1/120]; O((x-(0))^5); source: (sin(x)*(x)^(-1)) where is_nonzero(x) assuming {x:real})\n
+line_227	series-coeff S; 2	-1/6\n
+line_228	series-coeff S; 5	line 228: coefficient is beyond the proved remainder order\n
+line_229	let L = f-limit {}; 1/x; x; 0; both	L = limit((x)^(-1) where is_nonzero(x) assuming {x:real}, x -> 0, Both): DoesNotExist\n
+line_230	analysis-value L	line 230: result has no computed scalar; use its explicit status\n
+line_231	let J = f-defint {}; log(x); x; 0; 1	J = definite_integral(log(x) where is_nonzero(x) assuming {x:real}, x, 0, 1): Converged; value: -1\n
+line_232	analysis-value J	-1\n
+line_233	f-defint {}; 1/x; x; -1; 1	definite_integral((x)^(-1) where is_nonzero(x) assuming {x:real}, x, -1, 1): Divergent\n
+line_234	f-defint {}; 1/(x^2+1); x; -inf; inf	definite_integral(((1 + (x)^(2)))^(-1) assuming {x:real}, x, -inf, +inf): Converged; value: pi\n
+line_235	let N = f-sum {}; (1/2)^x; x; 0; inf	N = sum((1/2)^(x) assuming {x:integer}, x, 0, +inf): Converged; value: 2\n
+line_236	analysis-value N	2\n
+line_237	let I = f-integrate {}; exp(x); x --work 0	line 237: resource limit exceeded: work units\n
+line_238	:get I	primitive: sin((x)^(2)) assuming {x:real}\n
+line_239	let U = f-integrate {}; exp(x^2); x	U = unevaluated_integral(exp((x)^(2)) assuming {x:real}, x; assumptions: {x:real})\n
+line_240	analysis-value U	line 240: result has no computed scalar; use its explicit status\n
+line_241	:clear	cleared 9 bindings\n
+line_242	:vars	(empty)\n
+line_243	let a = 240	a = 240\n
+line_244	let B = igcdex a; 46	B = gcd: 2; left: -9; right: 47\n
+line_245	let g = integer-member B; gcd	g = 2\n
+line_246	let s = integer-member B; left	s = -9\n
+line_247	let t = integer-member B; right	t = 47\n
+line_248	eval s*a+t*46	2\n
+line_249	modpow 3; -2; 11	5\n
+line_250	let I = modinv 6; 9	I = no inverse\n
+line_251	let B = integer-member I; value	line 251: requested integer member does not exist\n
+line_252	:get B	gcd: 2; left: -9; right: 47\n
+line_253	let C = crt 2; 6; 8; 9	C = 8 mod 18\n
+line_254	integer-member C; modulus	18\n
+line_255	crt 1; 2; 0; 4	inconsistent\n
+line_256	crt	0 mod 1\n
+line_257	let F = ifact -360	F = complete; unit: -1; factors: [2^3, 3^2, 5^1]; unresolved: []\n
+line_258	integer-member F; factor; 1	3\n
+line_259	integer-member F; complete	true\n
+line_260	integer-recompose F	-360\n
+line_261	ifact 1000036000099; 0	incomplete; unit: 1; factors: []; unresolved: [1000036000099 (composite)]\n
+line_262	primality 318665857834031151167461	probable prime; bases: 12\n
+line_263	binomial 100; 50	100891344545564193334812497256\n
+line_264	permute 10; 4	5040\n
+line_265	let B = factorial 100 --work 0	line 265: resource limit exceeded: work units\n
+line_266	:get B	gcd: 2; left: -9; right: 47\n
+line_267	:clear	cleared 8 bindings\n
+line_268	:vars	(empty)\n
+line_269	let O = ode-constant {}; 1; 0; 1; sin(x); x; y	O = ode SecondConstant Explicit; (1 assuming {x:real, y:real})*y'' + (0 assuming {x:real, y:real})*y' + (1 assuming {x:real, y:real})*y = sin(x) assuming {x:real, y:real}; independent: x; constants: [C, C1]; value: ((C*cos(x)) + (-1/2*cos(x)*x) + (C1*sin(x))) assuming {C:real, C1:real, x:real}; regular domain: true\n
+line_270	let IV = ode-ivp O; 0; 2; 3	IV = ode SecondConstant Explicit; (1 assuming {x:real, y:real})*y'' + (0 assuming {x:real, y:real})*y' + (1 assuming {x:real, y:real})*y = sin(x) assuming {x:real, y:real}; independent: x; value: ((2*cos(x)) + (-1/2*cos(x)*x) + (7/2*sin(x))) assuming {x:real}; regular domain: true; initial: y(0) = 2 assuming {x:real, y:real}, y'(0) = 3 assuming {x:real, y:real}\n
+line_271	ode-value IV	((2*cos(x)) + (-1/2*cos(x)*x) + (7/2*sin(x))) assuming {x:real}\n
+line_272	ode-residual IV	0 assuming {x:real}\n
+line_273	let O = ode-ivp O; 0; 1	line 273: initial data must supply the value and exactly the required first derivative\n
+line_274	ode-implicit O	line 274: ODE result has no requested computed expression\n
+line_275	ode-equilibria O	line 275: ODE result has no requested solution set\n
+line_276	ode-integral O; 9	line 276: ODE integral index is out of range\n
+line_277	let O = ode-constant {}; 1; 0; 1; 0; x; y --work 0	line 277: resource limit exceeded: work units\n
+line_278	ode-value O	((C*cos(x)) + (-1/2*cos(x)*x) + (C1*sin(x))) assuming {C:real, C1:real, x:real}\n
+line_279	:clear	cleared 2 bindings\n
+line_280	let L = ode-linear {}; 1; -2; exp(x); x; y	L = ode FirstLinear Explicit; (1 assuming {x:real, y:real})*y' + (-2 assuming {x:real, y:real})*y = exp(x) assuming {x:real, y:real}; independent: x; constants: [C]; value: ((-1*exp(x)) + (C*(exp((-2*x)))^(-1))) assuming {C:real, x:real}; regular domain: true\n
+line_281	let K = ode-ivp L; 0; 3	K = ode FirstLinear Explicit; (1 assuming {x:real, y:real})*y' + (-2 assuming {x:real, y:real})*y = exp(x) assuming {x:real, y:real}; independent: x; value: ((-1*exp(x)) + (4*(exp((-2*x)))^(-1))) assuming {x:real}; regular domain: true; initial: y(0) = 3 assuming {x:real, y:real}\n
+line_282	ode-value K	((-1*exp(x)) + (4*(exp((-2*x)))^(-1))) assuming {x:real}\n
+line_283	:clear	cleared 2 bindings\n
+line_284	let a = 3	a = 3\n
+line_285	fn f(x) = x^2+a	fn f(x) = x^2+a; captures: [a]\n
+line_286	call f; 2	7\n
+line_287	let a = 9	a = 9\n
+line_288	call f; 2	7\n
+line_289	fn make(k) := { fn add(t) = k+t | add }	fn make(k) := { fn add(t) = k+t | add }; captures: []\n
+line_290	let plus = call make; 5	plus = fn add(t) = k+t; captures: [k]\n
+line_291	call plus; 2	7\n
+line_292	call f	line 292: function argument count does not match its parameters\n
+line_293	fn fac(n) := { if-zero n then { 1 } else { let r = call fac; n-1 | eval n*r } }	fn fac(n) := { if-zero n then { 1 } else { let r = call fac; n-1 | eval n*r } }; captures: []\n
+line_294	call fac; 5 --work 2000000	120\n
+line_295	let D = divrem x^3+1; x+1	D = quotient: x^2 - x + 1\nremainder: 0\n
+line_296	let Q = member D; quotient	Q = x^2 - x + 1\n
+line_297	at Q; 2	3\n
+line_298	let Q = member D; remainder; 9	line 298: requested result member or index does not exist\n
+line_299	:get Q	x^2 - x + 1\n
+line_300	let H = cancel (x^2-1)/(x-1)	H = x + 1; domain: (x - 1) != 0\n
+line_301	let G = promote H; function	G = (1 + x) where is_nonzero((-1 + x))\n
+line_302	f-subs {}; G; x=1	line 302: function expression is outside its domain\n
+line_303	let a = call f; 2 --work 0	line 303: resource limit exceeded: work units\n
+line_304	:get a	9\n
+line_305	let S = set (-inf,2]	S = (-inf, 2]\n
+line_306	let lo = member S; lower; 0	lo = -inf\n
+line_307	let hi = member S; upper; 0	hi = 2\n
+line_308	set (lo,hi]	(-inf, 2]\n
+line_309	promote lo; real	line 309: typed objects are not scalar expressions\n
+line_310	:clear	cleared 12 bindings\n
+line_311	:vars	(empty)\n
+line_312	let A = matrix [[1,2,3],[2,4,6]]	A = [[1, 2, 3], [2, 4, 6]]\n
+line_313	let D = rank-factor A	D = pivot columns: [0]\ncolumns: [[1], [2]]\ncoordinates: [[1, 2, 3]]\n
+line_314	member D; rank	1\n
+line_315	let C = member D; columns	C = [[1], [2]]\n
+line_316	let F = member D; coordinates	F = [[1, 2, 3]]\n
+line_317	mat-mul C; F	[[1, 2, 3], [2, 4, 6]]\n
+line_318	basis-coordinates C; A	[[1, 2, 3]]\n
+line_319	mat-select A; [1,0,1]; [2]	[[6], [3], [6]]\n
+line_320	reshape A; 3; 2; column	[[1, 4], [2, 3], [2, 6]]\n
+line_321	let L = lu [[0,2],[3,4]]	L = row permutation: [1, 0]\npivot columns: [0, 1]\nlower: [[1, 0], [0, 1]]\nupper: [[3, 4], [0, 2]]\n
+line_322	lu-solve L; [[1,0],[2,1]]	[[0, 1/3], [1/2, 0]]\n
+line_323	lu-inverse L	[[-2/3, 1/3], [1/2, 0]]\n
+line_324	let L = lu [[99]] --work 0	line 324: resource limit exceeded: work units\n
+line_325	lu-det L	-6\n
+line_326	let D = member L; lower; 0	line 326: requested result member or index does not exist\n
+line_327	member D; rank	1\n
+line_328	trace []	0\n
+line_329	blockdiag zeros(2,0); zeros(0,3)	[[0, 0, 0], [0, 0, 0]]\n
+line_330	:clear	cleared 5 bindings\n
+line_331	amatrix real; [[1,2]]	real-algebraic: [[1, 2]]\n
+line_332	dmat-det [[radical(2,2),1],[1,radical(2,2)]]	1\n
+line_333	dmat-rank [[1,1],[1,1+1/2^80]]	2\n
+line_334	dmat-equal [[i,1]]; [[i,1]]	true\n
+line_335	program { let A = amatrix complex; [[2,i],[-i,3]] | let H = dmat-adjoint A | dmat-equal H; A }	true\n
+line_336	program { let A = amatrix real; [[radical(2,2)]] | let F = dmat-convert A; function | let B = dmat-convert F; real | dmat-equal A; B }	true\n
+line_337	program { let A = pmatrix Q[t]:lex; polynomial; [[t]] | let S = pmat-rank A; real | member S; complete }	true\n
+line_338	program { let A = pmatrix Q[t]:lex; polynomial; [[t]] | let S = pmat-rank A; real | member S; point_rank; 0 }	0\n
+line_339	program { let A = pmatrix Q[t]:lex; polynomial; [[t]] | let B = pmatrix Q[t]:lex; polynomial; [[1]] | let S = pmat-solve A; B; real | let P = pmat-specialize S; 0 | member P; empty }	true\n
+line_340	program { let F = fmatrix {}; [[1/t]] | fmat-subs {}; F; t=0 }	line 340: function expression is outside its domain\n
+line_341	amatrix real; [[i]]	line 341: nonreal coefficient in a real matrix domain\n
+line_342	dmat-det [] --work 0	line 342: resource limit exceeded: work units\n
+line_343	dmat-norm2 [[3],[4*i]]	5\n
+line_344	dmat-norm1 [[3],[4*i]]	7\n
+line_345	dmat-norm-inf [[3],[4*i]]	4\n
+line_346	program { let d = dmat-inner [[1+i,2]]; [[i],[3-i]] | complex-equal d; 7-i }	true\n
+line_347	program { let D = dmat-qr [[1,1],[1,-1]] | member D; rank }	2\n
+line_348	program { let D = dmat-qr [[1,1],[1,1],[0,0]] | let F = dmat-qr-complete D | let Q = member F; q | member Q; columns }	3\n
+line_349	program { let P = dmat-projector [[1],[i]] | dmat-equal P; [[1/2,-i/2],[i/2,1/2]] }	true\n
+line_350	program { let D = dmat-ldl [[0,i],[-i,0]] | member D; block_size; 0 }	2\n
+line_351	program { let D = dmat-ldl [[0,i],[-i,0]] | member D; negative }	1\n
+line_352	program { let C = dmat-cholesky [[4,2],[2,5]] | let L = member C; lower | dmat-equal L; [[2,0],[1,2]] }	true\n
+line_353	program { let S = dmat-least-squares [[1],[1],[1]]; [[1],[2],[3]] | let X = member S; solution | let P = member X; particular | dmat-equal P; [[2]] }	true\n
+line_354	dmat-cholesky [[0,1],[1,0]]	line 354: Cholesky requires a positive definite Hermitian matrix\n
+line_355	dmat-charpoly [[1,2],[3,4]]; t	t^2 - 5*t - 2\n
+line_356	dmat-minpoly [[2,0],[0,2]]; t	t - 2\n
+line_357	program { let C = dmat-rational-canonical [[2,0],[0,2]]; t | member C; length }	2\n
+line_358	program { let E = dmat-eigen [[0,-1],[1,0]] | member E; length }	2\n
+line_359	program { let E = dmat-eigen [[2,1],[0,2]] | member E; algebraic_multiplicity; 0 }	2\n
+line_360	program { let E = dmat-eigen [[2,1],[0,2]] | member E; geometric_multiplicity; 0 }	1\n
+line_361	program { let J = dmat-jordan [[2,1],[0,2]] | member J; block_size; 0 }	2\n
+line_362	program { let J = dmat-jordan [[2,1],[0,2]] | member J; diagonalizable }	false\n
+line_363	program { let J = dmat-diagonalize [[0,-1],[1,0]] | member J; diagonalizable }	true\n
+line_364	program { let S = dmat-spectral [[2,i],[-i,2]] | member S; eigenvalue; 0 }	1\n
+line_365	program { let S = dmat-spectral [[2,i],[-i,2]] | member S; multiplicity; 1 }	1\n
+line_366	dmat-diagonalize [[2,1],[0,2]]	line 366: matrix is not diagonalizable over the complex algebraic numbers\n
+line_367	program { let D = dmat-svd [[1,1]] | member D; rank }	1\n
+line_368	program { let D = dmat-svd [[3,0],[0,4]] | member D; singular_value; 0 }	4\n
+line_369	dmat-norm-spectral [[3,0],[0,4]]	4\n
+line_370	program { let D = dmat-svd-complete [[1,1]] | let V = member D; vh | member V; rows }	2\n
+line_371	program { let D = dmat-svd-complete [[1,1]] | let P = dmat-pinv D | dmat-equal P; [[1/2],[1/2]] }	true\n
+line_372	program { let P = dmat-pinv zeros(2,3) | member P; rows }	3\n
+line_373	program { let P = dmat-kernel-projector [[1,1]] | dmat-equal P; [[1/2,-1/2],[-1/2,1/2]] }	true\n
+line_374	program { let P = dmat-column-projector [[1],[1]] | dmat-equal P; [[1/2,1/2],[1/2,1/2]] }	true\n
+line_375	program { let P = dmat-row-projector [[1,1]] | dmat-equal P; [[1/2,1/2],[1/2,1/2]] }	true\n
+line_376	program { let S = dmat-minimum-norm [[1,1]]; [[4,6]] | let X = member S; solution | dmat-equal X; [[2,3],[2,3]] }	true\n
+line_377	program { let S = dmat-minimum-norm [[1],[1]]; [[1],[3]] | let R = member S; residual | dmat-equal R; [[1],[-1]] }	true\n
+line_378	program { let D = dmat-svd [[1]] | member D; singular_value; 7 }	line 378: requested result member or index does not exist\n
+line_379	program { let P = dmat-poly [[1,1],[0,1]]; t^3-2*t+1; t | dmat-equal P; [[0,1],[0,0]] }	true\n
+line_380	program { let P = dmat-rational [[2,1],[0,2]]; (t^2-1)/(t-1); t | dmat-equal P; [[3,1],[0,3]] }	true\n
+line_381	dmat-rational [[1]]; (t^2-1)/(t-1); t	line 381: matrix spectrum meets an original rational-function pole\n
+line_382	program { let F = dmat-exp [[0,1],[0,0]] | member F; entry; 0; 1 }	1\n
+line_383	program { let F = dmat-sin [[0,1],[0,0]] | member F; entry; 0; 1 }	1\n
+line_384	program { let F = dmat-cos [[0,1],[0,0]] | member F; entry; 0; 0 }	1\n
+line_385	program { let F = dmat-sqrt [[4,1],[0,4]] | member F; entry; 0; 1 }	1/4\n
+line_386	program { let F = dmat-log [[1,1],[0,1]] | member F; entry; 0; 1 }	1\n
+line_387	program { let S = dmat-ode [[1]]; {t:real}; [[exp(t)]]; t; 0; [[2]] | member S; verified }	true\n
+line_388	program { let S = dmat-ode [[0]]; {t:real}; [[exp(t^2)]]; t; 0; [[1]] | member S; evaluated }	false\n
+line_389	program { let S = dmat-ode [[0]]; {t:real}; [[exp(t^2)]]; t; 0; [[1]] | member S; verified }	unknown\n
+line_390	dmat-log [[0]]	line 390: principal matrix function excludes this spectral cut or defective zero\n
+line_391	program { let A = nmatrix real; [[1/3]] | let R = nmat-approx 40; A | member R; converged } --work 500000000	true\n
+line_392	program { let D = nmat-lu 40; [[2,1],[1,3]] | let R = nmat-solve 40; D; [[3],[4]] | member R; converged } --work 500000000	true\n
+line_393	program { let D = nmat-qr 40; [[1,1],[1,-1]] | let R = member D; diagnostics | member R; converged } --work 500000000	true\n
+line_394	program { let D = nmat-cholesky 40; [[4,2],[2,5]] | let R = member D; diagnostics | member R; converged } --work 500000000	true\n
+line_395	program { let D = nmat-schur-real 40; [[0,-1],[1,0]] | member D; block_size; 0 } --work 500000000	2\n
+line_396	program { let D = nmat-schur-complex 40; [[0,-1],[1,0]] | let R = member D; diagnostics | member R; converged } --work 500000000	true\n
+line_397	program { let D = nmat-svd 40; [[1,1]] | let R = member D; diagnostics | member R; converged } --work 500000000	true\n
+line_398	program { let D = nmat-eigen 40; [[1,1],[0,1]] | member D; multiplicity; 0 } --work 500000000	2\n
+line_399	program { let D = nmat-rank 40; [[1,0],[0,1/1000000]]; 1/10000; 0 | member D; lower } --work 500000000	1\n
+line_400	program { let b = ball 60; 0; 1 | let A = nmatrix real; [[b]] | let R = nmat-pinv 40; A; 1/2; 0 | member R; rank_uncertain } --work 500000000	true\n
+line_401	program { let R = nmat-minimum-norm 40; [[1,1]]; [[4]]; 0; 0 | let E = member R; estimate | let X = member E; rounded | dmat-equal X; [[2],[2]] } --work 500000000	true\n
+line_402	program { let R = nmat-exp 40; [[0,1],[0,0]] | member R; converged } --work 500000000	true\n
+line_403	program { let R = nmat-sqrt 40; [[4,1],[0,4]] | member R; converged } --work 500000000	true\n
+line_404	program { let R = nmat-log 40; [[1,1],[0,1]] | member R; converged } --work 500000000	true\n
+line_405	nmat-qr 40; [[1,1],[1,-1]] --work 0	line 405: resource limit exceeded: work units\n
+line_406	program { let A = smatrix q; 2; 3; [[0,1,2],[0,1,-2],[1,2,4]] | member A; nnz } --work 500000000	1\n
+line_407	program { let A = smatrix-csr q; 2; 2; [0,2,3]; [1,0,1]; [1,2,3] | let B = smat-dense A | dmat-equal B; [[2,1],[0,3]] } --work 500000000	true\n
+line_408	program { let A = smatrix-csc q; 2; 2; [0,2,3]; [1,0,1]; [1,2,3] | member A; index; 0 } --work 500000000	0\n
+line_409	program { let A = smat-eye q; 1024 | let B = smat-mul A; A | member B; nnz } --work 500000000	1024\n
+line_410	program { let A = smat-band q; 3; 3; 1; [2,3] | let B = smat-dense A | dmat-equal B; [[0,2,0],[0,0,3],[0,0,0]] } --work 500000000	true\n
+line_411	program { let A = smat-diag q; [2,0] | let B = smat-eye q; 1 | let C = smat-block A; B | member C; rows } --work 500000000	3\n
+line_412	program { let A = smat-zeros q; 0; 3 | let B = smat-transpose A | member B; rows } --work 500000000	3\n
+line_413	program { let A = smat-from-q [[0,2],[3,4]] | let D = smat-lu A | let P = member D; permutation | let L = member D; lower | let U = member D; upper | let X = smat-mul P; A | let Y = smat-mul L; U | let Z = smat-sub X; Y | member Z; nnz } --work 500000000	0\n
+line_414	program { let A = smat-from-q [[0,2],[3,4]] | let D = smat-lu A | let B = smat-from-q [[4,8],[11,22]] | let X = smat-solve D; B | let Y = smat-dense X | dmat-equal Y; [[1,2],[2,4]] } --work 500000000	true\n
+line_415	program { let A = smat-from-q [[4,1],[1,3]] | let B = smat-from-q [[6],[7]] | let R = smat-cg 40; A; B; jacobi; zero | member R; converged } --work 500000000	true\n
+line_416	program { let A = smat-from-q [[2,1],[0,3]] | let B = smat-from-q [[4],[6]] | let R = smat-gmres 40; A; B; identity; zero; 2 | member R; converged } --work 500000000	true\n
+line_417	program { let A = smat-from-q [[4,1],[1,3]] | let B = smat-from-q [[6],[7]] | let X = smat-from-q [[1],[2]] | let R = smat-cg 40; A; B; identity; X | member R; iterations } --work 500000000	0\n
+line_418	program { let A = smat-from-q [[1,2],[0,1]] | let B = smat-from-q [[1],[1]] | let R = smat-cg 40; A; B; identity; zero | member R; indeterminate_domain } --work 500000000	true\n
+line_419	program { let b = ball 60; 99/100; 101/100 | let A = smatrix real:60; 1; 1; [[0,0,b]] | let B = smat-from-q [[1]] | let R = smat-gmres 40; A; B; identity; zero; 1 | member R; insufficient_precision } --work 500000000	true\n
+line_420	program { let A = smat-from-q [[2,1],[0,3]] | let B = smat-eye q; 2 | let O = smat-op-add A; B | let X = smat-from-q [[1],[2]] | let Y = smat-apply O; X | let Z = smat-dense Y | dmat-equal Z; [[5],[8]] } --work 500000000	true\n
+line_421	program { let A = smat-from-q [[2,1],[0,3]] | let O = smat-op-compose A; A | let X = smat-from-q [[1],[2]] | let Y = smat-apply O; X | let Z = smat-dense Y | dmat-equal Z; [[14],[18]] } --work 500000000	true\n
+line_422	program { let A = smat-from-numeric 60; [[i,0]] | let B = smat-adjoint A | let C = smat-csc B | let D = smat-csr C | member D; nnz } --work 500000000	1\n
+line_423	program { let b = ball 60; -1; 1 | let A = smatrix real:60; 1; 1; [[0,0,b]] | member A; nnz } --work 500000000	1\n
+line_424	program { let A = smat-from-q [[2]] | let D = smat-lu A | fn use_sparse(b) := { smat-solve D; b } | let D = smat-eye q; 1 | let B = smat-from-q [[4]] | let X = call use_sparse; {B} | let Y = smat-dense X | dmat-equal Y; [[2]] } --work 500000000	true\n
+line_425	smat-eye q; 2 --work 0	line 425: resource limit exceeded: work units\n
+line_426	program { let b = ball 60; 2; 2; -1; 1 | let A = smatrix complex:60; 1; 1; [[0,0,b]] | let B = smat-from-q [[0]] | let R = smat-cg 40; A; B; identity; zero | member R; indeterminate_domain } --work 500000000	true\n
+line_427	program { let M = model [x,y]; []; [x*x+y] | let J = model-jac M | member J; columns } --work 1000000000	2\n
+line_428	program { let M = model [x,y]; []; [x*x+y] | let H = model-hess M | member H; rows } --work 1000000000	2\n
+line_429	program { let M = model [x]; [a]; [a*x] | let B = model-bind M; a=3 | let R = model-at 64; B; [2]; [] | let b = member R; entry; 0; 0 | member b; real_lower } --work 1000000000	6\n
+line_430	program { let M = model [x]; []; [x*x-2] | let R = nl-root 40; M; [2]; []; hybrid | member R; residual_satisfied } --work 1000000000	true\n
+line_431	program { let M = model [x]; []; [x*x+1] | let R = nl-root 40; M; [0]; []; hybrid | member R; residual_satisfied } --work 1000000000	false\n
+line_432	program { let M = model [x]; []; [x*x-2] | let R = nl-root 40; M; [2]; []; hybrid | member R; existence_verified } --work 1000000000	false\n
+line_433	program { let M = model [x]; []; [x*x-2] | let C = root-box 64; M; [[7/5,3/2]]; [] | member C; unique } --work 1000000000	true\n
+line_434	program { let M = model [x]; []; [1/x] | let C = root-box 64; M; [[-1,1]]; [] | member C; unknown } --work 1000000000	true\n
+line_435	program { let M = model [x]; []; [x*(x-1)*(x+1)] | let S = root-search 64; M; [[-2,2]]; []; 128; 64; 1/1000000; contract | member S; root_count } --work 1000000000	3\n
+line_436	program { let M = model [x]; []; [x*x] | let S = root-search 64; M; [[-1,1]]; []; 2; 8; 1/1000000; contract | member S; complete } --work 1000000000	false\n
+line_437	program { let M = model [a,b]; []; [a,a+b,a+2*b] | let L = fit-model M; [1,2,4]; [1,1,1] | let F = fit-solve 40; L; [0,0]; [] | member F; stationary } --work 1000000000	true\n
+line_438	program { let M = model [a,b]; []; [a+b] | let L = fit-model M; [4]; [1] | let F = fit-solve 40; L; [0,0]; [] | member F; rank_estimate } --work 1000000000	1\n
+line_439	program { let M = model [x]; []; [(x-2)^2] | let R = minimize-box 40; M; [0]; []; [0]; [1] | member R; active_upper; 0 } --work 1000000000	true\n
+line_440	program { let M = model [x,y]; []; [x*x-y*y] | let R = minimize 40; M; [0,0]; [] | member R; minimum_verified } --work 1000000000	false\n
+line_441	let nonlinear_keep = 17	nonlinear_keep = 17\n
+line_442	let nonlinear_keep = model [x]; []; [x] --work 0	line 442: resource limit exceeded: work units\n
+line_443	:get nonlinear_keep	17\n
+line_444	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | member R; reached_end } --work 1000000000	true\n
+line_445	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | let S = ivp-at R; 1/2 | member S; time } --work 1000000000	1/2\n
+line_446	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | member R; rigorous_enclosure } --work 1000000000	false\n
+line_447	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | fn saved() := { ivp-at R; 1/2 } | let F = model [t,y]; []; [0] | let M = ivp-model F | let S = call saved | member S; time } --work 1000000000	1/2\n
+line_448	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | let T = ivp-continue O; R; 0; [1,0] | member T; reached_end } --work 1000000000	true\n
+line_449	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let E = model [t,y]; []; [t-1] | let E = ivp-event E; rising; true | let R = ivp-solve O; M; 0; 2; [0]; []; []; [E] | member R; terminal_event } --work 1000000000	true\n
+line_450	program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let O = ivp-config O; dense=false | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | member R; sample_count } --work 1000000000	3\n
+line_451	let ivp_keep = 17	ivp_keep = 17\n
+line_452	let ivp_keep = program { let P = precision 64; nearest; 1/1000000; 1/1000000 | let O = ivp-options P | let O = ivp-config O; initial_step=1 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [0,1/2,1]; [] | ivp-at R; 2 } --work 1000000000	line 452: ODE query cannot extrapolate outside the covered range\n
+line_453	:get ivp_keep	17\n
+line_454	program { let P = precision 64; nearest; 1/1000; 1/1000 | let O = ivp-options P | let O = ivp-config O; method=euler; linear=sparse; maximum_step=1/4 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [1/2]; [] | member R; reached_end } --work 1000000000	true\n
+line_455	program { let P = precision 64; nearest; 1/1000; 1/1000 | let O = ivp-options P | let O = ivp-config O; method=euler; linear=sparse; maximum_step=1/4 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [1/2]; [] | let S = ivp-at R; 1/2 | member S; time } --work 1000000000	1/2\n
+line_456	program { let P = precision 64; nearest; 1/1000; 1/1000 | let O = ivp-options P | let O = ivp-config O; method=euler; linear=sparse; maximum_step=1/4 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [1/2]; [] | let T = ivp-continue O; R; 2; [2] | member T; reached_end } --work 1000000000	true\n
+line_457	program { let P = precision 64; nearest; 1/1000; 1/1000 | let O = ivp-options P | let O = ivp-config O; method=bdf2; linear=sparse; maximum_step=1/4 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [1/2]; [] | member R; reached_end } --work 1000000000	true\n
+line_458	program { let P = precision 64; nearest; 1/1000; 1/1000 | let O = ivp-options P | let O = ivp-config O; method=bdf2; linear=sparse; maximum_step=1/4 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [1/2]; [] | let S = ivp-at R; 1/2 | member S; time } --work 1000000000	1/2\n
+line_459	program { let P = precision 64; nearest; 1/1000; 1/1000 | let O = ivp-options P | let O = ivp-config O; method=bdf2; linear=sparse; maximum_step=1/4 | let F = model [t,y]; []; [1] | let M = ivp-model F | let R = ivp-solve O; M; 0; 1; [0]; []; [1/2]; [] | let T = ivp-continue O; R; 2; [2] | member T; reached_end } --work 1000000000	true\n
+line_460	program { let P = precision 64; nearest; 1/100000000; 1/100000000 | let O = ivp-options P | let Q = sensitivity-options O; []; [] | let F = model [t,y]; [p]; [2*p] | let M = ivp-model F | let G = model []; [p]; [p^2] | let S = sensitivity-model M; G | let R = sensitivity-solve Q; S; 0; 1; [2]; [0,1/2,1] | let V = sensitivity-at R; 0 | member V; derivative; 0; 0 } --work 5000000000	4\n
+line_461	program { let P = precision 64; nearest; 1/100000000; 1/100000000 | let O = ivp-options P | let Q = sensitivity-options O; []; [] | let F = model [t,y]; [p]; [2*p] | let M = ivp-model F | let G = model []; [p]; [p^2] | let S = sensitivity-model M; G | let R = sensitivity-solve Q; S; 0; 1; [2]; [0,1/2,1] | member R; reached_end } --work 5000000000	true\n
+line_462	program { let P = precision 64; nearest; 1/100000000; 1/100000000 | let O = ivp-options P | let Q = sensitivity-options O; []; [] | let F = model [t,y]; [p]; [2*p] | let M = ivp-model F | let G = model []; [p]; [p^2] | let S = sensitivity-model M; G | let R = sensitivity-solve Q; S; 0; 1; [2]; [0,1/2,1] | member R; rigorous_enclosure } --work 5000000000	false\n
+line_463	program { let P = precision 64; nearest; 1/100000000; 1/100000000 | let O = ivp-options P | let Q = sensitivity-options O; []; [] | let F = model [t,y]; [p]; [2*p] | let M = ivp-model F | let G = model []; [p]; [p^2] | let S = sensitivity-model M; G | let R = sensitivity-solve Q; S; 0; 1; [2]; [0,1/2,1] | let D = dynamic-fit-model S; 0; 1; [0,1/2,1]; [0]; [4,6,8]; [1,1,1] | let A = precision 64; nearest; 1/100000; 1/100000 | let N = nl-options A | let B = dynamic-fit N; Q; D; [1] | member B; rank_estimate } --work 5000000000	1\n
+line_464	program { let P = precision 64; nearest; 1/100000000; 1/100000000 | let O = ivp-options P | let Q = sensitivity-options O; []; [] | let F = model [t,y]; [p]; [2*p] | let M = ivp-model F | let G = model []; [p]; [p^2] | let S = sensitivity-model M; G | let R = sensitivity-solve Q; S; 0; 1; [2]; [0,1/2,1] | let D = dynamic-fit-model S; 0; 1; [0,1/2,1]; [0]; [4,6,8]; [1,1,1] | let A = precision 64; nearest; 1/100000; 1/100000 | let N = nl-options A | let B = dynamic-fit N; Q; D; [1] | member B; parameter_unique } --work 5000000000	false\n
+line_465	program { let P = precision 64; nearest; 1/100000000; 1/100000000 | let O = ivp-options P | let Q = sensitivity-options O; []; [] | let F = model [t,y]; [p]; [2*p] | let M = ivp-model F | let G = model []; [p]; [p^2] | let S = sensitivity-model M; G | let R = sensitivity-solve Q; S; 0; 1; [2]; [0,1/2,1] | let D = dynamic-fit-model S; 0; 1; [0,1/2,1]; [0]; [4,6,8]; [1,1,1] | let A = precision 64; nearest; 1/100000; 1/100000 | let N = nl-options A | let B = dynamic-fit N; Q; D; [1] | let T = dynamic-predict Q; B | member T; reached_end } --work 5000000000	true\n
+line_466	program { let M = model [x]; [p]; [x*x-p] | let R = nl-root 64; M; [2]; [4]; hybrid | let S = equilibrium-sensitivity 64; R | member S; derivative; 0; 0 } --work 5000000000	1/4\n
+line_467	program { let M = model [x]; [p]; [x*x-p] | let R = nl-root 64; M; [0]; [0]; hybrid | let S = equilibrium-sensitivity 64; R | member S; derivative_available } --work 5000000000	false\n
+line_468	let sensitivity_keep = 17	sensitivity_keep = 17\n
+line_469	let sensitivity_keep = sensitivity-model M; G --work 0	line 469: resource limit exceeded: work units\n
+line_470	:get sensitivity_keep	17\n
+line_471	:quit	session completed with errors\n
