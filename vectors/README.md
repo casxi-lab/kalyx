@@ -32,10 +32,10 @@ The six other files hold the full vectors of the earlier implementation: its
 1,782 outcomes of its root calls. They were exported in one run of that
 implementation and record what it did, not answers that kalyx must give.
 `tests/vectors.rs` checks the format of each file, and `tests/slices.rs`
-replays the rows that the commands of kalyx answer today and counts the
-others. [Full vectors](#full-vectors) states where the files come from, how
-their fields are written, how their values map to kalyx and how the tests
-read them.
+replays the rows of the slices whose commands kalyx has today and counts the
+rows of the pending slices. [Full vectors](#full-vectors) states where the
+files come from, how their fields are written, how their values map to kalyx
+and how the tests read them.
 
 ## Format
 
@@ -542,17 +542,25 @@ commands of its command-line cases, by the `command` column of
 table of [Library observations](#library-observations) and the inputs that
 the slice takes, where it does not take all of them. Each slice also states
 the number of rows that it selects in each of the three files, and no row is
-in two slices. The rows that depend on a session belong to no slice: the
-sessions of the line mode, whose command is `repl`, the two terminal
-sessions, and the integration tests, which list tests and record no answers.
+in two slices. Three kinds of rows belong to no slice, and the test neither
+replays them nor counts them as pending: the sessions, which are the cases
+of the line mode, whose command is `repl`, and the two terminal sessions;
+the integration tests, which list tests and record no answers; and the rows
+of the commands, requests and inputs that no slice names. These are the
+227 other command-line cases, among them those of `program`, `cancel`,
+`solve` and `matrix`; the 2,720 `expand` observations of the 85 inputs other
+than the eight polynomial inputs; and the 810 root calls of the requests
+`limit 0+`, `limit +inf`, `integral`, `approximate 2` and `approximate -8`.
+A test checks these numbers.
 
 A slice is enabled when the dispatch table of the command entry registers
 every command that it names. The test reads this from the command entry,
 which fails a request whose operation the table does not hold with
 `Unsupported`, without a span and before any work. The other slices are
 pending: the test counts their rows, prints the counts and checks them, and
-replays none of them. The test reads the three files once and runs every row
-of an enabled slice through `execute` as one request:
+replays none of them. The test reads the three files once and replays the
+rows of an enabled slice, each row that it runs as one request through
+`execute`:
 
 - A command-line case takes the input of the request from its arguments,
   the variable from `--var NAME`, or `x` without it, and runs under the
@@ -566,11 +574,13 @@ of an enabled slice through `execute` as one request:
   the budget 0 under `max_work=0`, and the cancelled request under the
   default limits with its flag cancelled before the request starts. The
   rows under the other budgets, which depend on how the earlier
-  implementation counted work, are not compared. A row in a scope other
-  than `none` needs a scope operand, which no request has yet; the
-  polynomial expansion is the exception, since a scope assumes a property
-  of `x`, which does not change a polynomial, so its rows in all four scopes
-  are the same request.
+  implementation counted work, are not compared. A row that needs an
+  operand which no request has yet is reported as a difference without
+  running: a row in a scope other than `none`, which needs a scope operand,
+  and a row of `diff` or `ask`, whose command also takes the order 1 or the
+  property `positive`. The polynomial expansion takes no scope operand,
+  since a scope assumes a property of `x`, which does not change a
+  polynomial, so its rows in all four scopes are the same request.
 - No request has the form of a root call yet, so a root call of an enabled
   slice is reported as a difference.
 
@@ -582,7 +592,8 @@ work are never compared, and a row whose outcome kalyx does not define is a
 difference. A negative test corrupts, each in a copy of its file, the answer
 of a library observation, the kind of a command-line case and the outcome of
 a cancelled request, and shows that each gives exactly one difference, at
-its row.
+its row; another shows that a row that needs a scope, a property or an order
+is a difference.
 
 | Slice | Commands | Root-call requests | Library operations | Rows: cases, observations, root calls | State |
 | --- | --- | --- | --- | --- | --- |

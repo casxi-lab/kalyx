@@ -7,17 +7,21 @@
 //! (the `request` column of `root_calls.tsv`) and the operations of its
 //! library observations (the `operation` column of `library.tsv`, with the
 //! inputs that the slice takes of them), and states the rows that it selects
-//! in each file. The rows that depend on a session belong to no slice: the
-//! cases of the line mode `repl`, which no slice names, the two terminal
-//! sessions, and the integration tests, which are a list and not answers.
+//! in each file. Three kinds of rows belong to no slice: the sessions, which
+//! are the cases of the line mode `repl` and the two terminal sessions; the
+//! integration tests, which are a list and not answers; and the rows of the
+//! commands, requests and inputs that no slice names. They are neither
+//! replayed nor counted as pending, and a test checks how many there are.
 //!
 //! A slice is enabled when the dispatch table of the command entry registers
 //! every command that it names, and pending otherwise. The replay reads the
-//! three files once, runs each row of an enabled slice through `execute` as
-//! one request, and compares only the answer, read with `parse` and
-//! compared by canonical form, the result state and the error kind, never
-//! display text or work. A pending slice is counted. `vectors/README.md`
-//! states how a row becomes a request and under which limits it runs.
+//! three files once and replays the rows of an enabled slice, each row that
+//! it runs as one request through `execute`. It compares only the answer,
+//! read with `parse` and compared by canonical form, the result state and
+//! the error kind, never display text or work, and reports a row that no
+//! request can express yet as a difference. The rows of the pending slices
+//! are counted. `vectors/README.md` states how a row becomes a request and
+//! under which limits it runs.
 
 #![allow(
     clippy::expect_used,
@@ -52,6 +56,10 @@ struct Operation {
     /// The kalyx command of the operation, by the table of the library
     /// observations in `vectors/README.md`.
     command: &'static str,
+    /// The operands of the command beyond its variable and input, by the
+    /// same table, each as its name and value. A request has no form for
+    /// them yet.
+    operands: &'static [(&'static str, &'static str)],
     /// The inputs that the slice takes, or none for every input.
     inputs: &'static [&'static str],
     /// Whether the command answers every scope with the same request. A
@@ -83,8 +91,8 @@ struct Slice {
 /// $\mathbb{Q}[x]$ in the syntax of release 0.1.
 const POLYNOMIAL_INPUTS: [&str; 8] = ["(-x)^2", "(x+x)^3", "-x", "-x^3", "0", "0^0", "x", "x+x-x"];
 
-/// The slices: first the two of the commands of release 0.1, then those of
-/// the capabilities of release 0.2.
+/// The slices: first the two of the commands of release 0.1, then the
+/// pending slices, which name commands that kalyx does not have yet.
 static SLICES: [Slice; 15] = [
     Slice {
         name: "exact_numbers",
@@ -100,6 +108,7 @@ static SLICES: [Slice; 15] = [
         operations: &[Operation {
             name: "expand",
             command: "expand",
+            operands: &[],
             inputs: &POLYNOMIAL_INPUTS,
             scope_free: true,
         }],
@@ -113,12 +122,14 @@ static SLICES: [Slice; 15] = [
             Operation {
                 name: "parse",
                 command: "fexpr",
+                operands: &[],
                 inputs: &[],
                 scope_free: false,
             },
             Operation {
                 name: "simplify",
                 command: "simplify",
+                operands: &[],
                 inputs: &[],
                 scope_free: false,
             },
@@ -132,6 +143,7 @@ static SLICES: [Slice; 15] = [
         operations: &[Operation {
             name: "ask",
             command: "f-ask",
+            operands: &[("property", "positive")],
             inputs: &[],
             scope_free: false,
         }],
@@ -151,6 +163,7 @@ static SLICES: [Slice; 15] = [
         operations: &[Operation {
             name: "diff",
             command: "f-diff",
+            operands: &[("order", "1")],
             inputs: &[],
             scope_free: false,
         }],
@@ -553,7 +566,10 @@ fn cli_case(row: &Row) -> Disposition {
 /// Replays a library observation as the request of the command of
 /// `operation` on its input, in the variable `x`: with the full budget under
 /// the default limits; with the budget 0 under `max_work=0`; cancelled
-/// under the default limits, with the flag cancelled before the request.
+/// under the default limits, with the flag cancelled before the request. A
+/// row that needs an operand which a request does not have yet, the scope
+/// of a scoped operation or an operand of the command, is a difference
+/// without running.
 fn observation(operation: &Operation, row: &Row) -> Disposition {
     let budget: u64 = row
         .text("limits")
@@ -570,6 +586,18 @@ fn observation(operation: &Operation, row: &Row) -> Disposition {
     if scope != "none" && !operation.scope_free {
         return Disposition::Compared(Err(format!(
             "the scope {scope} needs a scope operand, which a request does not have yet"
+        )));
+    }
+    if !operation.operands.is_empty() {
+        let operands: Vec<String> = operation
+            .operands
+            .iter()
+            .map(|(name, value)| format!("the {name} {value}"))
+            .collect();
+        return Disposition::Compared(Err(format!(
+            "`{}` needs {} as an operand, which a request does not have yet",
+            operation.command,
+            operands.join(" and ")
         )));
     }
     let request = Request::new(operation.command, "x", row.text("input"));
@@ -793,6 +821,64 @@ fn every_slice_selects_its_rows_and_no_row_is_in_two_slices() {
     assert_eq!(selected.len(), 160 + 9_853 + 972);
 }
 
+// The rows of no slice in the three files are the sessions of the line mode
+// and the rows of the commands, requests and inputs that no slice names: the
+// other command-line cases, the expansions of the inputs that are not
+// polynomials, and the root calls of five requests.
+#[test]
+fn the_rows_of_no_slice_are_the_sessions_and_the_unnamed_rows() {
+    /// The rows of `rows` whose id is not in `ids`.
+    fn outside<'v>(rows: &'v [Row], ids: &BTreeSet<&str>) -> Vec<&'v Row> {
+        rows.iter()
+            .filter(|row| !ids.contains(row.text("id")))
+            .collect()
+    }
+    let vectors = vectors();
+    let mut ids: [BTreeSet<&str>; 3] = Default::default();
+    for slice in &SLICES {
+        let selection = select(slice, vectors);
+        ids[0].extend(selection.cli.iter().map(|row| row.text("id")));
+        ids[1].extend(selection.library.iter().map(|(_, row)| row.text("id")));
+        ids[2].extend(selection.root_calls.iter().map(|row| row.text("id")));
+    }
+    let cli = outside(&vectors.cli, &ids[0]);
+    let library = outside(&vectors.library, &ids[1]);
+    let root_calls = outside(&vectors.root_calls, &ids[2]);
+    let sessions = cli
+        .iter()
+        .filter(|row| row.get("command") == Some("repl"))
+        .count();
+    assert_eq!(
+        [
+            sessions,
+            cli.len() - sessions,
+            library.len(),
+            root_calls.len()
+        ],
+        [15, 227, 2_720, 810]
+    );
+    let operations: BTreeSet<&str> = library.iter().map(|row| row.text("operation")).collect();
+    assert_eq!(operations, BTreeSet::from(["expand"]));
+    let inputs: BTreeSet<&str> = library.iter().map(|row| row.text("input")).collect();
+    assert_eq!(inputs.len(), 85);
+    assert!(
+        inputs
+            .iter()
+            .all(|input| !POLYNOMIAL_INPUTS.contains(input))
+    );
+    let requests: BTreeSet<&str> = root_calls.iter().map(|row| row.text("request")).collect();
+    assert_eq!(
+        requests,
+        BTreeSet::from([
+            "approximate -8",
+            "approximate 2",
+            "integral",
+            "limit +inf",
+            "limit 0+",
+        ])
+    );
+}
+
 // The registration of a command is read from the command entry: the three
 // operations of release 0.1 are registered, and names that the dispatch
 // table does not hold are not.
@@ -806,8 +892,8 @@ fn a_command_is_registered_when_the_command_entry_runs_it() {
     }
 }
 
-// Every row of an enabled slice replays through the command entry with the
-// outcome that it records. Of the 9 cases of `eval`, 2 are usage errors; of
+// Every row of an enabled slice that the replay compares has the outcome
+// that it records. Of the 9 cases of `eval`, 2 are usage errors; of
 // the 256 polynomial expansions of the library, 96 have the full budget,
 // the budget 0 or a cancelled flag, and 160 depend on how work is counted.
 #[test]
@@ -876,6 +962,49 @@ fn the_pending_slices_are_counted() {
         ]
     );
     assert_eq!(rows, [146, 9_597, 972]);
+}
+
+// A library observation that needs an operand which a request does not have
+// yet, the scope of a scoped operation or an operand of its command, is a
+// difference without running, whether or not its slice is enabled.
+#[test]
+fn an_observation_that_a_request_cannot_express_is_a_difference() {
+    let vectors = vectors();
+    let operation = |slice_name: &str, name: &str| -> &'static Operation {
+        slice(slice_name)
+            .operations
+            .iter()
+            .find(|operation| operation.name == name)
+            .unwrap()
+    };
+    let cases = [
+        (
+            operation("function_expressions", "parse"),
+            "i90_pos_parse_w1000000",
+            "the scope pos needs a scope operand, which a request does not have yet",
+        ),
+        (
+            operation("questions_and_refinement", "ask"),
+            "i90_none_ask_w1000000",
+            "`f-ask` needs the property positive as an operand, which a request does not have yet",
+        ),
+        (
+            operation("function_derivatives", "diff"),
+            "i90_none_diff_w1000000",
+            "`f-diff` needs the order 1 as an operand, which a request does not have yet",
+        ),
+    ];
+    for (operation, id, difference) in cases {
+        let row = vectors
+            .library
+            .iter()
+            .find(|row| row.text("id") == id)
+            .unwrap();
+        let Disposition::Compared(Err(found)) = observation(operation, row) else {
+            panic!("{id} is not a difference");
+        };
+        assert_eq!(found, difference, "{id}");
+    }
 }
 
 /// The bytes of `file` with the field `column` of the row `id` set to
