@@ -936,6 +936,18 @@ fn merge(a: &Set, b: &Set) -> Set { a.union(b) }
             problems(&files),
             ["kernel/demo/src/a.rs#a: no target and no open obligation"]
         );
+        // A line of the module list that names no tracked `.rs` file is a
+        // problem of the check as well.
+        let gone = listed.replace("a.rs\n", "a.rs\nkernel/demo/gone\n");
+        let mut unnamed = files;
+        unnamed[4] = (MODULES, gone.as_str());
+        assert_eq!(
+            problems(&unnamed),
+            [
+                format!("{MODULES}: \"kernel/demo/gone\" names no tracked .rs file"),
+                "kernel/demo/src/a.rs#a: no target and no open obligation".to_string(),
+            ]
+        );
         let listed = BTreeSet::from(["kernel/demo/src/a.rs".to_string()]);
         let (inventory, problems) = inventory(&Tree::from_files(&files), &roots(&[]), &listed);
         assert_eq!(list(&inventory.functions), ["kernel/demo/src/a.rs#a"]);
