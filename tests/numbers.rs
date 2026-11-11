@@ -370,6 +370,9 @@ fn rationals_are_ordered_by_value() {
     let values = [
         q(-5, 2),
         q(-2, 1),
+        // With -1/3, a pair of negative numbers that needs the cross
+        // products: the bit lengths of a d and c b are both 4.
+        q(-2, 5),
         q(-1, 3),
         q(0, 1),
         q(1, 3),

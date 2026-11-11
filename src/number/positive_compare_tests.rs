@@ -217,8 +217,10 @@ fn equal_adjacent_and_disjoint_product_bit_ranges_remain_exact() {
                 q((&n << 1_usize) - 1, (&n << 2_usize) + 1),
                 Ordering::Greater,
             ),
-            // For odd `bits`, 3 divides n + 1, and the sums of the bit
-            // lengths, `bits` and `bits` + 2, differ by exactly two.
+            // For odd `bits` above 1, 3 divides n + 1, and the sums of the
+            // bit lengths, `bits` and `bits` + 2, differ by exactly two; at
+            // `bits` = 1 the second operand reduces to 1 and the pair takes
+            // the cross products.
             (q(1.into(), &n + 1), q(3.into(), &n + 1), Ordering::Less),
             (q(2.into(), &n * 6), q(3.into(), &n * 9), Ordering::Equal),
             (
