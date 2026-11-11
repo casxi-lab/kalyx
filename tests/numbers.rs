@@ -9,6 +9,8 @@
     reason = "the helpers of the tests unwrap their results, as the tests do"
 )]
 
+use std::cmp::Ordering;
+
 use kalyx::context::{CancelFlag, Clock, Storage, StorageCost};
 use kalyx::number::{Integer, Rational};
 use kalyx::{Context, Error, ErrorKind, FaultKind, LimitAmount, LimitField, LimitId, Limits, Span};
@@ -137,7 +139,6 @@ fn a_sum_whose_denominators_dominate_is_rejected_before_any_charge() {
     let errors = [
         a.add(&b, &mut narrow).unwrap_err(),
         a.subtract(&b, &mut narrow).unwrap_err(),
-        a.compare(&b, &mut narrow).unwrap_err(),
     ];
     for error in errors {
         assert_limit(&error, LimitField::IntegerBits);
@@ -145,6 +146,15 @@ fn a_sum_whose_denominators_dominate_is_rejected_before_any_charge() {
     }
     assert_eq!(narrow.work_used(), 0);
     assert_eq!(a.add(&b, &mut context(bits(7))).unwrap(), q(16, 63));
+    // The comparison forms only the cross products 1 * 9 and 1 * 7, of at
+    // most max(|1| + |9|, |1| + |7|) = 5 bits.
+    let mut tight = context(bits(4));
+    let error = a.compare(&b, &mut tight).unwrap_err();
+    assert_limit(&error, LimitField::IntegerBits);
+    assert_eq!(error.exceeded().unwrap().amount(), LimitAmount::Required(5));
+    assert_eq!(tight.work_used(), 0);
+    assert_eq!(a.compare(&b, &mut narrow).unwrap(), Ordering::Greater);
+    assert_eq!(narrow.work_used(), 1);
 }
 
 #[test]
@@ -360,6 +370,9 @@ fn rationals_are_ordered_by_value() {
     let values = [
         q(-5, 2),
         q(-2, 1),
+        // With -1/3, a pair of negative numbers that needs the cross
+        // products: the bit lengths of a d and c b are both 4.
+        q(-2, 5),
         q(-1, 3),
         q(0, 1),
         q(1, 3),
@@ -376,6 +389,175 @@ fn rationals_are_ordered_by_value() {
             );
             assert_eq!(context.work_used(), 1);
         }
+    }
+}
+
+/// $N + k$ with $N = 2^{2048}$, of 2049 bits for $k \ge 0$ and 2048 bits for
+/// small negative $k$, built under default limits.
+fn n_plus(k: i64) -> Rational {
+    two_to(2048)
+        .add(&Rational::from(k), &mut default_context())
+        .unwrap()
+}
+
+/// The quotient $n / d$, built under default limits.
+fn ratio(numerator: &Rational, denominator: &Rational) -> Rational {
+    numerator
+        .divide(denominator, &mut default_context())
+        .unwrap()
+}
+
+/// $E = (N + 1)/(N - 1)$, of 2049 and 2048 bits.
+fn e() -> Rational {
+    ratio(&n_plus(1), &n_plus(-1))
+}
+
+/// $E$ built apart from [`e`], as $1 + 2/(N - 1)$.
+fn e_as_a_sum() -> Rational {
+    let fraction = ratio(&Rational::from(2_i64), &n_plus(-1));
+    Rational::from(1_i64)
+        .add(&fraction, &mut default_context())
+        .unwrap()
+}
+
+// Two equal rationals whose difference exceeds `max_integer_bits` compare
+// equal under the default limits, charging one unit, while their difference
+// is still rejected before any charge.
+#[test]
+fn equal_rationals_compare_equal_where_their_difference_is_rejected() {
+    let (quotient, sum) = (e(), e_as_a_sum());
+    assert_eq!(quotient.numerator().bits(), 2049);
+    assert_eq!(quotient.denominator().bits(), 2048);
+    assert_eq!(quotient, sum);
+    let mut context = default_context();
+    assert_eq!(
+        quotient.compare(&sum, &mut context).unwrap(),
+        Ordering::Equal
+    );
+    assert_eq!(
+        sum.compare(&quotient, &mut context).unwrap(),
+        Ordering::Equal
+    );
+    assert_eq!(context.work_used(), 2);
+    // max(2049 + 2048, 2049 + 2048) + 1 = 4098 bits for the difference.
+    let mut rejected = default_context();
+    let error = quotient.subtract(&sum, &mut rejected).unwrap_err();
+    assert_limit(&error, LimitField::IntegerBits);
+    assert_eq!(error.exceeded().unwrap().allowed(), 4096);
+    assert_eq!(
+        error.exceeded().unwrap().amount(),
+        LimitAmount::Required(4098)
+    );
+    assert_eq!(rejected.work_used(), 0);
+}
+
+// Each pair takes one path of the comparison: equal parts, the signs, the
+// binary points of two power-of-two denominators, equal denominators, the
+// sums of the bit lengths that bound the cross products, and the cross
+// products; a test inside the crate checks the path of each. Every
+// comparison charges one unit and gives the same order under every
+// `max_integer_bits` that admits it: the first five check no bound, so 0
+// admits them, and the cross products of the last need 4096 bits. The first
+// three pairs would also be decided without a bound by a later path. Equal
+// parts share their denominator, so no comparison can tell the first path
+// apart from equal denominators;
+// `only_cross_products_beyond_max_integer_bits_are_rejected` has pairs that
+// only the signs and only the binary points decide.
+#[test]
+fn each_path_of_the_comparison_charges_one_unit_under_every_admitting_limit() {
+    let dyadic_small = two_to(-4095);
+    let dyadic_large = Rational::from(3_i64)
+        .multiply(&two_to(-4000), &mut default_context())
+        .unwrap();
+    let minus_e = e().negate(&mut default_context()).unwrap();
+    let every: &[u64] = &[0, 4096, 1 << 20];
+    let admitting: &[u64] = &[4096, 1 << 20];
+    let pairs = [
+        (e(), e_as_a_sum(), Ordering::Equal, every),
+        (minus_e, e(), Ordering::Less, every),
+        (dyadic_small, dyadic_large, Ordering::Less, every),
+        (e(), ratio(&n_plus(3), &n_plus(-1)), Ordering::Less, every),
+        (
+            e(),
+            ratio(&Rational::from(1_i64), &n_plus(-3)),
+            Ordering::Greater,
+            every,
+        ),
+        (
+            ratio(&n_plus(-1), &n_plus(-3)),
+            ratio(&n_plus(-3), &n_plus(-5)),
+            Ordering::Less,
+            admitting,
+        ),
+    ];
+    let mut comparisons = 0;
+    for (left, right, expected, limits) in &pairs {
+        for &limit in *limits {
+            let mut context = context_with_bits(limit);
+            assert_eq!(
+                left.compare(right, &mut context).unwrap(),
+                *expected,
+                "{limit}"
+            );
+            assert_eq!(context.work_used(), 1, "{limit}");
+            comparisons += 1;
+        }
+    }
+    assert_eq!(comparisons, 17);
+}
+
+// Only a comparison that forms its cross products checks a bound, and the
+// bound is that of the cross products: $L = (N - 1)/(N - 3)$ and
+// $R = (N - 3)/(N - 5)$ need 2048 + 2048 = 4096 bits and are ordered under
+// the default limits, while $E$ and $L$ need 2049 + 2048 = 4097 bits and are
+// rejected before any charge. Pairs that share no denominator and whose
+// cross products would need 4097 bits are still ordered when their signs, or
+// the binary points of two power-of-two denominators, decide; so are $E$ and
+// $(N - 3)/(N + 3)$, whose sums of bit lengths 2049 + 2049 = 4098 and
+// 2048 + 2048 = 4096 differ by exactly two, the least difference that
+// decides.
+#[test]
+fn only_cross_products_beyond_max_integer_bits_are_rejected() {
+    let left = ratio(&n_plus(-1), &n_plus(-3));
+    let right = ratio(&n_plus(-3), &n_plus(-5));
+    let mut context = default_context();
+    assert_eq!(left.compare(&right, &mut context).unwrap(), Ordering::Less);
+    assert_eq!(context.work_used(), 1);
+    let mut rejected = default_context();
+    let error = e().compare(&left, &mut rejected).unwrap_err();
+    assert_limit(&error, LimitField::IntegerBits);
+    assert_eq!(error.exceeded().unwrap().allowed(), 4096);
+    assert_eq!(
+        error.exceeded().unwrap().amount(),
+        LimitAmount::Required(4097)
+    );
+    assert_eq!(rejected.work_used(), 0);
+    // $-E$ and $L$: 2049 + 2048 and 2048 + 2048 bits.
+    let minus_e = e().negate(&mut default_context()).unwrap();
+    // $1 + 2^{-k} = (2^k + 1)/2^k$: 2048 + 2049 and 2049 + 2048 bits for
+    // $k = 2047$ and $k = 2048$.
+    let above_one = |k: i64| {
+        Rational::from(1_i64)
+            .add(&two_to(-k), &mut default_context())
+            .unwrap()
+    };
+    let (farther, nearer) = (above_one(2047), above_one(2048));
+    assert_eq!(farther.numerator().bits(), 2048);
+    assert_eq!(nearer.denominator().bits(), 2049);
+    let below_one = ratio(&n_plus(-3), &n_plus(3));
+    assert_eq!(below_one.numerator().bits(), 2048);
+    assert_eq!(below_one.denominator().bits(), 2049);
+    for (first, second, expected) in [
+        (&minus_e, &left, Ordering::Less),
+        (&left, &minus_e, Ordering::Greater),
+        (&farther, &nearer, Ordering::Greater),
+        (&nearer, &farther, Ordering::Less),
+        (&e(), &below_one, Ordering::Greater),
+        (&below_one, &e(), Ordering::Less),
+    ] {
+        let mut context = default_context();
+        assert_eq!(first.compare(second, &mut context).unwrap(), expected);
+        assert_eq!(context.work_used(), 1);
     }
 }
 

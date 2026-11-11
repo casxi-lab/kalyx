@@ -534,9 +534,11 @@ per byte of the name.
   on a single term.
 - **Receiving limits.** A term built under one context and used under
   another is checked against the receiving context: its numbers against
-  `max_integer_bits` where they take part in arithmetic, in a comparison or in
-  a display, and its tree size, its bytes and its depth as a part of every
-  node built on it.
+  `max_integer_bits` where they take part in arithmetic, in a comparison that
+  forms cross products (Comparison in the
+  [exact numbers](../numbers/contract.md#checks-and-charges); equal numbers
+  are never checked) or in a display, and its tree size, its bytes and its
+  depth as a part of every node built on it.
 
 ### Charges
 

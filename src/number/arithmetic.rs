@@ -1,7 +1,7 @@
 //! The kernels of rational arithmetic on the parts of canonical rationals:
 //! the bit bounds that every operation checks before it charges, the
-//! power-of-two (dyadic) fast paths, canonical reduction and the general
-//! paths of sums, products and quotients.
+//! power-of-two (dyadic) fast paths, canonical reduction, the general
+//! paths of sums, products and quotients, and the paths of the order.
 //!
 //! The kernels take and return the parts of a rational, a numerator and a
 //! denominator, and never touch the request context; the operations of
@@ -12,7 +12,7 @@
 
 use std::cmp::Ordering;
 
-use num_bigint::{BigInt, BigUint, Sign};
+use num_bigint::{BigInt, Sign};
 use num_rational::Ratio;
 use num_traits::{One, Signed, Zero};
 
@@ -168,16 +168,22 @@ pub(crate) fn dyadic_binary(
 
 /// The order of $a / 2^p$ and $c / 2^q$ by aligning their binary points;
 /// `None` unless both denominators are positive powers of two. No product is
-/// formed.
+/// formed. The tests reach the alignment that [`order`] uses through it.
+#[cfg(test)]
 pub(crate) fn dyadic_cmp(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> Option<Ordering> {
     let p = dyadic_exponent(left.1)?;
     let q = dyadic_exponent(right.1)?;
-    let (a, c) = (left.0, right.0);
-    Some(match p.cmp(&q) {
+    Some(aligned_order(left.0, p, right.0, q))
+}
+
+/// The order of $a / 2^p$ and $c / 2^q$: the numerator over the smaller
+/// power is shifted by the difference of the exponents.
+fn aligned_order(a: &BigInt, p: u64, c: &BigInt, q: u64) -> Ordering {
+    match p.cmp(&q) {
         Ordering::Equal => a.cmp(c),
         Ordering::Greater => a.cmp(&(c << (p - q))),
         Ordering::Less => (a << (q - p)).cmp(c),
-    })
+    }
 }
 
 /// The canonical result of `operation` on the canonical rationals $a/b$ and
@@ -297,26 +303,96 @@ fn product(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> Result<Parts>
     Ok((a * c, b * d))
 }
 
-/// The order of the rationals $a/b$ and $c/d$ with positive denominators,
-/// whose parts need not be reduced.
-pub(crate) fn order(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> Ordering {
+/// The path by which `compare` orders two canonical rationals $a/b$ and
+/// $c/d$: the first of these that applies, chosen by [`order_path`] from the
+/// parts without allocating. Only the last forms products.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OrderPath {
+    /// The parts are equal, so the values are. Equal parts share their
+    /// denominator, so the later paths would give `Equal` without a bound
+    /// as well; this one only stops first.
+    Same,
+    /// The signs differ: their order.
+    Signs(Ordering),
+    /// The denominators are the powers of two $2^p$ and $2^q$: the binary
+    /// points are aligned.
+    Dyadic(u64, u64),
+    /// The denominators are equal: the numerators are compared.
+    SameDenominator,
+    /// The sums $|a| + |d|$ and $|c| + |b|$ of the bit lengths, which bound
+    /// the bit lengths of the cross products, differ by at least two: the
+    /// order that they decide.
+    BitLengths(Ordering),
+    /// The cross products $a d$ and $c b$ are compared; each has at most
+    /// this many bits, $\max(|a| + |d|, |c| + |b|)$.
+    CrossProducts(u64),
+}
+
+/// The path of the order of the canonical rationals $a/b$ and $c/d$: equal
+/// parts, then the signs, then two power-of-two denominators, then equal
+/// denominators, then the sums of the bit lengths that bound the cross
+/// products, and otherwise the cross products. It reads the parts and
+/// allocates nothing.
+pub(crate) fn order_path(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> OrderPath {
     let (a, b) = left;
     let (c, d) = right;
+    if a == c && b == d {
+        return OrderPath::Same;
+    }
     let signs = sign_rank(a.sign()).cmp(&sign_rank(c.sign()));
-    if signs != Ordering::Equal {
-        return signs;
+    if signs != Ordering::Equal || a.is_zero() {
+        // Two canonical zeros have equal parts and stop above; the zero test
+        // keeps the paths below, which need nonzero numerators, correct for
+        // unreduced zeros as well.
+        return OrderPath::Signs(signs);
     }
-    if a.is_zero() {
-        return Ordering::Equal;
+    match (dyadic_exponent(b), dyadic_exponent(d)) {
+        (Some(p), Some(q)) => OrderPath::Dyadic(p, q),
+        _ => general_path(left, right),
     }
-    let magnitudes = match dyadic_cmp(left, right) {
-        Some(ordering) => return ordering,
-        None => order_magnitudes(a.magnitude(), b.magnitude(), c.magnitude(), d.magnitude()),
-    };
+}
+
+/// The path of two nonzero rationals of the same sign that are not equal and
+/// not both dyadic. For positive $u$ and $v$, $|u v|$ is $|u| + |v| - 1$ or
+/// $|u| + |v|$, so sums of bit lengths that differ by two or more decide.
+fn general_path(left: (&BigInt, &BigInt), right: (&BigInt, &BigInt)) -> OrderPath {
+    let (a, b) = left;
+    let (c, d) = right;
+    if b == d {
+        return OrderPath::SameDenominator;
+    }
+    let first = a.bits().saturating_add(d.bits());
+    let second = c.bits().saturating_add(b.bits());
+    if first.abs_diff(second) < 2 {
+        return OrderPath::CrossProducts(first.max(second));
+    }
+    let magnitudes = first.cmp(&second);
     if a.is_negative() {
-        magnitudes.reverse()
+        OrderPath::BitLengths(magnitudes.reverse())
     } else {
-        magnitudes
+        OrderPath::BitLengths(magnitudes)
+    }
+}
+
+/// The order of the canonical rationals $a/b$ and $c/d$ by `path`, their
+/// [`order_path`]. Only [`OrderPath::CrossProducts`] multiplies; aligning the
+/// binary points of $a / 2^p$ and $c / 2^q$ for $p \gt q$ shifts $c$ to
+/// $|c| + p - q$ bits, fewer than the bound of the cross products but not
+/// bounded by `max_integer_bits`, which this path does not check.
+pub(crate) fn order(
+    left: (&BigInt, &BigInt),
+    right: (&BigInt, &BigInt),
+    path: OrderPath,
+) -> Ordering {
+    let (a, b) = left;
+    let (c, d) = right;
+    match path {
+        OrderPath::Same => Ordering::Equal,
+        OrderPath::Signs(ordering) | OrderPath::BitLengths(ordering) => ordering,
+        OrderPath::Dyadic(p, q) => aligned_order(a, p, c, q),
+        OrderPath::SameDenominator => a.cmp(c),
+        // The denominators are positive, so a/b < c/d exactly when a d < c b.
+        OrderPath::CrossProducts(_) => (a * d).cmp(&(c * b)),
     }
 }
 
@@ -327,22 +403,4 @@ const fn sign_rank(sign: Sign) -> i8 {
         Sign::NoSign => 0,
         Sign::Plus => 1,
     }
-}
-
-/// The order of the positive rationals $a/b$ and $c/d$. For positive $u$
-/// and $v$, $|u v|$ is $|u| + |v| - 1$ or $|u| + |v|$, so bit lengths that
-/// differ by two or more decide; otherwise the cross products are compared.
-fn order_magnitudes(a: &BigUint, b: &BigUint, c: &BigUint, d: &BigUint) -> Ordering {
-    if b == d {
-        return a.cmp(c);
-    }
-    let first = a.bits().saturating_add(d.bits());
-    let second = c.bits().saturating_add(b.bits());
-    if first.saturating_add(1) < second {
-        return Ordering::Less;
-    }
-    if second.saturating_add(1) < first {
-        return Ordering::Greater;
-    }
-    (a * d).cmp(&(c * b))
 }

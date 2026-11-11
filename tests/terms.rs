@@ -15,6 +15,7 @@ use std::cmp::Ordering;
 
 use kalyx::context::{CancelFlag, Storage, StorageCost};
 use kalyx::number::{Integer, Rational};
+use kalyx::syntax::parse;
 use kalyx::term::{Term, TermKind};
 use kalyx::{
     Context, Error, ErrorKind, FaultKind, LimitAmount, LimitField, LimitId, LimitScope, Limits,
@@ -1154,6 +1155,25 @@ fn terms_are_checked_against_the_receiving_limits() {
     let shallow = &mut context(Limits::new().with_max_depth(2));
     let error = pair.power(2, shallow).unwrap_err();
     assert_limit(&error, LimitField::Depth);
+}
+
+// Equal numbers never make the order of terms exceed `max_integer_bits`:
+// $E = (N + 1)/(N - 1)$ with $N = 2^{2048}$, whose difference with itself
+// needs 4098 bits, and $E x$, each read twice from their text under the
+// default limits, are equal and compare `Equal`.
+#[test]
+fn terms_with_equal_numbers_beyond_half_the_bit_limit_are_equal() {
+    let c = &mut default_context();
+    let n = Rational::from(2_i64).power(2048, c).unwrap();
+    let above = n.add(&Rational::from(1_i64), c).unwrap();
+    let below = n.subtract(&Rational::from(1_i64), c).unwrap();
+    let e = format!("{above}/{below}");
+    for source in [e.clone(), format!("{e}*x")] {
+        let first = parse(&source, c).unwrap();
+        let second = parse(&source, c).unwrap();
+        assert!(first.equals(&second, c).unwrap(), "{source}");
+        assert_eq!(first.compare(&second, c).unwrap(), Ordering::Equal);
+    }
 }
 
 // A scaled sum and the primitive part of a sum are checked as every term is:

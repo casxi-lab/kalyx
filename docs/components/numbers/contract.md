@@ -97,8 +97,10 @@ operators (`E0369`).
   The bits of a rational are the larger bit length of its parts, at least 1.
 - **Size.** Every rational that an operation returns has at most
   `max_integer_bits` bits. A rational built under one context and used under
-  another is checked against the limits of the receiving context: its bits
-  are part of every bound below.
+  another is checked against the limits of the receiving context wherever an
+  operation checks a bound: its bits are part of every bound below, and
+  `compare` checks them only where it forms cross products, as Comparison
+  under [checks and charges](#checks-and-charges) states.
 
 ### Decimal literals
 
@@ -132,10 +134,14 @@ against `max_integer_bits`, computed from the operands alone; the charge,
 whose amount depends only on the operands; the computation; and the check of
 the bits of the result. A rejected operation therefore charges nothing,
 allocates nothing but its error and leaves `work_used` unchanged. The bound
-of each operation is at least the bits of every operand, so an operand above
-the limit of the receiving context is rejected, and at least the bits of
-every intermediate integer, so no integer that the operation computes
-exceeds it; `parse_decimal` also copies its digits, one byte per digit.
+of each operation that builds a rational is at least the bits of every
+operand, so an operand above the limit of the receiving context is rejected,
+and at least the bits of every intermediate integer, so no integer that the
+operation computes exceeds it; `parse_decimal` also copies its digits, one
+byte per digit. `compare` builds no rational and checks its bound only on
+the path of the cross products, as **Comparison** below states: on its other
+paths an operand above the limit is not rejected, and aligning binary points
+may compute an integer longer than the limit.
 Write $\lvert x \rvert$ for
 the bit length, the operands as $a/b$ and $c/d$, and $m = \lvert e \rvert$ for
 an exponent $e$.
@@ -144,7 +150,8 @@ an exponent $e$.
 | --- | --- | --- | --- |
 | `new(n, d)` | $d = 0$ | $\max(\lvert n \rvert, \lvert d \rvert)$ | 1 |
 | `parse_decimal` | syntax | $4 D$ | $D$ |
-| `add`, `subtract`, `compare` | none | $\max(\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert) + 1, \lvert b \rvert + \lvert d \rvert)$ | 1 |
+| `add`, `subtract` | none | $\max(\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert) + 1, \lvert b \rvert + \lvert d \rvert)$ | 1 |
+| `compare` | none | only for the cross products: $\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert)$ | 1 |
 | `multiply` | none | $\max(\lvert a \rvert + \lvert c \rvert, \lvert b \rvert + \lvert d \rvert)$ | 1 |
 | `divide` | $c = 0$ | $\max(\lvert a \rvert + \lvert d \rvert, \lvert b \rvert + \lvert c \rvert)$ | 1 |
 | `negate` | none | $\max(\lvert a \rvert, \lvert b \rvert)$ | 1 |
@@ -178,13 +185,45 @@ an exponent $e$.
   its one bits: the squarings and multiplications of binary powering, which
   computes the numerator and the denominator separately. The parts of a
   canonical base are coprime, so their powers need no reduction.
-- **Comparison.** `compare` checks and charges as a subtraction and then
-  compares without forming the difference: by sign, by aligning the binary
-  points of two power-of-two denominators, by the numerators when the
-  denominators are equal, by bit lengths when
+- **Comparison.** `compare` builds no rational and never forms the
+  difference. It takes the first of these paths that applies, chosen from
+  the parts without allocating: equal parts, which give `Equal`; different
+  signs; two power-of-two denominators $2^p$ and $2^q$, by aligning the
+  binary points; equal denominators, by the numerators; sums of bit lengths
   $\lvert a \rvert + \lvert d \rvert$ and $\lvert c \rvert + \lvert b \rvert$
-  differ by at least two, and otherwise by the cross products $a d$ and
-  $c b$.
+  that differ by at least two, which decide, since $\lvert u v \rvert$ is
+  $\lvert u \rvert + \lvert v \rvert - 1$ or $\lvert u \rvert + \lvert v \rvert$
+  for nonzero $u$ and $v$; and otherwise the cross products $a d$ and
+  $c b$. Only the last path forms products, and only it checks a bound:
+  that of the table, which neither cross product exceeds. So `compare`
+  fails with `ResourceLimit` naming `max_integer_bits`, with
+  `LimitAmount::Required` of the bound and before the charge, exactly when
+  it needs the cross products and their bound exceeds the limit. Every path
+  then charges one unit before it compares, so a pair charges the same
+  under every limit that admits it. Aligning the binary points is not
+  checked: for $p \gt q$ it shifts $c$ to $\lvert c \rvert + p - q$ bits,
+  fewer than the bound of the cross products, which is at least
+  $\lvert c \rvert + p + 1$. The shifted numerator is not bounded by
+  `max_integer_bits`: for operands within the limit it has fewer than twice
+  `max_integer_bits` bits, so under the default limits $2^{-4095}$ and
+  $2^{4096} - 1$ shift the latter to 8191 bits, and for operands above the
+  limit it is longer still: under `max_integer_bits` 0, $2^{100000}$ and
+  $2^{-100000}$ shift the former to 200,001 bits. Two equal rationals
+  therefore compare `Equal` under every `max_integer_bits`, though the
+  charge still observes `max_work`, cancellation and the deadline, and an
+  operand above the receiving limit is checked only where it takes part in
+  cross products.
+  With $N = 2^{2048}$, under the default limits $E = (N + 1)/(N - 1)$, of
+  2049 and 2048 bits, compares `Equal` with itself, though its difference
+  with itself needs 4098 bits and is rejected; $(N - 1)/(N - 3)$ and
+  $(N - 3)/(N - 5)$ need 4096 bits and are ordered; and $E$ and
+  $(N - 1)/(N - 3)$ need 4097 bits and are rejected. The cross products of
+  $-E$ and $(N - 1)/(N - 3)$ would need 4097 bits too, but their signs
+  order them; so do the binary points of $(2^{2047} + 1)/2^{2047}$ and
+  $(2^{2048} + 1)/2^{2048}$, whose cross products would also need 4097
+  bits. $E$ and $(N - 3)/(N + 3)$, whose sums of bit lengths 4098 and 4096
+  differ by exactly two, are ordered by these sums, though 4098 exceeds the
+  limit.
 - **The result check.** The bits of every result are checked with
   `check(IntegerBits, bits)` as in the earlier implementation; since every
   bound is at least the bits of the result, the check fails only if a bound
@@ -235,13 +274,16 @@ integers.
 - **Debug.** The stored numerator and denominator, which the canonical form
   makes unique.
 - **Order.** The charged `compare` is the only order of rationals: a
-  comparison may form cross products of the bits that the subtraction bound
-  states, so, as
+  comparison may form cross products of up to
+  $\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert)$
+  bits, so, as
   [convention 1](../../conventions/public-api.md#1-request-context-last)
   asks of every public method that may allocate, it takes the context. The
   total order of the
   [term core](../terms/contract.md#kinds-and-the-total-order) compares
-  numbers by value through it, so that each step is charged. `Rational`
+  numbers by value through it, so that each step is charged; equal numbers
+  have equal parts, so they never make the order of terms or `Term::equals`
+  exceed `max_integer_bits`. `Rational`
   implements neither `PartialOrd` nor `Ord`, and is not a key of ordered
   collections. `Integer` keeps its derived order: comparing two integers
   reads their digits and does not allocate.
@@ -427,12 +469,20 @@ cancellation, the value is returned.
   `deadline_and_exhausted_budget_prevent_results`,
   `integer_paths_still_observe_work_cancellation_and_errors`,
   `literals_charge_one_unit_per_digit_after_the_bit_check`,
-  `rationals_are_ordered_by_value`, `rationals_check_and_charge_new_elements`
+  `rationals_are_ordered_by_value`,
+  `equal_rationals_compare_equal_where_their_difference_is_rejected`,
+  `each_path_of_the_comparison_charges_one_unit_under_every_admitting_limit`,
+  `only_cross_products_beyond_max_integer_bits_are_rejected`,
+  `terms_with_equal_numbers_beyond_half_the_bit_limit_are_equal` in
+  `tests/terms.rs`,
+  `the_value_of_rational_sum_1024_equals_its_answer_under_the_default_limits`
+  in `tests/command.rs`, `rationals_check_and_charge_new_elements`
   and `rationals_measure_their_elements_by_the_storage_formula` in
   `tests/coefficient.rs`, and in `src/number/positive_compare_tests.rs`
+  `the_comparison_takes_the_first_path_that_applies`,
   `positive_comparison_matches_an_independent_small_integer_oracle`,
   `equal_adjacent_and_disjoint_product_bit_ranges_remain_exact`,
-  `hundred_thousand_bit_widths_preserve_the_subtraction_bound` and
+  `hundred_thousand_bit_widths_check_only_the_bound_of_the_cross_products` and
   `positive_comparison_preserves_every_small_bit_work_boundary_and_priority`.
 
 ### Literals, without an identifier
