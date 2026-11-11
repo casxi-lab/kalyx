@@ -1,30 +1,30 @@
 # Answer vectors
 
-`r02.tsv` holds the 58 answer vectors for kalyx 0.1, the first release: parsing, exact rational arithmetic, and expansion and differentiation
-in $\mathbb{Q}[x]$. They were converted mechanically from two fixtures of the
+`r02.tsv` holds the 58 answer vectors for kalyx 0.1, the first release:
+parsing, exact rational arithmetic, and expansion and differentiation in
+$\mathbb{Q}[x]$. They were converted mechanically from two fixtures of the
 earlier implementation, without running any of its code (see
 [Sources](#sources)). The vectors are test data: `tests/vectors.rs` checks
 their format, and `tests/syntax.rs` replays the 32 cases that the parser
-decides alone: the 31 evaluations, among them the depth, bit, syntax,
-division and exponent cases, and the exponent limit of the expansion
-`degree_limit_1`, which fails as its input is read; every error among them is
-checked with its span. `tests/polynomials.rs` replays the 27 expansions and
-derivatives, each as one request of the parser and the polynomials under its
-limits, and compares its result with the answer by canonical form.
-`tests/command.rs` replays all 58 through the command entry, each as one
-request under the limits that its `limits` column sets: `compare_case`
-compares an answer by canonical form, reading the answer and comparing the
-two terms by structure, and an error by its kind and, for `ResourceLimit`,
-by the limit identifier of the field that its limits set; it never compares
-display text or work, and a negative test shows that it rejects a corrupted
-expectation. `tests/cli.rs` replays all 58 through the line mode of the
-command-line program, each line with the operation, variable, input and
-limits of its case, and compares the output with the lines of the command
-entry byte for byte. The allocation check in `checks/allocation/` runs each
-of the 58 cases 100 times under a counting allocator and checks that every
-run leaves no memory behind; the
-[resource profile](../docs/resource-profile.md) records the heap and the
-stack of each case.
+decides alone: the 31 evaluations, among them the depth, bit, syntax, division
+and exponent cases, and the exponent limit of the expansion `degree_limit_1`,
+which fails as its input is read; every error among them is checked with its
+span. `tests/polynomials.rs` replays the 27 expansions and derivatives, each
+as one request of the parser and the polynomials under its limits, and
+compares its result with the answer by canonical form. `tests/command.rs`
+replays all 58 through the command entry, each as one request under the limits
+that its `limits` column sets: `compare_case` compares an answer by canonical
+form, reading the answer and comparing the two terms by structure, and an
+error by its kind and, for `ResourceLimit`, by the limit identifier of the
+field that its limits set; it never compares display text or work, and a
+negative test shows that it rejects a corrupted expectation. `tests/cli.rs`
+replays all 58 through the line mode of the command-line program, each line
+with the operation, variable, input and limits of its case, and compares the
+output with the lines of the command entry byte for byte. The allocation check
+in `checks/allocation/` runs each of the 58 cases 100 times under a counting
+allocator and checks that every run leaves no memory behind; the [resource
+profile](../docs/resource-profile.md) records the heap and the stack of each
+case.
 
 The six other files hold the full vectors of the earlier implementation: its
 402 command-line cases, the inventory of its 968 integration tests,
@@ -37,7 +37,7 @@ values map to kalyx.
 
 ## Format
 
-The file is plain TSV: UTF-8 text with tab-separated columns, no comment
+`r02.tsv` is plain TSV: UTF-8 text with tab-separated columns, no comment
 lines and no empty lines, so that any TSV reader, including the file view on
 GitHub, takes the first line as the header. The first line is the header row,
 which names the seven columns in order:
@@ -113,20 +113,26 @@ exceed it however nesting depth is counted.
 
 ### Provenance
 
-The expected values of the six files below were produced by an independent
-generator, which is not public: an export tool that built
-`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78` with Rust 1.99.0, ran
-it once and recorded its outputs. In that run the command-line cases and the
-library requests were each executed twice, with the same outputs both times.
-The two terminal sessions are the transcripts of the earlier implementation,
-which its own replay of both sessions matched reply for reply in that run.
+The six files below were produced by an independent generator, which is not
+public: an export tool that built
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78` with Rust 1.99.0 and
+wrote the files in one run. It recorded the outputs of the command-line
+cases, the library requests and the root calls, and executed the cases and
+the requests twice, with the same outputs both times; it listed the
+integration tests from the source, with their outcomes in that run; and it
+converted the two recorded terminal sessions of the earlier implementation
+(see [Terminal sessions](#terminal-sessions)).
 The paths of files of the earlier implementation in this section, such as
 `tests/interface/cases`, are paths in that tree, and a column that names such
 a file writes `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:<path>`.
 
 The program name of the earlier implementation is written `cas-project`
-wherever the program printed it, which is in its usage text. No other value
-was changed, and no row was added or removed.
+wherever the program printed it, which is in its usage text. Apart from this
+name, the escaping, the outcomes written in kalyx's terms (see
+[Kinds](#kinds)) and the words that name the scopes, the values are those
+that the earlier implementation wrote; the work that it counted and the
+messages of the errors of its library requests and root calls are not
+recorded, and no row was added or removed.
 
 ### Files
 
@@ -166,8 +172,9 @@ is written `3\n`.
 A column that holds a list, `args` of `cli_cases.tsv` and `commands` of
 `integration_tests.tsv`, joins its items with tabs before the field is
 escaped, so the items are separated by `\t`; an empty list is `-`. An empty
-item is the empty text between two separators or after the last one:
-`i\t--work\t` is the list of `i`, `--work` and an empty argument. The
+item is the empty text between two separators, before the first one or after
+the last one: `i\t--work\t` is the list of `i`, `--work` and an empty
+argument. A list of one empty item cannot be written; it does not occur. The
 `limits` column of `library.tsv` keeps the form of `r02.tsv`, `field=value`
 settings separated by `;`. A yes-or-no column holds `yes` or `no`.
 
@@ -202,7 +209,7 @@ id	source	command	args	stdin	status	stdout	stderr	kind
 
 Each case ran under the default limits of the earlier implementation. The
 arguments `--work N` set its work budget, `max_work`, to `N` of that
-implementation's work units; when `N` is not 0, the outcome depends on how
+implementation's work units; when `N` is not 0, the outcome can depend on how
 work is counted, as the budgets of the
 [library observations](#library-observations) do.
 
@@ -227,7 +234,7 @@ id	file	module	test	category	commands	ignored	status	blob
 | `module` | The module of the test in its binary, as `cargo test` prints it before the test name. |
 | `test` | The name of the test function. |
 | `category` | `examples`, `properties`, `constructions`, `boundaries`, `resources` or `regressions` when the test sits in the submodule of that name directly below the module of its file, otherwise `-`. |
-| `commands` | The first arguments that the test passes to the command-line program: its command words, `repl` for a session, and the options `--help`, `-h` and `--version`, each once and in code-point order, as a list (see [Escaping](#escaping)); `-` when the test does not run the program. Arguments that the program rejects as usage errors and the commands typed within a session or a `program` text are not listed. |
+| `commands` | The first arguments that the test passes to the command-line program: its command words, `repl` for a session, and the options `--help`, `-h` and `--version`, each once and in code-point order, as a list (see [Escaping](#escaping)); `-` when the test does not run the program. First arguments that are not command words of the program, which it rejects as usage errors, and the commands typed within a session or a `program` text are not listed. |
 | `ignored` | `yes` for the 6 tests marked `#[ignore]`, otherwise `no`. |
 | `status` | The result of one `cargo test` run of the nine binaries with Rust 1.99.0 in a debug build: `pass`, `fail`, or `ignored` for a test that the run skipped because it is marked `#[ignore]`. |
 | `blob` | The Git blob SHA-1 of `file` at that commit. |
@@ -274,11 +281,11 @@ inputs:
 | `ask` | the same, then asked whether it is positive | `f-ask` with the property `positive` |
 | `expand` | the same, then expanded it | none in release 0.2: for the 8 inputs that denote a polynomial in $\mathbb{Q}[x]$ in the syntax of release 0.1, `(-x)^2`, `(x+x)^3`, `-x`, `-x^3`, `0`, `0^0`, `x` and `x+x-x`, the polynomial expansion `expand` of that release with the variable `x`; for the other inputs, a later release |
 
-In kalyx a scope is passed to the command as a literal scope operand. Its
-written form is fixed with the request form of these commands, in a later
-change; the file names a scope only by the word in its `scope` column. The
-earlier command-line program wrote the four scopes `{}`, `{x:real}`,
-`{x:positive}` and `{x:negative}`.
+A scope maps to a literal scope operand of the kalyx command. Its written form
+is fixed with the request form of these commands, in a later change; the file
+names a scope only by the word in its `scope` column. The earlier command-line
+program wrote the four scopes `{}`, `{x:real}`, `{x:positive}` and
+`{x:negative}`.
 
 For each input, scope and operation, the driver first ran the request with
 `max_work=1000000` and read the work $n$ that it used; then once with each
@@ -308,9 +315,9 @@ implementation, `cas-project repl`, taken from
 and
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:tests/data/interface/terminal_collections.txt`.
 The first was ported from an earlier test script of that implementation; the
-expected replies of the second were calculated by hand. Each row is one
-input line of the session, in its order, and the text that the terminal
-showed in reply before the next prompt.
+expected replies of the second were calculated by hand. Each row is one input
+line of the session, in its order, and the text that the terminal showed in
+reply before the next prompt.
 
 ```text
 id	input	output
@@ -335,17 +342,16 @@ as in [Command-line cases](#command-line-cases).
 
 ### Root calls
 
-`root_calls.tsv` holds 1,782 calls, one for each combination of 2 scopes,
-11 requests and 81 sources. The sources are roots of every degree around the
-special cases 0, 1 and 2 and the limit 4096, roots inside other calls,
-powers, conditions and held forms, degrees that are not unsigned integer
-literals, and calls of the other elementary functions. The rows were written
-by the test
+`root_calls.tsv` holds 1,782 calls, one for each combination of 2 scopes, 11
+requests and 81 sources. The sources are roots of every degree around the
+special cases 0, 1 and 2 and the limit 4096, roots inside other calls, powers,
+conditions and held forms, degrees that are not unsigned integer literals, and
+calls of the other elementary functions. The rows were written by the test
 `functions::boundaries::root_calls_keep_the_outcomes_and_work_measured_on_main`
 of
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:tests/symbolic/functions.rs`,
-run at that commit with its table writer enabled, in the order scope,
-request, source; their scope, request and source agree row for row with
+run at that commit with its table writer enabled, in the order scope, request,
+source; their scope, request and source agree row for row with
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:tests/data/symbolic/root_calls.tsv`.
 
 ```text
@@ -375,18 +381,18 @@ id	scope	request	source	result	answer
 | `refine positive` | `refine_positive` | the expression refined under the fact that `x` is positive |
 | `ask real` | `ask_real` | whether the value is real: `True`, `False` or `Unknown` |
 
-The answer of an `approximate` request is the earlier implementation's
-record of the approximation (status, method, bits, enclosure, rounded value
-and error bound), not an expression. Every request ran under the default
+The answer of an `approximate` request is the earlier implementation's record
+of the approximation (such as its status, method, bits, enclosure, rounded
+value and error bound), not an expression. Every request ran under the default
 limits of the earlier implementation with a budget of 10,000,000 of its work
 units; the work that each request used is not recorded.
 
 ### Kinds
 
-The `kind` column of `cli_cases.tsv` and the `result` column of
-`library.tsv` and `root_calls.tsv` name an outcome in kalyx's terms. The
-earlier implementation had one enum of 25 error kinds; each maps as the
-[errors contract](../docs/components/errors/contract.md#kinds-of-the-earlier-implementation)
+The `kind` column of `cli_cases.tsv` and the `result` column of `library.tsv`
+and `root_calls.tsv` name an outcome in kalyx's terms. The earlier
+implementation had one enum of 25 error kinds; each maps as the [errors
+contract](../docs/components/errors/contract.md#kinds-of-the-earlier-implementation)
 fixes it:
 
 | Earlier kinds | Value |
@@ -439,10 +445,9 @@ status and its standard error, by the first of these rules that applies:
 6. A message that no constructor builds but that the operand check of a
    command writes is `Syntax`; a message that matches nothing is `unknown`.
 
-Of the 402 cases, 218 are `ok`, 45 `usage`, 14 `-` and
-1 `unknown`; the other 124 have an error kind or a
-result state. `library.tsv` has 0 rows and
-`root_calls.tsv` 0 rows whose `result` is `unknown`.
+Of the 402 cases, 218 are `ok`, 45 `usage`, 14 `-` and 0 `unknown`; the other
+125 have an error kind. `library.tsv` has 0 rows and `root_calls.tsv` 0 rows
+whose `result` is `unknown`.
 
 ### Limits of the earlier implementation
 
@@ -462,23 +467,23 @@ to none:
 | `max_integer_bits` | 4096 | `max_integer_bits` | 4096 | same | kalyx also derives the bits of a working precision from it. |
 | `max_exponent` | 4096 | `max_exponent` | 4096 | same | A 32-bit field before, 64-bit now. kalyx also derives degrees and orders of derivatives from it. |
 | `max_degree` | 256 | `max_exponent` | 4096 | derived | Under the defaults a degree from 257 to 4096 is admitted. `max_exponent=256` reproduces the earlier bound and also bounds exponents by 256. |
-| `max_terms` | 257 | `max_nodes` | 8192 | derived | A term is at least one node. |
+| `max_terms` | 257 | `max_nodes` | 8192 | derived | A term is at least one node. Under the defaults up to 8192 one-node terms are admitted where 257 terms were. |
 | `max_symbolic_depth` | 128 | `max_depth` | 128 | renamed | One depth for syntax, terms and values. |
-| `max_symbolic_bytes` | 262144 | `max_storage_bytes` | 262144 | renamed | Measured by kalyx's byte formulas; the bytes of an output, which the earlier field also bounded, are bounded by `max_output_bytes`. |
-| `max_domain_conditions` | 64 | `max_nodes` | 8192 | derived | A condition is at least one node. |
+| `max_symbolic_bytes` | 262144 | `max_storage_bytes` | 262144 | derived | Measured by kalyx's byte formulas; the bytes of an output, which the earlier field also bounded, are bounded by `max_output_bytes`. |
+| `max_domain_conditions` | 64 | `max_nodes` | 8192 | derived | A condition is at least one node. Under the defaults up to 8192 one-node conditions are admitted where 64 were. |
 | `max_environment_bindings` | 128 | none | | cannot map | Bindings of a session; no kalyx request holds a session yet. |
 | `max_call_depth` | 32 | `max_frames` | 32 | renamed | The earlier field was also capped at 64. |
-| `max_environment_nodes` | 65536 | `max_nodes` | 8192 | derived | The nodes of open frames and temporaries; the nodes of a stored session have no counterpart yet. |
-| `max_environment_bytes` | 1048576 | `max_storage_bytes` | 262144 | derived | As `max_environment_nodes`, in bytes. |
-| `max_factor_cells` | 65536 | `max_nodes` | 8192 | derived | Temporaries of factorization. |
-| `max_root_cells` | 65536 | `max_nodes` | 8192 | derived | Temporaries of real root isolation. |
+| `max_environment_nodes` | 65536 | `max_nodes` | 8192 | derived | The nodes of open frames and temporaries; the nodes of a stored session have no counterpart yet. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 65536 nodes, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
+| `max_environment_bytes` | 1048576 | `max_storage_bytes` | 262144 | derived | As `max_environment_nodes`, in bytes. Under the defaults kalyx admits 262144 bytes in all where the earlier field admitted 1048576 bytes, so a request that fitted before can end with `ResourceLimit` on `max_storage_bytes`. |
+| `max_factor_cells` | 65536 | `max_nodes` | 8192 | derived | Temporaries of factorization. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 65536 cells, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
+| `max_root_cells` | 65536 | `max_nodes` | 8192 | derived | Temporaries of real root isolation. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 65536 cells, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
 | `max_matrix_dimension` | 256 | none | | cannot map | A size without elements is an explicit parameter of the request, reported by its name. |
-| `max_matrix_cells` | 65536 | `max_nodes` | 8192 | derived | A cell is at least one node. |
-| `max_matrix_scratch_cells` | 131072 | `max_nodes` | 8192 | derived | Temporaries of elimination. |
+| `max_matrix_cells` | 65536 | `max_nodes` | 8192 | derived | A cell is at least one node. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 65536 cells, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
+| `max_matrix_scratch_cells` | 131072 | `max_nodes` | 8192 | derived | Temporaries of elimination. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 131072 cells, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
 | `max_sparse_dimension` | 1000000 | none | | cannot map | As `max_matrix_dimension`. |
-| `max_sparse_nnz` | 65536 | `max_nodes` | 8192 | derived | An entry is at least one node. |
-| `max_sparse_bytes` | 8388608 | `max_storage_bytes` | 262144 | derived | Bytes of sparse storage. |
-| `max_sparse_fill` | 131072 | `max_nodes` | 8192 | derived | Temporaries of sparse elimination. |
+| `max_sparse_nnz` | 65536 | `max_nodes` | 8192 | derived | An entry is at least one node. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 65536 entries, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
+| `max_sparse_bytes` | 8388608 | `max_storage_bytes` | 262144 | derived | Bytes of sparse storage. Under the defaults kalyx admits 262144 bytes in all where the earlier field admitted 8388608 bytes, so a request that fitted before can end with `ResourceLimit` on `max_storage_bytes`. |
+| `max_sparse_fill` | 131072 | `max_nodes` | 8192 | derived | Temporaries of sparse elimination. Under the defaults kalyx admits 8192 nodes in all where the earlier field admitted 131072 cells, so a request that fitted before can end with `ResourceLimit` on `max_nodes`. |
 
 `max_output_bytes` has no earlier field. The earlier implementation also
 capped some fields by constants: the parse depth by 256 in expressions and
@@ -492,16 +497,15 @@ kalyx applies every field as it is given.
 The limit of a row maps through this table. For a field marked `same` or
 `renamed`, other than `max_work`, whose units differ, the kalyx field set to
 the earlier value bounds the same quantity, so a row that exceeded such a
-field carries its setting over. A row that ran under the earlier defaults
-and reached a derived field whose default differs, a field that cannot be
-mapped or one of the caps above ran under a bound that kalyx does not have;
-the file keeps its outcome as observed. `cli_cases.tsv` and the terminal
-sessions have no `limits` column: they ran under the default limits, with
-`max_work=N` where an input sets `--work N`. `root_calls.tsv`
-ran under the default limits with `max_work=10000000`; of its
-82 `ResourceLimit` rows, the 66 that
-exceed the root degree and the 4 that exceed the
-integer bits have the same default in kalyx (`max_exponent` and
-`max_integer_bits`, 4096), and the 12 that
-exceed the numeric root degree, the earlier degree bound 256, ran under a
-default that kalyx does not have.
+field carries its setting over. A row that ran under the earlier defaults and
+reached a derived field whose default differs, a field that cannot be mapped
+or one of the caps above ran under a bound that kalyx does not have, and a row
+that fitted a larger earlier default of a derived field can exceed the smaller
+default of kalyx; the file keeps its outcome as observed. `cli_cases.tsv` and
+the terminal sessions have no `limits` column: they ran under the default
+limits, with `max_work=N` where an input sets `--work N`. `root_calls.tsv` ran
+under the default limits with `max_work=10000000`; of its 82 `ResourceLimit`
+rows, the 66 that exceed the root degree and the 4 that exceed the integer
+bits have the same default in kalyx (`max_exponent` and `max_integer_bits`,
+4096), and the 12 that exceed the numeric root degree, the earlier degree
+bound 256, ran under a default that kalyx does not have.
