@@ -25,6 +25,10 @@ coefficients, through three operations:
   $\mathbb{Q}$; any other symbol is an error;
 - `diff` returns the derivative of that polynomial by the variable.
 
+The library also holds the integer kernel of `kalyx::number`: checked
+arithmetic of integers, GCDs with Bézout coefficients, modular inverses and
+powers, and Chinese remaindering, which no operation reaches yet.
+
 Every request runs under explicit limits on its work, its input and output
 bytes, its nesting depth, the size of its values, the bits of its integers
 and its exponents; a caller of the library can also give it a deadline and

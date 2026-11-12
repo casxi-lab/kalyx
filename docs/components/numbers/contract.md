@@ -1,23 +1,25 @@
 # Exact numbers and the coefficient-field trait
 
 This contract states the exact numbers of kalyx, arbitrary-size integers and
-rationals, and the coefficient-field trait with its first implementation,
-the field $\mathbb{Q}$ of rational numbers. It applies to the module
-`src/number.rs` with its submodules `src/number/arithmetic.rs`,
-`src/number/literal.rs` and `src/number/power.rs`, and to the module
-`src/coefficient.rs`. The [architecture](../../architecture.md#coefficient-field-trait)
+rationals, with the integer kernel, and the coefficient-field trait with its
+first implementation, the field $\mathbb{Q}$ of rational numbers. It applies
+to the module `src/number.rs` with its submodules `src/number/arithmetic.rs`,
+`src/number/integer.rs`, `src/number/literal.rs` and `src/number/power.rs`,
+and to the module `src/coefficient.rs`. The [architecture](../../architecture.md#coefficient-field-trait)
 places the component among the foundations and states the design rules of the
 trait, and the [public API conventions](../../conventions/public-api.md)
 state the rules that every public interface follows. The limits and the
 charges belong to the [context](../context/contract.md), and the errors to the
 [errors and result states](../errors/contract.md).
 
-**Status.** Implemented in `src/number.rs` and `src/coefficient.rs`, at tier
-A0 (tested); the trait is planned for tier A2 in release 0.2. The first
-caller in the library is the [term core](../terms/contract.md), whose numbers,
+**Status.** Implemented in `src/number.rs`, with the integer kernel in
+`src/number/integer.rs`, and in `src/coefficient.rs`, at tier A0 (tested);
+the trait is planned for tier A2 in release 0.2. The first caller in the
+library is the [term core](../terms/contract.md), whose numbers,
 coefficients and constants are rationals; the
 [polynomials](../polynomials/contract.md) over $\mathbb{Q}$ reach their
-coefficients through the coefficient-field trait.
+coefficients through the coefficient-field trait. The integer kernel has no
+caller in the library yet.
 
 ## Scope
 
@@ -25,14 +27,17 @@ coefficients through the coefficient-field trait.
   (`Rational`): construction from machine integers, from a numerator and a
   denominator and from decimal literals; the arithmetic of rationals (sum,
   difference, product, quotient, negation, inverse, integer power and a
-  charged comparison); display text and storage cost. The two layers of the
-  coefficient-field trait, `CoefficientRing` and `CoefficientField`, the zero
-  test answer `ZeroTest`, and the field of rationals `Rationals`.
+  charged comparison); display text and storage cost. The arithmetic of
+  integers (sum, difference, product, negation, absolute value, Euclidean
+  division and exact quotient) and the integer kernel: GCD, LCM, extended
+  GCD, modular inverse, modular power, congruences and Chinese
+  remaindering. The two layers of the coefficient-field trait,
+  `CoefficientRing` and `CoefficientField`, the zero test answer
+  `ZeroTest`, and the field of rationals `Rationals`.
 - **Excluded, with their owners.**
-  - The integer kernel (GCD, LCM, extended GCD, modular inverse, modular
-    power, Chinese remaindering) and arithmetic on `Integer` itself: the
-    coefficient fields of release 0.2. The reduction that num-rational does
-    inside its own constructor is used, and is not an interface of kalyx.
+  - The GCDs of the reduction of rationals: the reduction that num-rational
+    does inside its own constructor is used, and is not an interface of
+    kalyx; the integer kernel takes no part in it.
   - The prime fields $\mathbb F_p$, the ring $\mathbb{Z}$ as a coefficient
     ring, $\mathbb{Q}(a)$, the result-state subtraits of rings that are not
     fields and maps between structures: the coefficient fields of release 0.2.
@@ -42,15 +47,33 @@ coefficients through the coefficient-field trait.
     of parsed expressions and the decimal literal syntax beyond one literal:
     the [parser](../syntax/contract.md), which reads each literal through
     `literal_at`.
-  - Number theory: release 0.4.
+  - Number theory beyond the integer kernel, such as primality,
+    factorization and combinatorics: release 0.4.
 
 ## Interface
 
 The module `kalyx::number` holds:
 
 - `Integer`, with `From<i64>`, `From<u64>`, `bits()`, `is_zero()`,
-  `is_positive()`, `is_negative()`, `Clone`, `Debug`, `Default` (zero),
-  `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash` and `Display`;
+  `is_positive()`, `is_negative()`, the operations `add`, `subtract`,
+  `multiply`, `negate`, `absolute`, `divide_with_remainder` and
+  `exact_quotient`, each with the context last, `Clone`, `Debug`, `Default`
+  (zero), `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`, `Display` and
+  `StorageCost`;
+- the integer kernel: the functions `gcd(a, b, context)`,
+  `lcm(a, b, context)`, `extended_gcd(a, b, context)`,
+  `modular_inverse(a, modulus, context)`,
+  `modular_power(base, exponent, modulus, context)` and
+  `crt(congruences, context)`; `Congruence`, with
+  `Congruence::new(residue, modulus, context)` and the accessors `residue()`
+  and `modulus()`; the results `IntegerDivision` (`quotient()`,
+  `remainder()`) and `IntegerBezout` (`gcd()`, `left()`, `right()`); and the
+  outcomes `ExactQuotient` (`Quotient(q)` or `NotDivisible`),
+  `ModularInverse` (`Inverse(v)` or `NonUnit(g)`) and `CrtResult`
+  (`Solution(congruence)` or `Inconsistent`), which are `#[non_exhaustive]`.
+  Each implements `Clone`, `Debug`, `PartialEq`, `Eq`, `Hash` and
+  `StorageCost`, and `IntegerBezout`, `Congruence` and `CrtResult`
+  implement `Display`;
 - `Rational`, with `Rational::new(numerator, denominator, context)`,
   `Rational::parse_decimal(source, context)`, `From<Integer>`, `From<i64>`,
   the accessors `numerator()`, `denominator()`, `is_zero()`, `is_positive()`,
@@ -69,7 +92,8 @@ conversion for the parser, whose errors carry spans shifted by `offset`;
 the parser;
 `Rational::binary(other, operation, span, context)`, the binary operations
 with the caller's span on the error; and the kernels of `arithmetic`, `power`
-and `literal`.
+and `literal`. The steps of the integer kernel in `integer` are private to
+it.
 
 The crate root re-exports nothing of the component. No type of num-bigint,
 num-rational or num-traits appears in a public signature or is re-exported,
@@ -77,7 +101,10 @@ and no public constructor takes the parts of a rational unchecked: the
 `compile_fail` documentation tests of `Rational` check that `new_raw` does not
 exist (`E0599`) and that a num-rational value does not convert into a
 `Rational` (`E0277`). A third checks that rationals have no comparison
-operators (`E0369`).
+operators (`E0369`). The fields of `Congruence`, `IntegerDivision` and
+`IntegerBezout` are private, and the `compile_fail` documentation test of
+`Congruence` checks that a congruence cannot be built from its fields
+(`E0451`).
 
 ## Rules
 
@@ -87,8 +114,11 @@ operators (`E0369`).
   bit length $\lvert x \rvert$ of the absolute value: 0 for zero, otherwise
   $\lfloor \log_2 \lvert x \rvert \rfloor + 1$. Integers are not checked
   against `max_integer_bits` when they are built from machine integers, since
-  those have at most 64 bits; the operations of `Rational` check them when
-  they use them.
+  those have at most 64 bits; the operations of `Integer`, the integer kernel
+  and the operations of `Rational` check them when they use them.
+- **Congruence.** A modulus $m \gt 0$ and the least nonnegative residue
+  $0 \le r \lt m$, established by `Congruence::new` and by `crt`, the only
+  ways to build one.
 - **Rational.** A numerator and a denominator with no common factor and a
   positive denominator; zero is $0/1$. Every public way to build a rational
   establishes this form, so two rationals are equal exactly when their values
@@ -246,13 +276,115 @@ $\gcd(a, d)$ and $\gcd(c, b)$, and a quotient multiplies by the inverse of
 the divisor. All GCDs are those of the reduction inside num-rational. Every
 path charges the same amount.
 
+### The integer kernel
+
+The arithmetic of `Integer` and the functions of the integer kernel run in
+the order of the rationals: the domain test, where the operation has one;
+the check of a bound against `max_integer_bits`, computed from the operands
+alone; the charge, whose amount depends only on the operands; the
+computation; the check of the bits of the result; and the check of the
+storage cost of the returned value with `check_storage` at
+`LimitScope::Value`, so that it counts together with the open frames and
+the reserved temporaries. A function of several steps checks its bound on
+entry, before any charge, and each step then checks its own bound and
+charges before it computes; the intermediate integers are checked by their
+bits only. The kernel charges work and checks storage, and opens no frame and
+reserves no temporary, so `Context::retained()` is the same before and after
+every call. Write $W(x) = \max(1, \lceil \lvert x \rvert / 64 \rceil)$ for
+the machine words of $x$: a product, a Euclidean division and a remainder of
+$x$ and $y$ charge $W(x) W(y)$ units, and a sum, a difference, a negation
+and an absolute value one unit.
+
+| Operation | Domain test | Bit bound on entry | Charge | Result |
+| --- | --- | --- | --- | --- |
+| `a.add(b)`, `a.subtract(b)` | none | $\max(\lvert a \rvert, \lvert b \rvert) + 1$ | 1 | $a \pm b$ |
+| `a.multiply(b)` | none | $\lvert a \rvert + \lvert b \rvert$ | $W(a) W(b)$ | $a b$ |
+| `a.negate()`, `a.absolute()` | none | $\lvert a \rvert$ | 1 | $-a$, $\lvert a \rvert$ |
+| `a.divide_with_remainder(b)` | $b = 0$ | $\max(\lvert a \rvert, \lvert b \rvert)$ | $W(a) W(b)$ | $(q, r)$, $a = q b + r$, $0 \le r \lt \lvert b \rvert$ |
+| `a.exact_quotient(b)` | $b = 0$ | $\max(\lvert a \rvert, \lvert b \rvert)$ | $W(a) W(b)$ | `Quotient(q)` when $b \mid a$, else `NotDivisible` |
+| `gcd(a, b)` | none | $\max(\lvert a \rvert, \lvert b \rvert)$ | each Euclid step $(x, y) \mapsto (y, x \bmod y)$: $W(x) W(y)$ | $g \ge 0$, $\gcd(0, 0) = 0$ |
+| `lcm(a, b)` | none | $\max(\lvert a \rvert, \lvert b \rvert)$, and before the product $\lvert a / g \rvert + \lvert b \rvert$ | the steps of `gcd`, one exact quotient and one product | $\lvert a b \rvert / g \ge 0$, 0 when an operand is 0 |
+| `extended_gcd(a, b)` | none | $\max(\lvert a \rvert, \lvert b \rvert) + 2$ | each round: one Euclidean division, two products and two differences | $(g, s, t)$, $g = s a + t b$, $g \ge 0$ |
+| `modular_inverse(a, m)` | $m \le 0$ | $\max(\lvert a \rvert, \lvert m \rvert)$, and for $m \gt 1$ also $\lvert m \rvert + 2$ | the remainder $a \bmod m$; for $m \gt 1$ the rounds of `extended_gcd` on it and $m$, and for a unit the remainder of $s$ modulo $m$ | `Inverse(v)`, $0 \le v \lt m$, or `NonUnit(g)` |
+| `modular_power(a, e, m)` | $m \le 0$; after the inverse, $e \lt 0$ with a base that is not a unit | $\max(\lvert a \rvert, \lvert e \rvert, \lvert m \rvert)$, and for $e \ne 0$ also $2 \lvert m \rvert$ | the remainder $a \bmod m$ or the inverse; then each multiplication and each squaring: one product and one remainder modulo $m$ | $a^e \bmod m$ in $[0, m)$ |
+| `Congruence::new(r, m)` | $m \le 0$ | $\max(\lvert r \rvert, \lvert m \rvert)$ | the remainder: $W(r) W(m)$ | $r \bmod m$ in $[0, m)$ |
+| `crt(congruences)` | none: the moduli are positive | every residue and modulus | each merge, as below | `Solution(r mod l)` or `Inconsistent` |
+
+- **Order.** A zero divisor and a modulus that is not positive are reported
+  before any check of `max_integer_bits` and before any charge, so the
+  error is the same under every limit and charges nothing. The earlier
+  implementation charged and checked its operands first and tested the
+  divisor and the modulus after, as its coefficient-field contract stated;
+  this order is a change of behaviour on purpose.
+- **Euclidean division.** The remainder is never negative:
+  $q = \mathrm{sign}(b) \lfloor a / \lvert b \rvert \rfloor$, rounded down
+  for $b \gt 0$ and up for $b \lt 0$, so $-7$ divided by $2$ is
+  $(-4, 1)$ and by $-2$ is $(4, 1)$. `exact_quotient` takes the same
+  division and returns `NotDivisible`, a value and not an error, when the
+  remainder is not zero.
+- **GCD and Bézout coefficients.** The bound of `gcd` covers every step,
+  since the remainders decrease. `extended_gcd` runs on $\lvert a \rvert$
+  and $\lvert b \rvert$ and gives the signs of $a$ and $b$ to $s$ and $t$:
+  $(240, 46)$ gives $(2, -9, 47)$ and $(0, 0)$ gives $(0, 0, 0)$. The
+  coefficients of the rounds alternate in sign and never exceed
+  $\max(\lvert a \rvert, \lvert b \rvert)$ in absolute value, so the bound
+  of $\max(\lvert a \rvert, \lvert b \rvert) + 2$ bits covers every product
+  and difference of a round.
+- **Modular inverse.** Modulo 1 every residue is the unit 0, with inverse
+  0. For $m \gt 1$ the result is `Inverse(v)` when
+  $g = \gcd(a \bmod m, m) = 1$, and otherwise `NonUnit(g)`, which is $m$ for
+  a residue of zero; a missing inverse is a value, not an error. The bound
+  $\lvert m \rvert + 2$ is checked whether the residue is zero or not, since
+  only the operands decide it before the charge. These are functions on
+  integers, not the operations of a residue ring.
+- **Modular power.** For $e \lt 0$ the base is first inverted, and a base
+  that is not a unit, a residue of zero included, fails with
+  `Fault(OutsideDomain)` after the charges of the inverse. Every product
+  of two residues is the integer product followed by its remainder modulo
+  $m$, on one path under every limit, so the charges depend only on the
+  operands; the bound $2 \lvert m \rvert$ covers each product and, for
+  $m \gt 1$, the bound $\lvert m \rvert + 2$ of the inverse. A power whose
+  product bound exceeds `max_integer_bits` fails with `ResourceLimit` naming
+  `max_integer_bits` before any charge: under the default limits a power
+  with a nonzero exponent modulo a modulus of more than 2048 bits fails.
+  The earlier implementation switched to doubling and addition when the
+  bits of the two factors added up to more than `max_integer_bits`, so its
+  charges changed with the limits;
+  `a_modular_power_takes_one_path_under_every_bit_limit` rejects that
+  deviation: $250^{231} \bmod 251$ is 250 with the same work under the
+  default limits and under 16 bits, and fails under 15 and 8 bits with the
+  amount 16 and no work. The exponent is checked by its bits against
+  `max_integer_bits` only, never against `max_exponent`: the result is a
+  residue, which does not grow with the exponent.
+- **Chinese remaindering.** The moduli need not be coprime. The congruences
+  are merged in order into $r \bmod M$ from $0 \bmod 1$, the empty system's
+  solution. Merging $x \equiv r_i \pmod{m_i}$ runs the extended GCD
+  $g = s M + t m_i$, the difference $\delta = r_i - r$, the Euclidean
+  division of $\delta$ by $g$, the exact quotient $n = m_i / g$, the
+  remainders of $\delta / g$ and of $s$ modulo $n$, their product modulo $n$,
+  $k$, and the products $M n$ and $M k$ and the sum $r + M k$, each with its
+  own bound and charge. The first congruence whose $\delta$ is not divisible
+  by $g$ ends the computation with `Inconsistent`, a value and not an error;
+  otherwise the result is the solution modulo the LCM of the moduli. The
+  check on entry reads every congruence once, before any charge, so a
+  congruence built under other limits is checked against the receiving
+  `max_integer_bits`.
+- **Storage.** Only the returned value is admitted, by the formulas of
+  [storage](#storage); the storage of the operands is not checked. The
+  earlier implementation also checked the nodes and bytes of the operands,
+  so that $\gcd(-12, 18)$ returned no value under one node or 17 bytes; in
+  kalyx it returns 6, which costs one node and 7 bytes.
+
 ### Division by zero
 
 `divide` by zero, `inverse` of zero, `new` with a zero denominator and a zero
-base with a negative exponent fail with `Fault(DivisionByZero)`. The zero test
-comes before any check of `max_integer_bits` and before any charge, so the
-error is the same under every limit and every remaining work, and nothing is
-charged; only the exponent check of a power comes first.
+base with a negative exponent fail with `Fault(DivisionByZero)`, and so do
+`divide_with_remainder` and `exact_quotient` of `Integer` by zero. The zero
+test comes before any check of `max_integer_bits` and before any charge, so
+the error is the same under every limit and every remaining work, and nothing
+is charged; only the exponent check of a power comes first. A modulus that is
+not positive, which the integer kernel reports as `Fault(OutsideDomain)`, is
+tested at the same place.
 
 ### Storage
 
@@ -263,12 +395,29 @@ Zero costs $(1, 4)$. The `measure` of `Rationals` is the same formula; it
 takes constant time, since the bit lengths are read from the stored
 integers.
 
+The results of the integer kernel follow the
+[storage formulas](../../architecture.md#storage-bytes) of the architecture:
+an integer $z$ costs $(1, \lvert z \rvert + 4)$, the cost of the rational
+$z/1$; a result of several integers, `IntegerDivision`, `IntegerBezout` and
+`Congruence`, the sum of their costs, so $(2, \lvert q \rvert + \lvert r \rvert + 8)$,
+$(3, \lvert g \rvert + \lvert s \rvert + \lvert t \rvert + 12)$ and
+$(2, \lvert r \rvert + \lvert m \rvert + 8)$; an outcome the cost of the
+integer that it carries, and $(1, 4)$ for `NotDivisible` and `Inconsistent`.
+Each returned value is admitted with `check_storage` at `LimitScope::Value`
+against `max_nodes` and `max_storage_bytes`, the totals that the context
+retains. The earlier implementation compared the bytes of the operands and
+of each composite result with a separate bound on one value,
+`max_symbolic_bytes`; in kalyx that bound is the special case of the total
+in which nothing else is retained.
+
 ### Display, order and equality
 
 - **Display.** An integer is its decimal digits with a leading `-` when
   negative. A rational is its numerator, followed by `/` and its denominator
-  unless the denominator is 1: `-3/4`, `5`, `0`. The text is deterministic and
-  depends only on the value. As
+  unless the denominator is 1: `-3/4`, `5`, `0`. A congruence is
+  `r mod m`, an outcome of `crt` its congruence or `inconsistent`, and the
+  result of `extended_gcd` `gcd: g; left: s; right: t`. The text is
+  deterministic and depends only on the value. As
   [convention 10](../../conventions/public-api.md#10-bounded-output) states,
   `Display` is a debugging convenience and takes no context.
 - **Debug.** The stored numerator and denominator, which the canonical form
@@ -354,8 +503,9 @@ The requirement identifiers are those of the coefficient fields of the
 earlier implementation of the casξ computer algebra system; they are never
 renumbered or reused. Each entry states the part of the requirement that
 applies to the rationals and to the trait, as kalyx implements it, and the
-tests that are its evidence. Tests are in `tests/numbers.rs` unless the entry
-names `tests/coefficient.rs` or a file below `src/number/`. The bit check of
+tests that are its evidence. Tests are in `tests/numbers.rs`, and those of
+FLD-R14 and FLD-R15 in `tests/integers.rs`, unless the entry names
+`tests/coefficient.rs` or a file below `src/number/`. The bit check of
 an integer is [CTX-R07](../context/contract.md#ctx-r07) of the context.
 
 ### FLD-R01
@@ -485,6 +635,78 @@ cancellation, the value is returned.
   `hundred_thousand_bit_widths_check_only_the_bound_of_the_cross_products` and
   `positive_comparison_preserves_every_small_bit_work_boundary_and_priority`.
 
+### FLD-R14
+
+**Integers.** The part that applies to the arithmetic of `Integer` and to
+the integer kernel: integers of any size, each its own canonical form; sums,
+differences, products and negation; exact division, which is
+`DivisionByZero` for a zero divisor, $0 / 0$ included, returns the quotient
+when the divisor divides and is otherwise `NotDivisible`, a value and not an
+error; a GCD that is nonnegative, divides both operands and is divisible by
+every common divisor, with $\gcd(0, 0) = 0$; and an LCM of
+$\lvert a b \rvert / \gcd(a, b)$, and 0 when an operand is 0. Under limits at
+or above the stated bounds, when the charges succeed, an operation returns
+its outcome. kalyx differs from the earlier requirement on purpose in three
+places, as [the integer kernel](#the-integer-kernel) states: the zero divisor
+is tested before any check and charge; an integer costs
+$(1, \lvert z \rvert + 4)$ in place of one node and
+$\lceil \lvert z \rvert / 8 \rceil + 8$ bytes, and only the returned value
+is admitted; and the bounds are those of the table there, none above the
+estimates of the earlier requirement: a sum needs
+$\max(\lvert a \rvert, \lvert b \rvert) + 1$ bits, where the earlier
+estimate was one bit more.
+The integer coefficient ring, its exact division with the result state
+inexact and the maps out of $\mathbb{Z}$ are not part of this component.
+
+- **Implemented here.** The operations of `Integer`, `gcd`, `lcm` and
+  `extended_gcd` in `src/number/integer.rs`.
+- **Evidence.** Positive: `ex1_gcd_lcm_and_bezout_coefficients` and
+  `the_stated_bounds_of_the_integer_witnesses_admit_their_results`, which
+  runs the witnesses of the GCD, the LCM, the ring operations, the negation
+  and exact division of the earlier specification at their stated bounds,
+  recomputed by the storage formulas of kalyx. Negative:
+  `integer_operations_check_bits_before_charging`, with one bit below every
+  bound and a zero divisor under no bits and no work. Also
+  `bezout_identity_holds_for_seeded_operands`,
+  `lcm_times_gcd_is_the_absolute_product`,
+  `integer_results_are_measured_by_their_bits` and, in
+  `src/number/integer_tests.rs`, `bezout_and_lcm_all_signs_and_zeros` and
+  `gcd_lcm_and_bezout_hold_for_seeded_150_bit_operands`.
+
+### FLD-R15
+
+**Residues of the integers.** The part that applies to the functions
+`modular_inverse`, `modular_power` and `Congruence::new`, which are
+functions on integers and not the operations of a residue ring: a modulus
+$m \le 0$ is `OutsideDomain`; residues are the least nonnegative ones,
+$0 \le r \lt m$; modulo 1 every residue is the unit 0, with inverse 0; a
+unit has its inverse, and a non-unit gives `NonUnit(g)` with
+$g = \gcd(a \bmod m, m)$, which is $m$ for a residue of zero; $a^0 = 1$,
+$0^0$ included; a negative power of a non-unit is `OutsideDomain`; a
+product of residues is the integer product followed by its remainder, on
+one path, bounded by twice the bits of the modulus; and the exponent is
+checked by its bits against `max_integer_bits`, never against
+`max_exponent`. The charges do not depend on the limits. The parents of
+residue rings, their zero rules and the mismatch of moduli are not part of
+this component.
+
+- **Implemented here.** `modular_inverse`, `modular_power`,
+  `Congruence::new` and `crt` in `src/number/integer.rs`.
+- **Evidence.** Positive: `ex2_modular_powers_and_inverses`,
+  `ex3_chinese_remaindering_accepts_non_coprime_moduli` and
+  `the_stated_bounds_of_the_integer_witnesses_admit_their_results`, which
+  runs the witnesses of the inverse, the non-units, the modulus one, the
+  powers and the reduction of a residue at their stated bounds. Negative:
+  `a_modular_power_takes_one_path_under_every_bit_limit` and
+  `non_positive_moduli_and_negative_powers_of_non_units_are_outside_the_domain`.
+  Also `modular_operations_match_exhaustive_residues`,
+  `crt_general_moduli_empty_duplicates_and_inconsistency`,
+  `crt_solutions_satisfy_every_congruence_and_are_unique_modulo_the_lcm`,
+  `request_budget_receiving_limits_preflight_and_cancellation` and, in
+  `src/number/integer_tests.rs`,
+  `modular_powers_and_inverses_match_repeated_multiplication` and
+  `crt_systems_of_up_to_four_congruences_match_brute_force`.
+
 ### Literals, without an identifier
 
 The literals have no requirement identifier of the earlier implementation;
@@ -536,19 +758,45 @@ the rule is stated under [decimal literals](#decimal-literals).
    compare the kind, the span and the exceeded limit.
 5. **Work.** Tests assert the amounts that this contract fixes, and that a
    rejected operation charges nothing; they assert no other amount.
+6. **Integer kernel.** `tests/integers.rs` checks every operation of
+   `Integer` at its bound and one bit below, with one-word and multi-word
+   operands and the amounts of the table; the Bézout identity, the product
+   of the LCM and the GCD and the solutions of systems of congruences on
+   1,000 cases each, from fixed seeds of a SplitMix64 generator written in
+   the test, against models in `i128`; the domain errors, the storage of
+   every kind of result at its exact cost and one byte and one node below;
+   and the witnesses of the integers and residues of the earlier
+   specification at their stated bounds, with the bytes recomputed by the
+   formulas of kalyx.
 
 ## Extractability
 
 The trait is shaped for extraction as the architecture requires: associated
 types and `&self` methods, no default methods, no lifetime parameters on the
-parents and no closures. The numbers are not written in the provable subset:
-they allocate through num-bigint and num-rational, whose operations are
-outside the subset and would be trusted external functions, and the literal
-scanner iterates over characters. The kernels of `src/number/arithmetic.rs`
-and `src/number/power.rs` use `match` instead of combinators with closures
-and instead of `if let`, and have at most one loop each; `log2_upper` in
-`src/number/power.rs` is a `const fn` over machine integers. No proof target
-is registered for this component.
+parents and no closures. The rationals are not written in the provable
+subset: they allocate through num-bigint and num-rational, whose operations
+are outside the subset and would be trusted external functions, and the
+literal scanner iterates over characters. The kernels of
+`src/number/arithmetic.rs` and `src/number/power.rs` use `match` instead of
+combinators with closures and instead of `if let`, and have at most one loop
+each; `log2_upper` in `src/number/power.rs` is a `const fn` over machine
+integers. No proof target is registered for this component.
+
+The integer kernel in `src/number/integer.rs` is written to follow the
+provable subset of the krepi convention, its constructs R1 to R7, its design
+rules 1 to 9 and its loop shapes, apart from its integers, whose num-bigint
+operations would be trusted external functions; it has not been extracted. No function item is passed
+as a value, no iterator adapter or combinator with a closure is used, and
+dispatch is a `match` or an `if`. Each function has at most one loop, at the
+top level of its body: Euclid's algorithm, the extended Euclidean algorithm,
+binary powering, the scan of the congruences and their merge are each the
+only loop of a helper that holds the owned integers across its loop and has
+no `?` and no `return` before it, and the checks that return early are in
+the loopless functions that call the helpers; slices are walked by index
+loops, and no loop condition is a macro. The bound of every entry is
+checked before its first charge, and every step checks its own bound and
+charges before it computes. The kernel is
+not a proof target, so the module list does not hold it.
 
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that

@@ -1751,13 +1751,35 @@ symbol name.
   The number of terms of a polynomial is bounded through this cost. Over a
   coefficient ring other than $\mathbb{Q}$, a coefficient $c$ costs the
   `measure` $(n_c, b_c)$ of the ring in place of $(1, \mathrm{rb}(c))$.
-- The formulas for integer results and number-field elements are fixed with
-  them in 0.2; strings, lists, records and session bindings in 0.3, where the
-  value encoding uses the same formulas; matrices in 0.4.
+- An integer $z$ costs $(1, \lvert z \rvert + 4)$, the cost of the rational
+  $z/1$, wherever it occurs. A result of several integers, such as a
+  quotient with its remainder, a GCD with its Bézout coefficients or a
+  congruence, costs the sum of the costs of its integers, and an outcome
+  without an integer, such as an inconsistent system of congruences or a
+  quotient that is not exact, costs $(1, 4)$. The
+  [numbers](components/numbers/contract.md#storage) list the results of the
+  integer kernel.
+- An element of a number field $\mathbb{Q}(a)$ costs its representative: the
+  univariate polynomial over $\mathbb{Q}$ in the generator, of degree below
+  that of the minimal polynomial, by the formula of univariate polynomials
+  above, with the generator as its variable. The minimal polynomial belongs
+  to the parent and is not counted. Number fields are planned; this is the
+  formula that their `measure` is to use.
+- The formulas of strings, lists, records and session bindings are fixed in
+  0.3, where the value encoding uses the same formulas; those of matrices in
+  0.4.
 
 A formula becomes part of the compatibility contract with the release tag of
 its component. Changing one changes which limit is reached first, so it is a
 change of the answer vectors, made on purpose.
+
+The retained totals replace bounds of the earlier implementation: its bound
+on the bytes of one value, `max_symbolic_bytes`, is the case of
+`max_storage_bytes` in which nothing else is retained, and its separate
+bounds on degrees, terms and conditions are derived from `max_exponent` and
+`max_nodes`, as the
+[mapping of its limits](../vectors/README.md#limits-of-the-earlier-implementation)
+states.
 
 ### Charging, the clock and cancellation
 
