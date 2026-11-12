@@ -868,8 +868,9 @@ enum Stated {
 }
 
 /// A witness: a call, the bounds of bits, nodes and bytes under which it
-/// is stated, what it states, and the bounds under which it must return no
-/// value, each with the limit that it then exceeds.
+/// is stated, the larger bound of bytes that it shares with the other parts
+/// of its theorem, what it states, and the bounds under which it must
+/// return no value, each with the limit that it then exceeds.
 struct Witness {
     name: &'static str,
     call: fn(&mut Context) -> kalyx::Result<String>,
@@ -877,6 +878,7 @@ struct Witness {
     nodes: u64,
     bytes: u64,
     max_exponent: Option<u64>,
+    shared_bytes: Option<u64>,
     stated: Stated,
     no_value: &'static [(u64, u64, u64, LimitField)],
 }
@@ -947,6 +949,10 @@ fn run(witness: &Witness, mut context: Context) -> (String, u64) {
 /// the storage formulas of kalyx, where an integer $z$ costs
 /// $\lvert z \rvert + 4$ bytes in place of the earlier
 /// $\lceil \lvert z \rvert / 8 \rceil + 8$. An "any" bound of bits is 0.
+/// Each part of a theorem runs at the bytes recomputed for its own operands
+/// or estimate, the stricter bound. Where a theorem states one premise of
+/// bytes for several parts, that premise recomputes to the largest of their
+/// bounds, and a part with a smaller bound runs also at the shared one.
 const WITNESSES: [Witness; 24] = [
     Witness {
         name: "gcd_must_return: gcd(-12, 18)",
@@ -955,6 +961,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("6"),
         // Only the returned value is admitted, so the operands of 2 nodes and
         // 17 bytes are not checked: the value 6 of (1, 7) needs a node and 7
@@ -972,6 +979,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 8,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("0"),
         no_value: &[],
     },
@@ -982,6 +990,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::StopsAtTheFirstCharge,
         no_value: &[],
     },
@@ -992,6 +1001,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::ReturnsWithEveryBudget("6"),
         no_value: &[],
     },
@@ -1002,6 +1012,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 14,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("12"),
         no_value: &[(2, 2, 14, LimitField::IntegerBits)],
     },
@@ -1012,6 +1023,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 14,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("2 mod 5"),
         no_value: &[(2, 2, 14, LimitField::IntegerBits)],
     },
@@ -1022,6 +1034,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 6,
         bytes: 42,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("Inverse(5)"),
         no_value: &[(2, 6, 42, LimitField::IntegerBits)],
     },
@@ -1032,6 +1045,8 @@ const WITNESSES: [Witness; 24] = [
         nodes: 6,
         bytes: 42,
         max_exponent: None,
+        // The premise of bytes is shared with 6 modulo 9.
+        shared_bytes: Some(48),
         stated: Stated::Returns("NonUnit(2)"),
         no_value: &[],
     },
@@ -1042,6 +1057,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 6,
         bytes: 48,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("NonUnit(3)"),
         no_value: &[],
     },
@@ -1052,6 +1068,9 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 9,
         max_exponent: None,
+        // The premise of bytes is shared with the inverse of 0 modulo 9, the
+        // rule for zero of a residue ring, which the kernel does not have.
+        shared_bytes: Some(12),
         stated: Stated::Returns("Inverse(0)"),
         no_value: &[],
     },
@@ -1062,6 +1081,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 6,
         bytes: 48,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("5"),
         no_value: &[(7, 6, 48, LimitField::IntegerBits)],
     },
@@ -1072,6 +1092,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 3,
         bytes: 16,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("1"),
         no_value: &[],
     },
@@ -1084,6 +1105,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 3,
         bytes: 51,
         max_exponent: Some(0),
+        shared_bytes: None,
         stated: Stated::Returns("491079"),
         no_value: &[],
     },
@@ -1094,6 +1116,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("6"),
         no_value: &[(4, 2, 17, LimitField::IntegerBits)],
     },
@@ -1104,6 +1127,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("-30"),
         no_value: &[(4, 2, 17, LimitField::IntegerBits)],
     },
@@ -1114,6 +1138,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("-216"),
         no_value: &[(4, 2, 17, LimitField::IntegerBits)],
     },
@@ -1124,6 +1149,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 1,
         bytes: 8,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("12"),
         no_value: &[(3, 1, 8, LimitField::IntegerBits)],
     },
@@ -1134,6 +1160,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 15,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("-3"),
         no_value: &[(3, 2, 15, LimitField::IntegerBits)],
     },
@@ -1142,8 +1169,10 @@ const WITNESSES: [Witness; 24] = [
         call: |c| z(7).exact_quotient(&z(2), c).map(quotient_text),
         bits: 4,
         nodes: 2,
-        bytes: 15,
+        bytes: 13,
         max_exponent: None,
+        // The premise of bytes is shared with 12 / (-4).
+        shared_bytes: Some(15),
         stated: Stated::Returns("NotDivisible"),
         no_value: &[],
     },
@@ -1154,6 +1183,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 11,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("Fault(DivisionByZero)"),
         no_value: &[],
     },
@@ -1164,6 +1194,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 8,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::Returns("Fault(DivisionByZero)"),
         no_value: &[],
     },
@@ -1174,6 +1205,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 17,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::ReturnsOrLimit("6"),
         no_value: &[],
     },
@@ -1184,6 +1216,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 2,
         bytes: 15,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::ReturnsOrLimit("-3"),
         no_value: &[],
     },
@@ -1194,6 +1227,7 @@ const WITNESSES: [Witness; 24] = [
         nodes: 6,
         bytes: 42,
         max_exponent: None,
+        shared_bytes: None,
         stated: Stated::ReturnsOrLimit("Inverse(5)"),
         no_value: &[],
     },
@@ -1201,7 +1235,8 @@ const WITNESSES: [Witness; 24] = [
 
 // Each witness of the integers and residues runs at its stated bounds, with
 // the other limits at their defaults and then at 0 with exactly the work it
-// needs, and gives what it states; under the bounds below it returns no
+// needs, and at the bytes that it shares with the other parts of its
+// theorem, and gives what it states; under the bounds below it returns no
 // value.
 #[test]
 fn the_stated_bounds_of_the_integer_witnesses_admit_their_results() {
@@ -1235,6 +1270,15 @@ fn the_stated_bounds_of_the_integer_witnesses_admit_their_results() {
                 let (again, used) = run(witness, context(limits.with_max_work(budget)));
                 assert_eq!((again.as_str(), used), (expected, work), "{name}: {budget}");
             }
+        }
+        if let Some(shared) = witness.shared_bytes {
+            let limits = stated_limits(witness, witness.bits, witness.nodes, shared);
+            let (again, used) = run(witness, context(limits));
+            assert_eq!(
+                (again.as_str(), used),
+                (first.as_str(), work),
+                "{name}: {shared}"
+            );
         }
         let (tight, used) = run(witness, context(tight_limits(witness, work)));
         assert_eq!((tight, used), (first, work), "{name}");
