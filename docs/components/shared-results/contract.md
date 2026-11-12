@@ -119,8 +119,8 @@ the reason `std::convert::Infallible`.
 ## Requirements
 
 The shared result types had no requirement identifiers in the earlier
-implementation, which had no type for evidence, so the requirements of this
-component are named after what they state. Tests are in
+implementation, which had no shared evidence type, so the requirements of
+this component are named after what they state. Tests are in
 `tests/shared_results.rs` unless the entry names `src/shared.rs`,
 `tests/root_names.rs` or a documentation test.
 
