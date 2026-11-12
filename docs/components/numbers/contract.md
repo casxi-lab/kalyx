@@ -91,9 +91,11 @@ conversion for the parser, whose errors carry spans shifted by `offset`;
 `None` beyond 64 bits, with which the term core reads an integer exponent for
 the parser;
 `Rational::binary(other, operation, span, context)`, the binary operations
-with the caller's span on the error; and the kernels of `arithmetic`, `power`
-and `literal`. The steps of the integer kernel in `integer` are private to
-it.
+with the caller's span on the error; `words(bits)`, the machine words
+$\max(1, \lceil \mathit{bits} / 64 \rceil)$ by which the products, the
+quotients and the powers of `Rational` and the integer kernel charge; and the
+kernels of `arithmetic`, `power` and `literal`. The steps of the integer
+kernel in `integer` are private to it.
 
 The crate root re-exports nothing of the component. No type of num-bigint,
 num-rational or num-traits appears in a public signature or is re-exported,
@@ -173,8 +175,10 @@ the path of the cross products, as **Comparison** below states: on its other
 paths an operand above the limit is not rejected, and aligning binary points
 may compute an integer longer than the limit.
 Write $\lvert x \rvert$ for
-the bit length, the operands as $a/b$ and $c/d$, and $m = \lvert e \rvert$ for
-an exponent $e$.
+the bit length, the operands as $x = a/b$ and $y = c/d$, $m = \lvert e \rvert$
+for an exponent $e$, and
+$W(x) = \max(1, \lceil \max(\lvert a \rvert, \lvert b \rvert) / 64 \rceil)$
+for the machine words of $x$.
 
 | Operation | Domain test | Bit bound | Charge |
 | --- | --- | --- | --- |
@@ -182,16 +186,28 @@ an exponent $e$.
 | `parse_decimal` | syntax | $4 D$ | $D$ |
 | `add`, `subtract` | none | $\max(\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert) + 1, \lvert b \rvert + \lvert d \rvert)$ | 1 |
 | `compare` | none | only for the cross products: $\max(\lvert a \rvert + \lvert d \rvert, \lvert c \rvert + \lvert b \rvert)$ | 1 |
-| `multiply` | none | $\max(\lvert a \rvert + \lvert c \rvert, \lvert b \rvert + \lvert d \rvert)$ | 1 |
-| `divide` | $c = 0$ | $\max(\lvert a \rvert + \lvert d \rvert, \lvert b \rvert + \lvert c \rvert)$ | 1 |
+| `multiply` | none | $\max(\lvert a \rvert + \lvert c \rvert, \lvert b \rvert + \lvert d \rvert)$ | $W(x) W(y)$ |
+| `divide` | $c = 0$ | $\max(\lvert a \rvert + \lvert d \rvert, \lvert b \rvert + \lvert c \rvert)$ | $W(x) W(y)$ |
 | `negate` | none | $\max(\lvert a \rvert, \lvert b \rvert)$ | 1 |
 | `inverse` | $a = 0$ | $\max(\lvert a \rvert, \lvert b \rvert)$ | 1 |
-| `power(e)` | $m \le$ `max_exponent`, then $a = 0$ with $e \lt 0$ | $\max(P(a, m), P(b, m), \lvert a \rvert, \lvert b \rvert)$ | $1 + \lvert m \rvert + w(m)$ |
+| `power(e)` | $m \le$ `max_exponent`, then $a = 0$ with $e \lt 0$ | $\max(P(a, m), P(b, m), \lvert a \rvert, \lvert b \rvert)$ | 1, one more for $m \ge 1$, and the words of each step of binary powering, as **Powers** below states |
 
 - **Sums, products and quotients.** These are the bounds of the earlier
   implementation (FLD-R12). They bound the parts of the unreduced result, and
   reduction never lengthens a part. A bound above the limit is rejected even
   when the reduced result would fit: $1 + 1$ needs 3 bits.
+- **Charges by machine words.** A product and a quotient of $x$ and $y$
+  charge $W(x) W(y)$ units, the product of the machine words of their
+  operands, as the products and the Euclidean divisions of
+  [the integer kernel](#the-integer-kernel) do: one unit when both operands
+  have at most 64 bits, and $2 \cdot 3 = 6$ units for $2^{100}/3$ and
+  $5/2^{130}$, of 101 and 131 bits
+  (`rational_products_quotients_and_powers_charge_word_products`). The
+  amount depends only on the operands, never on the path that computes the
+  result. A sum, a difference, a negation, an inverse, a comparison and
+  `new` charge one unit whatever the size of their operands, and the
+  reduction inside num-rational is not charged by its steps, so their work
+  does not grow with the size of the numbers.
 - **Powers.** The exponent is checked first, with
   `check(Exponent, m)`, so a zero base with an exponent beyond `max_exponent`
   reports the limit. $P(x, m)$ is an upper bound of the bits of $x^m$: 1 for
@@ -210,10 +226,25 @@ an exponent $e$.
   $m \ge 1$ they never exceed $P$. A bound that does not fit in a `u64`
   exceeds every limit, even `u64::MAX`, and is reported with
   `LimitAmount::Bound(u64::MAX)`. Under the default limits $2^{4095}$, of
-  4096 bits, is returned and $2^{4096}$ is rejected. The charge counts the
-  operation, the bit length $\lvert m \rvert$ of $m$ and the number $w(m)$ of
-  its one bits: the squarings and multiplications of binary powering, which
-  computes the numerator and the denominator separately. The parts of a
+  4096 bits, is returned and $2^{4096}$ is rejected. The charge is made
+  once, after the bound and before the power is computed, and counts the
+  steps of binary powering by their machine words: one unit, one more for
+  $m \ge 1$, and for each squaring of a power $y$ of the base $W(y)^2$
+  units and for each multiplication of $y$ by $z$ $W(y) W(z)$ units, where
+  the words of an operand $x^j$ are those of the larger of the bounds
+  $P(a, j)$ and $P(b, j)$ of its parts. Binary powering reads $m$ from its
+  lowest bit and squares $\lvert m \rvert - 1$ times and multiplies $w(m)$
+  times, where $\lvert m \rvert$ is the bit length of $m$ and $w(m)$ the
+  number of its one bits, so when the bound of every operand is at most 64
+  bits the charge is $1 + \lvert m \rvert + w(m)$, the amount of release
+  0.1. It computes the numerator and the denominator separately, so a step
+  costs at most twice what it is charged. For $(3/2^{64})^5$ the charge is
+  $2 + 1 \cdot 2 + 2^2 + 3^2 + 2 \cdot 5 = 27$ units. A power whose steps
+  need more work than is left fails before it is computed: with
+  `max_exponent` raised to $2^{32}$ and `max_integer_bits` to $2^{33}$,
+  $3^{4294967023}$ passes its bound and fails with `ResourceLimit` naming
+  `max_work` under the default budget, with no work charged
+  (`a_huge_power_is_refused_for_work_before_it_runs`). The parts of a
   canonical base are coprime, so their powers need no reduction.
 - **Comparison.** `compare` builds no rational and never forms the
   difference. It takes the first of these paths that applies, chosen from
@@ -588,14 +619,16 @@ succeeds.
 - **Evidence.** Positive: `ex3_integer_powers_use_the_empty_product`.
   Negative: `the_power_checks_the_exponent_then_the_zero_base_then_the_bits`.
   Also `a_power_beyond_max_integer_bits_is_rejected_before_any_charge`,
+  `a_huge_power_is_refused_for_work_before_it_runs`,
   `power_bound_is_exact_for_powers_of_two_at_the_default_bit_limit`,
   `computational_growth_is_bounded`, `ex5_growth_is_checked_before_arithmetic`,
   and in `src/number/power.rs` `the_power_bound_is_exact_within_one_bit`,
   `the_power_bound_is_exact_for_powers_of_two_and_holds_for_wide_bases`,
   `the_power_bound_holds_its_claims_for_large_exponents`,
   `the_power_bound_holds_where_the_last_unit_of_the_logarithm_decides`,
-  `the_power_bound_can_be_two_bits_above_just_below_2_pow_32` and
-  `binary_powering_matches_repeated_products`.
+  `the_power_bound_can_be_two_bits_above_just_below_2_pow_32`,
+  `binary_powering_matches_repeated_products` and
+  `the_charge_of_a_power_counts_the_words_of_its_steps`.
 
 ### FLD-R04
 
@@ -621,10 +654,12 @@ at or above the bound, with work left and without a deadline or
 cancellation, the value is returned.
 
 - **Implemented here.** Every operation of `Rational` and of `Rationals`.
-- **Evidence.** Positive: `operations_charge_one_unit_and_powers_by_their_exponent`.
+- **Evidence.** Positive: `operations_charge_one_unit_and_powers_by_their_exponent`
+  and `rational_products_quotients_and_powers_charge_word_products`.
   Negative: `an_addition_beyond_max_integer_bits_is_rejected_before_any_charge`,
   `a_multiplication_beyond_max_integer_bits_is_rejected_before_any_charge`
   and `a_power_beyond_max_integer_bits_is_rejected_before_any_charge`. Also
+  `a_huge_power_is_refused_for_work_before_it_runs`,
   `a_sum_whose_denominators_dominate_is_rejected_before_any_charge`,
   `a_quotient_is_bounded_by_its_crossed_parts`,
   `integer_shortcuts_keep_conservative_growth_checks`,

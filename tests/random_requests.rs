@@ -14,15 +14,18 @@
 //! prints.
 //!
 //! `max_integer_bits` is the limit that bounds a power of numbers before it
-//! is computed, and the work of a power is charged by its multiplications,
-//! not by the size of its operands. With `max_exponent` and
-//! `max_integer_bits` both at `u64::MAX`, a power such as $3^{4294967023}$
-//! is computed in full, for minutes, before any limit can reject it: a
+//! is computed, and the work of a power is charged before it is computed,
+//! by the machine words of the operands of its squarings and
+//! multiplications. With `max_exponent` and `max_integer_bits` both at
+//! `u64::MAX`, a power such as $3^{4294967023}$ therefore fails at once
+//! under the default `max_work`; with `max_work` raised far enough as well,
+//! it is computed in full, for minutes, before any limit can stop it: a
 //! primitive operation is not interrupted, and real memory and CPU time are
 //! bounded by the host, as the command contract states. So that the test
-//! ends in bounded time, the exponent category keeps `max_integer_bits` at
-//! most $2^{20}$, and the inputs of the category of largest limits keep
-//! their size and the degrees of their powers small.
+//! ends in bounded time also where its random limits raise `max_work`, the
+//! exponent category keeps `max_integer_bits` at most $2^{20}$, and the
+//! inputs of the category of largest limits keep their size and the degrees
+//! of their powers small.
 
 #![allow(
     clippy::expect_used,
