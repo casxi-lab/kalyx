@@ -18,7 +18,7 @@
 //! form of zero. An adapter with an independent [`Model`] of the parent,
 //! [`Modelled`], also reads the value of a small element in the model and
 //! its display text, and builds inputs, the element of a model value and
-//! large elements, without the operations under test.
+//! large elements, not through the layers under test.
 //! Every check judges results by independent evidence: ring identities,
 //! values known by construction, or the model, whose arithmetic does not use
 //! the code under test.
@@ -45,10 +45,10 @@ use kalyx::{Context, Error, Limits, Result};
 
 use crate::support::Sequence;
 
-/// The work budget of each case of a property check, far above the work of
-/// the largest case. A regression that stops terminating then fails with
-/// `ResourceLimit` instead of running on. The accounting checks set their
-/// own budgets.
+/// The work budget of a context of the property checks, which serves one
+/// case or a whole family of cases, far above the work of either. A
+/// regression that stops terminating then fails with `ResourceLimit`
+/// instead of running on. The accounting checks set their own budgets.
 pub const PROPERTY_WORK: u64 = 10_000_000;
 
 // ---------------------------------------------------------------------------
@@ -236,7 +236,7 @@ pub trait Modelled: Inspect {
     fn model(&self) -> &Self::Model;
     /// The value in the model of a small element, read from its stored form.
     fn value(&self, a: &Element<Self>) -> Value<Self>;
-    /// The element of `value`, built by the adapter without the operations
+    /// The element of `value`, built by the adapter, not through the layers
     /// under test.
     fn element(&self, value: &Value<Self>) -> Element<Self>;
     /// Whether `a` is `value`, judged by the model.
@@ -245,7 +245,7 @@ pub trait Modelled: Inspect {
     fn text(&self, a: &Element<Self>) -> String;
     /// A small value, sometimes zero, one or an integer.
     fn sample(&self, random: &mut Sequence) -> Value<Self>;
-    /// A large element, built by the adapter without the operations under
+    /// A large element, built by the adapter, not through the layers under
     /// test.
     fn large(&self, random: &mut Sequence) -> Element<Self>;
 }
@@ -319,10 +319,11 @@ impl<F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result> fmt::Display for Lazy<F> {
     }
 }
 
-/// A context for one case of a property check: default limits, except the
-/// work budget `PROPERTY_WORK` and room for the coefficient growth of
-/// products and powers. Each case takes a fresh context, so its budget does
-/// not depend on the number of cases.
+/// A context of the property checks: default limits, except the work
+/// budget `PROPERTY_WORK` and room for the coefficient growth of products
+/// and powers. A check takes a fresh context for each case, or one for a
+/// whole family of cases, as each of the five families does; either way
+/// the work stays far below the budget.
 pub fn roomy() -> Context {
     Context::new(
         Limits::new()

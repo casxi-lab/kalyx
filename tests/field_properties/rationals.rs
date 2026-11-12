@@ -6,9 +6,10 @@
 //! model is a reduced fraction of two `i128`s with its own GCD, which serves
 //! the small operands; large operands are checked by identities alone. The
 //! inputs are built with the constructors and the arithmetic of `Rational`,
-//! never with the operations under test, and serve only as inputs: integers
-//! wider than 64 bits come from `Sequence::integer_bits`, and denominators
-//! $2^k$ and $3 \cdot 2^k$ from `Rational::power` and `Rational::multiply`.
+//! which `Rationals` delegates to, not through the layers under test, and
+//! serve only as inputs: integers wider than 64 bits come from
+//! `Sequence::integer_bits`, and denominators $2^k$ and $3 \cdot 2^k$ from
+//! `Rational::power` and `Rational::multiply`.
 
 use std::fmt;
 
