@@ -11,7 +11,11 @@
     reason = "the helpers of the tests unwrap their results, as the tests do"
 )]
 
-use kalyx::context::{CancelFlag, Clock, Storage, StorageCost};
+use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+
+use kalyx::context::{CancelFlag, CancelProbe, Clock, Storage, StorageCost};
 use kalyx::number::{
     self, Congruence, CrtResult, ExactQuotient, Integer, ModularInverse, Rational,
 };
@@ -1301,5 +1305,484 @@ fn the_stated_bounds_of_the_integer_witnesses_admit_their_results() {
             let error = (witness.call)(&mut below).unwrap_err();
             assert_limit(&error, field);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Representative operations: exact limits, cancellation and seeded calls
+//
+// The representative operations of the kernel are the product of large
+// integers, the Euclidean division, the modular power and Chinese
+// remaindering. None of them recurses, so they have no depth case.
+
+/// A call of a representative operation on its inputs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Call {
+    /// `a.multiply(b)`.
+    Product(Integer, Integer),
+    /// `a.divide_with_remainder(b)`.
+    Division(Integer, Integer),
+    /// `modular_power(a, e, m)`.
+    Power(Integer, Integer, Integer),
+    /// `crt(congruences)`.
+    Crt(Vec<Congruence>),
+}
+
+impl Call {
+    /// The text and the storage cost of the outcome of the call: the value,
+    /// the quotient and the remainder of a division, or the display text of
+    /// the outcome of `crt`.
+    fn run(&self, context: &mut Context) -> kalyx::Result<(String, Storage)> {
+        match self {
+            Self::Product(a, b) => a
+                .multiply(b, context)
+                .map(|value| (value.to_string(), value.storage())),
+            Self::Division(a, b) => a.divide_with_remainder(b, context).map(|division| {
+                let text = format!("{} {}", division.quotient(), division.remainder());
+                (text, division.storage())
+            }),
+            Self::Power(a, e, m) => number::modular_power(a, e, m, context)
+                .map(|value| (value.to_string(), value.storage())),
+            Self::Crt(congruences) => number::crt(congruences, context)
+                .map(|outcome| (outcome.to_string(), outcome.storage())),
+        }
+    }
+}
+
+/// A probe that counts its polls and reports cancellation from the poll
+/// after the first `cancel_after` polls on, as in `tests/command.rs`. Each
+/// charge polls it once.
+#[derive(Clone)]
+struct CountingProbe {
+    polls: Arc<AtomicU64>,
+    cancel_after: u64,
+}
+
+impl CountingProbe {
+    fn after(cancel_after: u64) -> Self {
+        Self {
+            polls: Arc::new(AtomicU64::new(0)),
+            cancel_after,
+        }
+    }
+
+    fn never() -> Self {
+        Self::after(u64::MAX)
+    }
+
+    fn polls(&self) -> u64 {
+        self.polls.load(AtomicOrdering::SeqCst)
+    }
+}
+
+impl CancelProbe for CountingProbe {
+    fn is_cancelled(&mut self) -> bool {
+        let poll = self.polls.fetch_add(1, AtomicOrdering::SeqCst) + 1;
+        poll > self.cancel_after
+    }
+
+    fn fork(&self) -> Box<dyn CancelProbe> {
+        Box::new(self.clone())
+    }
+}
+
+/// The temporary that each run of a representative holds while the call
+/// runs, so that the call counts its result together with it and must leave
+/// `Context::retained()` as it found it.
+const HELD: Storage = Storage::new(1, 8);
+
+/// Runs `call` under `context` while it holds the temporary `HELD`, checks
+/// that the call leaves its inputs and the retained storage unchanged, and
+/// returns its outcome and the work charged.
+fn held_run(call: &Call, mut context: Context) -> (kalyx::Result<(String, Storage)>, u64) {
+    let inputs = call.clone();
+    let token = context.reserve(HELD).unwrap();
+    let retained = context.retained();
+    let outcome = call.run(&mut context);
+    assert_eq!(context.retained(), retained, "{call:?}");
+    assert_eq!(call, &inputs);
+    context.release(token);
+    (outcome, context.work_used())
+}
+
+/// A representative input: its outcome, the work that it charges, its
+/// charge points, the storage of its result and the bound on its bits that
+/// `max_integer_bits` must admit.
+struct Representative {
+    name: &'static str,
+    call: Call,
+    outcome: String,
+    work: u64,
+    charges: u64,
+    storage: Storage,
+    bits: u64,
+}
+
+/// $(2^{61} - 1)(2^{89} - 1)(2^{107} - 1)$ and its three factors.
+fn mersenne_moduli() -> (Integer, [Integer; 3]) {
+    let factors = [
+        two_to_plus(61, -1),
+        two_to_plus(89, -1),
+        two_to_plus(107, -1),
+    ];
+    let c = &mut wide();
+    let product = factors[0]
+        .multiply(&factors[1], c)
+        .unwrap()
+        .multiply(&factors[2], c)
+        .unwrap();
+    (product, factors)
+}
+
+/// The seven representative inputs, with the outcomes that they state and
+/// the amounts that they need, measured once and fixed here.
+fn representatives() -> Vec<Representative> {
+    let c = &mut wide();
+    // (2^2048 - 1)^2 = 2^4096 - 2^2049 + 1, of 4,096 bits.
+    let square = two_to_plus(4096, 1)
+        .subtract(&two_to_plus(2049, 0), c)
+        .unwrap();
+    // -(2^4095 + 1) = q (2^1000 + 7) + r, checked below.
+    let dividend = two_to_plus(4095, 1).negate(c).unwrap();
+    let divisor = two_to_plus(1000, 7);
+    let division = dividend.divide_with_remainder(&divisor, c).unwrap();
+    let (quotient, remainder) = (division.quotient(), division.remainder());
+    let back = quotient
+        .multiply(&divisor, c)
+        .unwrap()
+        .add(remainder, c)
+        .unwrap();
+    assert_eq!(back, dividend);
+    assert!(quotient.is_negative() && !remainder.is_negative());
+    assert!(q(remainder).compare(&q(&divisor), c).unwrap().is_lt());
+    assert_eq!((quotient.bits(), remainder.bits()), (3095, 1000));
+    let modulus = two_to_plus(127, -1);
+    let (product, [m1, m2, m3]) = mersenne_moduli();
+    vec![
+        Representative {
+            name: "the square of 2^2048 - 1",
+            call: Call::Product(two_to_plus(2048, -1), two_to_plus(2048, -1)),
+            outcome: square.to_string(),
+            work: 1024,
+            charges: 1,
+            storage: Storage::new(1, 4100),
+            bits: 4096,
+        },
+        Representative {
+            name: "-(2^4095 + 1) divided by 2^1000 + 7",
+            call: Call::Division(dividend.clone(), divisor.clone()),
+            outcome: format!("{quotient} {remainder}"),
+            work: 1024,
+            charges: 1,
+            storage: Storage::new(2, 4103),
+            bits: 4096,
+        },
+        Representative {
+            name: "3^65537 modulo 2^127 - 1",
+            call: Call::Power(z(3), z(65537), modulus.clone()),
+            outcome: "4569278088761131322242499456678237192".to_owned(),
+            work: 151,
+            charges: 37,
+            storage: Storage::new(1, 126),
+            bits: 254,
+        },
+        Representative {
+            name: "3^-65537 modulo 2^127 - 1",
+            call: Call::Power(z(3), z(-65537), modulus),
+            outcome: "31942272351232653576666846939455587307".to_owned(),
+            work: 236,
+            charges: 53,
+            storage: Storage::new(1, 129),
+            bits: 254,
+        },
+        Representative {
+            name: "three congruences modulo coprime Mersenne numbers",
+            call: Call::Crt(vec![
+                Congruence::new(&z(2), &m1, c).unwrap(),
+                Congruence::new(&z(3), &m2, c).unwrap(),
+                Congruence::new(&z(5), &m3, c).unwrap(),
+            ]),
+            outcome: format!(
+                "145686558069207620583562676523424911879497254915128693004850367722620596759907 mod {product}"
+            ),
+            work: 459,
+            charges: 300,
+            storage: Storage::new(2, 522),
+            bits: 258,
+        },
+        Representative {
+            name: "2 mod 6 and 8 mod 9",
+            call: Call::Crt(vec![congruence(2, 6, c), congruence(8, 9, c)]),
+            outcome: "8 mod 18".to_owned(),
+            work: 45,
+            charges: 45,
+            storage: Storage::new(2, 17),
+            bits: 6,
+        },
+        Representative {
+            name: "1 mod 4 and 2 mod 6",
+            call: Call::Crt(vec![congruence(1, 4, c), congruence(2, 6, c)]),
+            outcome: "inconsistent".to_owned(),
+            work: 37,
+            charges: 37,
+            storage: Storage::new(1, 4),
+            bits: 5,
+        },
+    ]
+}
+
+/// A context under `limits` whose cancellation is read from `probe`.
+fn observed(limits: Limits, probe: &CountingProbe) -> Context {
+    Context::with_observers(limits, Box::new(FixedClock(0)), Box::new(probe.clone()))
+}
+
+// Each representative input returns its outcome with exactly the work, the
+// nodes, the bytes and the bits that it needs, and fails with one unit, one
+// node, one byte or one bit less, with the limit named: `max_work`,
+// `max_nodes` and `max_storage_bytes` at the scope `Value`, and
+// `max_integer_bits` with the amount of the largest bound that the call
+// checks, on entry or at a step of `crt`. Each run holds a temporary, which
+// the result counts with, and after every run, failed or not, the inputs
+// and `Context::retained()` are unchanged.
+#[test]
+fn representative_operations_succeed_at_exact_limits_and_fail_one_below() {
+    for representative in &representatives() {
+        let Representative {
+            name,
+            call,
+            work,
+            storage,
+            bits,
+            ..
+        } = representative;
+        let (outcome, used) = held_run(call, c());
+        let (text, cost) = outcome.unwrap();
+        assert_eq!(text, representative.outcome, "{name}");
+        assert_eq!((used, cost), (*work, *storage), "{name}");
+        let exact = Limits::new()
+            .with_max_work(*work)
+            .with_max_nodes(storage.nodes + HELD.nodes)
+            .with_max_storage_bytes(storage.bytes + HELD.bytes)
+            .with_max_integer_bits(*bits);
+        let (outcome, used) = held_run(call, context(exact));
+        assert_eq!(outcome.unwrap().0, representative.outcome, "{name}");
+        assert_eq!(used, *work, "{name}");
+        for (below, field) in [
+            (exact.with_max_work(work - 1), LimitField::Work),
+            (exact.with_max_nodes(exact.max_nodes - 1), LimitField::Nodes),
+            (
+                exact.with_max_storage_bytes(exact.max_storage_bytes - 1),
+                LimitField::StorageBytes,
+            ),
+            (
+                exact.with_max_integer_bits(bits - 1),
+                LimitField::IntegerBits,
+            ),
+        ] {
+            let (outcome, used) = held_run(call, context(below));
+            let error = outcome.unwrap_err();
+            assert_limit(&error, field);
+            match field {
+                LimitField::Work => assert!(used < *work, "{name}"),
+                LimitField::IntegerBits => assert_bits(&error, *bits),
+                _ => {
+                    assert_eq!(error.exceeded().unwrap().scope(), Some(LimitScope::Value));
+                    assert_eq!(used, *work, "{name}: the storage of the result");
+                }
+            }
+        }
+    }
+}
+
+// Each representative input is run once with a probe that never cancels,
+// which counts its charge points K, one poll per charge, and then once for
+// each k from 1 to K with a probe that cancels at the k-th charge point:
+// the call fails with `Cancelled` there, having polled k times, and leaves
+// its inputs and `Context::retained()` unchanged. The kernel has no other
+// charge points, and no frames that a cancellation would have to close.
+#[test]
+fn cancellation_at_every_charge_point_of_the_representative_operations() {
+    for representative in &representatives() {
+        let name = representative.name;
+        let call = &representative.call;
+        let probe = CountingProbe::never();
+        let (outcome, used) = held_run(call, observed(Limits::new(), &probe));
+        assert_eq!(outcome.unwrap().0, representative.outcome, "{name}");
+        assert_eq!(used, representative.work, "{name}");
+        let points = probe.polls();
+        assert_eq!(points, representative.charges, "{name}");
+        for k in 1..=points {
+            let probe = CountingProbe::after(k - 1);
+            let (outcome, used) = held_run(call, observed(Limits::new(), &probe));
+            let error = outcome.unwrap_err();
+            assert_eq!(
+                error.kind(),
+                ErrorKind::Cancelled,
+                "{name}: charge point {k}"
+            );
+            assert_eq!(probe.polls(), k, "{name}: charge point {k}");
+            assert!(used < representative.work, "{name}: charge point {k}");
+        }
+    }
+}
+
+/// The seed of the seeded calls; call `i` is generated from the seed
+/// `CALL_SEED + i` alone.
+const CALL_SEED: u64 = 0x5EED_0000_0300_0004;
+
+/// A signed integer of 0 to 4,096 bits, built from machine words: its bit
+/// length is uniform in `0..=64` for half of the integers and in `0..=4096`
+/// for the others, so that small operands, which return values within the
+/// default limits, are common too.
+fn random_integer(rng: &mut SplitMix64, c: &mut Context) -> Integer {
+    let longest = if rng.next() & 1 == 0 { 64 } else { 4096 };
+    let length = rng.below(longest + 1);
+    let mut value = z(0);
+    let mut remaining = length;
+    while remaining > 0 {
+        let take = remaining.min(62);
+        let mut word = rng.next() >> (64 - take);
+        if remaining == length {
+            // The leading bit, so that the integer has `length` bits.
+            word |= 1 << (take - 1);
+        }
+        let shift = Integer::from(1_u64 << take);
+        value = value
+            .multiply(&shift, c)
+            .unwrap()
+            .add(&Integer::from(word), c)
+            .unwrap();
+        remaining -= take;
+    }
+    assert_eq!(value.bits(), length);
+    if rng.next() & 1 == 0 {
+        value
+    } else {
+        value.negate(c).unwrap()
+    }
+}
+
+/// The default limits, or with one of `max_work`, `max_integer_bits`,
+/// `max_nodes` and `max_storage_bytes` set to a random value no larger
+/// than its default.
+fn random_limits(rng: &mut SplitMix64) -> Limits {
+    let limits = Limits::new();
+    match rng.below(5) {
+        0 => limits,
+        1 => limits.with_max_work(rng.below(limits.max_work + 1)),
+        2 => limits.with_max_integer_bits(rng.below(limits.max_integer_bits + 1)),
+        3 => limits.with_max_nodes(rng.below(limits.max_nodes + 1)),
+        _ => limits.with_max_storage_bytes(rng.below(limits.max_storage_bytes + 1)),
+    }
+}
+
+/// Call `index` of the seeded calls and its limits: 1,000 products, 1,000
+/// divisions, 1,000 modular powers and 1,000 calls of `crt`, in that order. A divisor is zero
+/// in one call of sixteen; a modulus of a power is zero in one call of
+/// eight, and negative in about half of the others; the congruences of
+/// `crt`, none to four, are built by `Congruence::new` with positive moduli.
+fn seeded_call(index: u64) -> (Call, Limits) {
+    let rng = &mut SplitMix64(CALL_SEED + index);
+    let limits = random_limits(rng);
+    let c = &mut wide();
+    let a = random_integer(rng, c);
+    let call = match index / 1000 {
+        0 => Call::Product(a, random_integer(rng, c)),
+        1 => {
+            let b = if rng.below(16) == 0 {
+                z(0)
+            } else {
+                random_integer(rng, c)
+            };
+            Call::Division(a, b)
+        }
+        2 => {
+            let exponent = random_integer(rng, c);
+            let modulus = if rng.below(8) == 0 {
+                z(0)
+            } else {
+                random_integer(rng, c)
+            };
+            Call::Power(a, exponent, modulus)
+        }
+        _ => {
+            let mut congruences = Vec::new();
+            let mut residue = a;
+            for _ in 0..rng.below(5) {
+                let modulus = random_integer(rng, c).absolute(c).unwrap();
+                let modulus = if modulus.is_zero() { z(1) } else { modulus };
+                congruences.push(Congruence::new(&residue, &modulus, c).unwrap());
+                residue = random_integer(rng, c);
+            }
+            Call::Crt(congruences)
+        }
+    };
+    (call, limits)
+}
+
+/// Whether `error` is an outcome that `call` may end with: a resource
+/// limit, a zero divisor of a division, or a modular power outside its
+/// domain, whose modulus is not positive, or whose exponent is negative and
+/// whose base is not a unit modulo the modulus, sharing a factor with it.
+fn admissible(call: &Call, error: &Error) -> bool {
+    match (call, error.kind()) {
+        (_, ErrorKind::ResourceLimit) => true,
+        (Call::Division(_, b), ErrorKind::Fault(FaultKind::DivisionByZero)) => b.is_zero(),
+        (Call::Power(a, e, m), ErrorKind::Fault(FaultKind::OutsideDomain)) => {
+            !m.is_positive() || (e.is_negative() && number::gcd(a, m, &mut wide()).unwrap() != z(1))
+        }
+        _ => false,
+    }
+}
+
+// 4,000 calls from fixed seeds through the public entries of the
+// representative operations, 1,000 each, on signed operands of 0 to 4,096
+// bits, under the default limits or with one of the work, the bits, the
+// nodes and the bytes lowered to a random value: none panics, each returns
+// its value or fails with `ResourceLimit`, with `DivisionByZero` for a zero
+// divisor or with `OutsideDomain` for a power outside its domain, with a
+// modulus that is not positive or a negative power of a base that is not a
+// unit, and each leaves its inputs and `Context::retained()` unchanged.
+#[test]
+fn seeded_random_calls_of_the_representative_operations_do_not_panic() {
+    let mut counts = [[0_u64; 3]; 4];
+    for index in 0..4000 {
+        let (call, limits) = seeded_call(index);
+        let run = catch_unwind(AssertUnwindSafe(|| {
+            let mut context = context(limits);
+            // A temporary is held where the limits admit it.
+            let _token = context.reserve(HELD);
+            let retained = context.retained();
+            let outcome = call.run(&mut context);
+            (outcome, context.retained() == retained)
+        }));
+        assert!(
+            run.is_ok(),
+            "call {index} of the seed {CALL_SEED:#x} panicked"
+        );
+        let (outcome, unchanged) = run.unwrap();
+        assert!(unchanged, "call {index}: the retained storage changed");
+        assert_eq!(
+            call,
+            seeded_call(index).0,
+            "call {index}: the inputs changed"
+        );
+        let operation = usize::try_from(index / 1000).unwrap();
+        let slot = match &outcome {
+            Ok(_) => 0,
+            Err(error) if error.kind() == ErrorKind::ResourceLimit => 1,
+            Err(error) => {
+                assert!(admissible(&call, error), "call {index}: {error}");
+                2
+            }
+        };
+        counts[operation][slot] += 1;
+    }
+    // Values and limits occur for every operation, and the domain errors
+    // for the divisions and the powers.
+    for (operation, [values, limits, faults]) in counts.iter().enumerate() {
+        assert_eq!(values + limits + faults, 1000, "{operation}");
+        assert!(*values > 0 && *limits > 0, "{operation}: {counts:?}");
+        assert_eq!(*faults > 0, operation == 1 || operation == 2, "{counts:?}");
     }
 }

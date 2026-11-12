@@ -71,6 +71,14 @@ fn parts_of(value: &BigRational) -> Parts {
     (value.numer().clone(), value.denom().clone())
 }
 
+/// The machine words $\max(1, \lceil b / 64 \rceil)$ of a rational whose
+/// larger part has $b$ bits, computed here: a product and a quotient charge
+/// the product of the words of their operands.
+fn word_count(value: &Rational) -> u64 {
+    let bits = value.numerator.0.bits().max(value.denominator.0.bits());
+    bits.div_ceil(64).max(1)
+}
+
 fn canonical_form(parts: &Parts) -> bool {
     let reduced = BigRational::new(parts.0.clone(), parts.1.clone());
     parts.1.is_positive() && &parts.0 == reduced.numer() && &parts.1 == reduced.denom()
@@ -106,6 +114,7 @@ fn normalization_removes_exactly_the_shared_powers_of_two() {
 #[test]
 fn ring_operations_match_the_general_reduction() {
     let mut sequence = Sequence(0x0CA5_2026);
+    let mut wide_products = 0;
     for _ in 0..4000 {
         let (left, right) = (sequence.dyadic(), sequence.dyadic());
         let (l, r) = (reference(&left), reference(&right));
@@ -122,20 +131,31 @@ fn ring_operations_match_the_general_reduction() {
             let actual = dyadic_binary(left.parts(), right.parts(), operation).unwrap();
             assert!(canonical_form(&actual));
             assert_eq!(actual, parts_of(&expected));
-            // Every entry point returns the same value and charge on this path.
+            // Every entry point returns the same value on this path, and the
+            // charge of the table of the contract: one unit for a sum and a
+            // difference, the product of the words for a product.
             let mut c = context();
-            let value = match operation {
-                ArithmeticOperation::Add => left.add(&right, &mut c),
-                ArithmeticOperation::Subtract => left.subtract(&right, &mut c),
-                _ => left.multiply(&right, &mut c),
-            }
-            .unwrap();
+            let (value, charge) = match operation {
+                ArithmeticOperation::Add => (left.add(&right, &mut c), 1),
+                ArithmeticOperation::Subtract => (left.subtract(&right, &mut c), 1),
+                _ => (
+                    left.multiply(&right, &mut c),
+                    word_count(&left) * word_count(&right),
+                ),
+            };
+            let value = value.unwrap();
             assert_eq!(value.parts(), (expected.numer(), expected.denom()));
-            assert_eq!(c.work_used(), 1);
+            assert_eq!(c.work_used(), charge);
+            if charge > 1 {
+                wide_products += 1;
+            }
         }
         assert_eq!(dyadic_cmp(left.parts(), right.parts()), Some(l.cmp(&r)));
         assert_eq!(left.compare(&right, &mut context()).unwrap(), l.cmp(&r));
     }
+    // Numerators of up to about 200 bits and denominators up to 2^130 give
+    // products of operands of several words.
+    assert!(wide_products > 1000, "{wide_products}");
 }
 
 #[test]
@@ -158,6 +178,7 @@ fn unreduced_dyadic_operands_still_produce_canonical_values() {
 #[test]
 fn division_by_a_signed_power_of_two_matches_the_general_quotient() {
     let mut sequence = Sequence(0x0D17_1DE5);
+    let mut wide_quotients = 0;
     for _ in 0..3000 {
         let left = sequence.dyadic();
         let shift = [0_usize, 1, 2, 9, 64, 70][(sequence.next() % 6) as usize];
@@ -176,8 +197,14 @@ fn division_by_a_signed_power_of_two_matches_the_general_quotient() {
         let mut c = context();
         let value = left.divide(&right, &mut c).unwrap();
         assert_eq!(value.parts(), (expected.numer(), expected.denom()));
-        assert_eq!(c.work_used(), 1);
+        // The charge of a quotient: the product of the words.
+        let charge = word_count(&left) * word_count(&right);
+        assert_eq!(c.work_used(), charge);
+        if charge > 1 {
+            wide_quotients += 1;
+        }
     }
+    assert!(wide_quotients > 1000, "{wide_quotients}");
 }
 
 #[test]

@@ -10,7 +10,9 @@
 //! operands alone, against `max_integer_bits`; then it charges work, an amount
 //! that depends only on its operands; and only then does it compute. A
 //! rejected operation therefore charges nothing and allocates nothing but its
-//! error.
+//! error. Products, quotients and powers charge by the machine words of their
+//! operands, so that their work grows with the size of the numbers; the other
+//! operations charge one unit, a decimal literal one unit per digit.
 //!
 //! The integer kernel follows the same order: the arithmetic of [`Integer`]
 //! and the functions [`gcd`], [`lcm`], [`extended_gcd`], [`modular_inverse`],
@@ -66,9 +68,17 @@ pub use integer::{
     extended_gcd, gcd, lcm, modular_inverse, modular_power,
 };
 
-/// The work units charged by every operation on rationals except a power and
-/// a decimal literal.
+/// The work units charged by every operation on rationals except a product,
+/// a quotient, a power and a decimal literal.
 const OPERATION_CHARGE: u64 = 1;
+
+/// The machine words $W(x) = \max(1, \lceil \lvert x \rvert / 64 \rceil)$ of
+/// a number of `bits` bits: of an integer its bit length, and of a rational
+/// the larger bit length of its parts. A product, a quotient and the steps of
+/// a power charge the product of the words of their operands.
+pub(crate) const fn words(bits: u64) -> u64 {
+    if bits == 0 { 1 } else { (bits - 1) / 64 + 1 }
+}
 
 /// An integer of any size.
 ///
@@ -350,9 +360,27 @@ impl Rational {
 
     /// The product `self * other`.
     ///
-    /// For $a/b \cdot c/d$, checks the bound
+    /// For $x = a/b$ and $y = c/d$, checks the bound
     /// $\max(\lvert a \rvert + \lvert c \rvert, \lvert b \rvert + \lvert d \rvert)$,
-    /// then charges one unit.
+    /// then charges $W(x) W(y)$ units, the product of the machine words
+    /// $W(x) = \max(1, \lceil \max(\lvert a \rvert, \lvert b \rvert) / 64 \rceil)$
+    /// of the operands, so one unit for operands of at most 64 bits.
+    ///
+    /// ```
+    /// use kalyx::context::CancelFlag;
+    /// use kalyx::number::Rational;
+    /// use kalyx::{Context, Limits};
+    ///
+    /// let mut context = Context::new(Limits::new(), CancelFlag::new());
+    /// let third = Rational::from(1_i64).divide(&Rational::from(3_i64), &mut context)?;
+    /// let large = Rational::from(2_i64).power(100, &mut context)?;
+    /// let before = context.work_used();
+    /// // 2^100 has 101 bits, two words, and 1/3 one word.
+    /// let product = large.multiply(&third, &mut context)?;
+    /// assert_eq!(product.to_string(), "1267650600228229401496703205376/3");
+    /// assert_eq!(context.work_used() - before, 2);
+    /// # Ok::<(), kalyx::Error>(())
+    /// ```
     ///
     /// # Errors
     ///
@@ -363,9 +391,11 @@ impl Rational {
 
     /// The quotient `self / other`.
     ///
-    /// Tests the divisor for zero first; then, for $(a/b) / (c/d)$, checks the
-    /// bound $\max(\lvert a \rvert + \lvert d \rvert, \lvert b \rvert + \lvert c \rvert)$,
-    /// then charges one unit.
+    /// Tests the divisor for zero first; then, for $x / y$ with $x = a/b$ and
+    /// $y = c/d$, checks the bound
+    /// $\max(\lvert a \rvert + \lvert d \rvert, \lvert b \rvert + \lvert c \rvert)$,
+    /// then charges $W(x) W(y)$ units, as [`multiply`](Rational::multiply)
+    /// does.
     ///
     /// # Errors
     ///
@@ -417,13 +447,24 @@ impl Rational {
     /// With $m = \lvert e \rvert$: checks $m$ against `max_exponent`; then
     /// tests a zero base with a negative exponent; then checks a bound on the
     /// bits of the result, computed from $m$ and the parts of the base and at
-    /// least the bits of the base, against `max_integer_bits`; then charges
-    /// $1 + \lvert m \rvert + w(m)$ units, where $\lvert m \rvert$ is the bit
-    /// length of $m$ and $w(m)$ the number of its one bits; then computes the
-    /// power of each part by binary powering. The bound of a part $x$ is exact
-    /// when $x$ is a power of two, never above $m \lvert x \rvert + 1$, and at
-    /// most one bit above the bits of $x^m$ for $m \lt 2^{31}$; a bound that
-    /// does not fit in a `u64` exceeds every limit.
+    /// least the bits of the base, against `max_integer_bits`; then charges,
+    /// once and before it computes, the steps of binary powering by their
+    /// machine words: one unit, one more for $m \ge 1$, and for each squaring
+    /// of a power $y$ of the base $W(y)^2$ units and for each multiplication of
+    /// $y$ by $z$ $W(y) W(z)$ units, with the words
+    /// $W = \max(1, \lceil b / 64 \rceil)$ of the bound $b$ of the bits of
+    /// the step's operand, the power of the base to some $j \le m$: the larger
+    /// of the bounds of the powers $x^j$ of its parts $x$, each the bound
+    /// below capped at $j \lvert x \rvert$ for $j \ge 1$; then computes the
+    /// power of each part by binary powering. When every operand has at most
+    /// 64 bits the charge is $1 + \lvert m \rvert + w(m)$ units, where
+    /// $\lvert m \rvert$ is the bit length of $m$ and $w(m)$ the number of its
+    /// one bits. The bound of a part $x$ is exact when $x$ is a power of two,
+    /// never above $m \lvert x \rvert + 1$, and at most one bit above the bits
+    /// of $x^m$ for $m \lt 2^{31}$; a bound that does not fit in a `u64`
+    /// exceeds every limit.
+    /// So a power whose steps need more work than is left fails before it is
+    /// computed.
     ///
     /// ```
     /// use kalyx::context::CancelFlag;
@@ -464,7 +505,11 @@ impl Rational {
             _ => None,
         };
         context.check_bound_at(LimitField::IntegerBits, bound, None)?;
-        context.charge(power::power_charge(magnitude))?;
+        context.charge(power::power_charge(
+            self.numerator.0.magnitude(),
+            self.denominator.0.magnitude(),
+            magnitude,
+        ))?;
         if magnitude == 0 {
             return Self::validated((BigInt::one(), BigInt::one()), None, context);
         }
@@ -547,6 +592,19 @@ impl Rational {
         arithmetic::operation_bound((a, b, c, d), operation)
     }
 
+    /// The work charged for `operation` on `self` $= x$ and `other` $= y$:
+    /// one unit for a sum and a difference, and the product $W(x) W(y)$ of
+    /// the machine words of the operands, saturating at `u64::MAX`, for a
+    /// product and a quotient.
+    fn operation_charge(&self, other: &Self, operation: ArithmeticOperation) -> u64 {
+        match operation {
+            ArithmeticOperation::Add | ArithmeticOperation::Subtract => OPERATION_CHARGE,
+            ArithmeticOperation::Multiply | ArithmeticOperation::Divide => {
+                words(self.bits()).saturating_mul(words(other.bits()))
+            }
+        }
+    }
+
     /// A binary operation: the zero divisor, then the bound, then the charge,
     /// then the kernel, then the check of the result; errors carry `span`.
     pub(crate) fn binary(
@@ -561,7 +619,7 @@ impl Rational {
         }
         let bound = self.bound(other, operation);
         context.check_at(LimitField::IntegerBits, bound, span)?;
-        context.charge_at(OPERATION_CHARGE, span)?;
+        context.charge_at(self.operation_charge(other, operation), span)?;
         let parts = arithmetic::binary(self.parts(), other.parts(), operation)?;
         Self::validated(parts, span, context)
     }

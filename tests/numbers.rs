@@ -12,7 +12,7 @@
 use std::cmp::Ordering;
 
 use kalyx::context::{CancelFlag, Clock, Storage, StorageCost};
-use kalyx::number::{Integer, Rational};
+use kalyx::number::{self, Integer, Rational};
 use kalyx::{Context, Error, ErrorKind, FaultKind, LimitAmount, LimitField, LimitId, Limits, Span};
 
 // ---------------------------------------------------------------------------
@@ -589,6 +589,176 @@ fn operations_charge_one_unit_and_powers_by_their_exponent() {
     let mut context = default_context();
     assert_eq!(a.power(0, &mut context).unwrap(), q(1, 1));
     assert_eq!(context.work_used(), 1);
+}
+
+// ---------------------------------------------------------------------------
+// Products, quotients and powers are charged by machine words
+
+/// The machine words $\max(1, \lceil b / 64 \rceil)$ of a rational whose
+/// larger part has $b$ bits, computed here.
+fn words(x: &Rational) -> u64 {
+    let bits = x.numerator().bits().max(x.denominator().bits());
+    bits.div_ceil(64).max(1)
+}
+
+/// The work that `operation` charges under the default limits.
+fn work_of<T>(operation: impl FnOnce(&mut Context) -> kalyx::Result<T>) -> u64 {
+    let mut context = default_context();
+    operation(&mut context).unwrap();
+    context.work_used()
+}
+
+/// The work of `modular_power(a, e, m)` for $e \ge 0$ and $m \gt 1$ by the
+/// rules of the integer kernel, from a model of its steps computed here: the
+/// remainder $a \bmod m$, then for each multiplication and each squaring of
+/// binary powering the product and its remainder modulo $m$, each charging
+/// the product of the words of its operands.
+fn modular_power_work(a: &Integer, e: u64, m: &Integer) -> u64 {
+    let c = &mut Context::new(Limits::new().with_max_work(u64::MAX), CancelFlag::new());
+    let integer_words = |x: &Integer| x.bits().div_ceil(64).max(1);
+    let reduce =
+        |x: &Integer, c: &mut Context| x.divide_with_remainder(m, c).unwrap().remainder().clone();
+    let mut work = integer_words(a) * integer_words(m);
+    let mut square = reduce(a, c);
+    let mut power = Integer::from(1_i64);
+    let length = u64::BITS - e.leading_zeros();
+    for bit in 0..length {
+        if (e >> bit) & 1 == 1 {
+            let product = power.multiply(&square, c).unwrap();
+            work += integer_words(&power) * integer_words(&square);
+            work += integer_words(&product) * integer_words(m);
+            power = reduce(&product, c);
+        }
+        if bit + 1 < length {
+            let product = square.multiply(&square, c).unwrap();
+            work += integer_words(&square) * integer_words(&square);
+            work += integer_words(&product) * integer_words(m);
+            square = reduce(&product, c);
+        }
+    }
+    work
+}
+
+// The changed amounts of the charge table: a product and a quotient of
+// $x$ and $y$ charge $W(x) W(y)$, the product of the machine words of the
+// operands, and a power charges, before it computes, one unit, one more for
+// $m \ge 1$ and the words of the operands of each squaring and each
+// multiplication of binary powering, from the bounds of their bits, each
+// capped at $j \lvert p \rvert$ for the power $p^j$ of a part $p$; the
+// bound of a power of two is exact, and the cap makes that of $p^1$ exact,
+// so the amounts here count the words of the actual operands. Operands of
+// one word keep the amounts of release 0.1: one unit for a product or a
+// quotient and $1 + \lvert m \rvert + w(m)$ for a power. The modular power
+// of the integer kernel charges each of its steps by the words of the
+// integers that it computes.
+#[test]
+fn rational_products_quotients_and_powers_charge_word_products() {
+    let three = q(3, 1);
+    // 2^100/3 of 101 bits, two words; 5/2^130 of 131 bits, three words.
+    let x = two_to(100).divide(&three, &mut default_context()).unwrap();
+    let y = q(5, 1)
+        .multiply(&two_to(-130), &mut default_context())
+        .unwrap();
+    let (one_word, other) = (q(-2, 5), q(7, 9));
+    let all_ones = Rational::from(Integer::from(u64::MAX));
+    let word = two_to(64);
+    assert_eq!(
+        (words(&x), words(&y), words(&all_ones), words(&word)),
+        (2, 3, 1, 2)
+    );
+    for (left, right, product) in [
+        (&x, &y, 6),
+        (&y, &x, 6),
+        (&x, &one_word, 2),
+        (&one_word, &other, 1),
+        (&all_ones, &all_ones, 1),
+        (&word, &word, 4),
+        (&word, &all_ones, 2),
+    ] {
+        assert_eq!(product, words(left) * words(right));
+        assert_eq!(
+            work_of(|c| left.multiply(right, c)),
+            product,
+            "{left} * {right}"
+        );
+        assert_eq!(
+            work_of(|c| left.divide(right, c)),
+            product,
+            "{left} / {right}"
+        );
+    }
+    // A sum and a difference still charge one unit.
+    assert_eq!(work_of(|c| x.add(&y, c)), 1);
+    assert_eq!(work_of(|c| x.subtract(&y, c)), 1);
+
+    // (3/2^64)^5: one unit and one more; at bit 0, 1 * x of 1 * 2 words;
+    // the squarings of x and x^2, of 2^2 and 3^2 words; and at bit 2,
+    // x * x^4 of 2 * 5 words: 2 + 2 + 4 + 9 + 10. A negative exponent
+    // inverts the base and charges the same.
+    let base = three
+        .multiply(&two_to(-64), &mut default_context())
+        .unwrap();
+    assert_eq!(work_of(|c| base.power(5, c)), 27);
+    assert_eq!(work_of(|c| base.power(-5, c)), 27);
+    // (2^64)^4: 2, the squarings of 2^64 and 2^128 of 2^2 and 3^2 words, and
+    // 1 * 2^256 of 1 * 5 words.
+    assert_eq!(work_of(|c| word.power(4, c)), 2 + 4 + 9 + 5);
+    assert_eq!(work_of(|c| word.power(0, c)), 1);
+    // One-word operands: 1 + |m| + w(m). Every operand of 3^40 is a power
+    // of at most 3^32, of 51 bits; 40 has 6 bits and 2 one bits.
+    assert_eq!(work_of(|c| three.power(40, c)), 1 + 6 + 2);
+    assert_eq!(work_of(|c| q(2, 3).power(5, c)), 1 + 3 + 2);
+    assert_eq!(work_of(|c| q(1, 3).power(-5, c)), 1 + 3 + 2);
+    // 2^64 - 1 has one word, and the bound of the operand x^1 is its bit
+    // length, although the bound of the power x^1 is 65 bits: x^1 and x^-1
+    // charge 1 + 1 + 1.
+    assert_eq!(work_of(|c| all_ones.power(1, c)), 3);
+    assert_eq!(work_of(|c| all_ones.power(-1, c)), 3);
+    // (2^128 - 1)^2: 2, the squaring of x of 2^2 words, and 1 * x^2 of
+    // 1 * 4 words, since the bound of x^2 is at most 2 * 128 bits.
+    let two_words = two_to(128)
+        .subtract(&q(1, 1), &mut default_context())
+        .unwrap();
+    assert_eq!(work_of(|c| two_words.power(2, c)), 2 + 4 + 4);
+
+    // The modular power, by the model of its steps.
+    let modulus = two_to(127)
+        .subtract(&q(1, 1), &mut default_context())
+        .unwrap();
+    let modulus = modulus.numerator();
+    let wide = two_to(200).add(&q(1, 1), &mut default_context()).unwrap();
+    for (a, e) in [
+        (Integer::from(3_i64), 65_537_u64),
+        (wide.numerator().clone(), 1000),
+        (Integer::from(5_i64), 0),
+    ] {
+        let expected = modular_power_work(&a, e, modulus);
+        let work = work_of(|c| number::modular_power(&a, &Integer::from(e), modulus, c));
+        assert_eq!(work, expected, "{a}^{e}");
+    }
+}
+
+// 3^4294967023 has about 6.8 * 10^9 bits. With `max_exponent` raised to
+// 2^32 and `max_integer_bits` to 2^33 its bound passes; in release 0.1 it
+// was charged 1 + 32 + 30 = 63 units and ran for minutes. Its squarings are
+// now charged by their words before it runs, about 4.7 * 10^15 units, far
+// above the default `max_work`, so it fails at once and charges nothing.
+#[test]
+fn a_huge_power_is_refused_for_work_before_it_runs() {
+    let limits = Limits::new()
+        .with_max_exponent(1 << 32)
+        .with_max_integer_bits(1 << 33);
+    assert_eq!(limits.max_work, 100_000);
+    let mut context = context(limits);
+    let error = Rational::from(3_i64)
+        .power(4_294_967_023, &mut context)
+        .unwrap_err();
+    assert_limit(&error, LimitField::Work);
+    assert_eq!(context.work_used(), 0);
+    match error.exceeded().unwrap().amount() {
+        LimitAmount::Required(required) => assert!(required > 1 << 40, "{required}"),
+        other => panic!("{other:?}"),
+    }
 }
 
 // ---------------------------------------------------------------------------

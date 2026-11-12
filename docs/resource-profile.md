@@ -88,15 +88,23 @@ frames, never the size of the thread.
   heap and use at most 5,776 bytes of stack; a request that exceeds a limit
   stops before it builds what the limit forbids.
 - **A power is computed before its size is stored.** `max_integer_bits`
-  bounds a power of numbers before it is computed, and the work of a power
-  is charged by its multiplications, not by the size of its operands. Under
-  the default limits a number holds at most 4,096 bits. Under the default
-  limits, `max_exponent` (4,096) rejects such an exponent first. With both
-  `max_exponent` and `max_integer_bits` raised far beyond their defaults, a
-  power such as $3^{4294967023}$ is computed in full before any limit can
-  reject it: on the host above it was still running after more than 100
-  seconds when it was stopped. A host that raises both limits bounds the
-  memory and the CPU time of a request itself.
+  bounds a power of numbers before it is computed, and its work is charged
+  before it is computed too, by the machine words of the operands of its
+  squarings and multiplications, as a product or a quotient of numbers is
+  charged by the words of its operands. Under the default limits a number
+  holds at most 4,096 bits, and `max_exponent` (4,096) rejects an exponent
+  such as 4294967023 first. With both `max_exponent` and `max_integer_bits`
+  raised far beyond their defaults, the charge of a power such as
+  $3^{4294967023}$, about $4.7 \cdot 10^{15}$ units, exceeds the default
+  `max_work`, and the power fails before it runs. With `max_work` raised as
+  well, the power is computed in full before any limit can stop it: on the
+  host above it was still running after more than 100 seconds when it was
+  stopped. A sum, a difference, a negation, an inverse, a comparison and
+  `Rational::new` charge one unit whatever the size of their operands, and
+  the reduction of a fraction is not charged by its steps, so with
+  `max_integer_bits` raised far beyond its default their CPU time grows
+  with the size of the numbers and their work does not. A host that raises
+  these limits bounds the memory and the CPU time of a request itself.
 - **Other hosts differ.** Another operating system, page size, allocator or
   compiler version changes the figures, and the stack of a thread that runs
   nothing is not included. On another host, run the command above.

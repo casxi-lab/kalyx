@@ -399,7 +399,7 @@ behalf of a coefficient operation.
 | A row of a product | 1 |
 | A bit of the exponent of a power below its highest one | 1 |
 | The copy with which a power $k \ge 1$ starts | 1 per term, then its result |
-| The operations of the coefficient ring: `one`, `from_integer`, `negate`, `add`, `subtract`, `multiply` and `zero_test` | as the coefficient ring charges them; over $\mathbb{Q}$ one unit each, and the zero test nothing |
+| The operations of the coefficient ring: `one`, `from_integer`, `negate`, `add`, `subtract`, `multiply` and `zero_test` | as the coefficient ring charges them; over $\mathbb{Q}$ one unit each, except `multiply`, which charges the product of the machine words of its operands, one unit for coefficients of at most 64 bits, and the zero test nothing |
 | The checks of a degree, an exponent, a depth or a storage cost, and `measure` of the coefficient ring | none |
 | A node entered by the expansion, before its children | 1 |
 | A symbol entered by the expansion | 1 more per byte of the shorter of its name and the variable name |

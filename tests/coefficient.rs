@@ -440,7 +440,8 @@ fn rationals_check_and_charge_new_elements() {
     let error = q.from_integer(&n, &mut narrow).unwrap_err();
     assert_eq!(error.kind(), ErrorKind::ResourceLimit);
     assert_eq!(narrow.work_used(), 0);
-    // The element operations charge one unit each, as those of `Rational`.
+    // The element operations charge one unit each on these one-word
+    // operands, as those of `Rational` do.
     let (a, b) = (Rational::from(3_i64), Rational::from(-2_i64));
     let before = context.work_used();
     q.negate(&a, &mut context).unwrap();

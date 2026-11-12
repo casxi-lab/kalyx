@@ -302,8 +302,8 @@ fn polynomials_are_opaque_and_their_debug_view_is_shallow() {
 // Charges
 
 // Every operation charges fixed amounts: one unit per loop step, the
-// coefficient operations of the rationals one unit each, and one unit for
-// each result after its checks.
+// coefficient operations of the rationals one unit each on the one-word
+// coefficients here, and one unit for each result after its checks.
 #[test]
 fn operations_charge_the_amounts_of_the_charge_table() {
     let c = &mut default_context();
