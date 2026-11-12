@@ -19,11 +19,11 @@ limits, the exact numbers with the coefficient-field trait over
 $\mathbb{Q}$, the term core, the parser, the univariate polynomials over
 $\mathbb{Q}$, the command entry with its output lines, the command-line
 program `kalyx` and the repository checks. The errors and result
-states, the context and limits, the exact numbers with the two layers of the
-coefficient-field trait and `Rationals`, the term core with its canonical
-forms, the parser of the [input syntax](semantics.md), the univariate
-polynomials with expansion and differentiation and the command entry with
-the [output lines](semantics.md#output-lines) are implemented, each with its
+states, the context and limits, the exact numbers with the integer kernel,
+the two layers of the coefficient-field trait and `Rationals`, the term core
+with its canonical forms, the parser of the [input syntax](semantics.md), the
+univariate polynomials with expansion and differentiation and the command
+entry with the [output lines](semantics.md#output-lines) are implemented, each with its
 contract ([errors](components/errors/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
@@ -115,7 +115,7 @@ when each release is planned, except where the plan already fixes them.
 | Component | Release | Planned tiers | First production caller |
 | --- | --- | --- | --- |
 | Term core extension: constants, function-call nodes, conditions and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, conditions and `piecewise`), 0.2 |
-| Coefficient fields beyond $\mathbb{Q}[x]$: integer kernel, $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
+| Coefficient fields beyond $\mathbb{Q}[x]$: integer kernel (implemented in `number`, [contract](components/numbers/contract.md#the-integer-kernel)), $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Function registry | 0.2 | A3 upgrade in 0.2 | the function-expression baseline, Taylor series and derivatives of function expressions, 0.2 |
 | Shared result types: `Completeness`, `Evidence`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | set when planned | root lists and real sets (`Completeness`), zero tests of algebraic numbers and assumption queries (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
 | Numerical kernel and evaluation framework: rational-endpoint intervals, complex balls, summation, elementary kernels, one precision driver | 0.3 | A2 for inclusion; A1 for the framework; A3 upgrade in 0.3 for the series summer | the numerical evaluation entries `precision`, `ball`, `round` and `approx`, 0.3 |
