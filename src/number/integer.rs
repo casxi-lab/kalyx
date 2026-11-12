@@ -10,7 +10,9 @@
 //! check of the bits of the integers that it computes; and the check of the
 //! storage cost of the returned value with `check_storage` at
 //! `LimitScope::Value`. An entry that runs several steps checks its bound on
-//! entry, before any charge. Euclid's steps in `gcd` and `lcm` are covered by
+//! entry, before any charge; the one domain test that comes later, of a
+//! negative power in `modular_power` whose base is not a unit, follows the
+//! charges of the inverse. Euclid's steps in `gcd` and `lcm` are covered by
 //! that bound, since their remainders decrease, and are only charged; every
 //! other step checks its own bound and charges before it computes, and
 //! checks the bits of the integers that it computes. An integer that an

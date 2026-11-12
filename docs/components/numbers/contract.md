@@ -286,7 +286,9 @@ computation; the check of the bits of the integers that it computes; and
 the check of the storage cost of the returned value with `check_storage` at
 `LimitScope::Value`, so that it counts together with the open frames and
 the reserved temporaries. A function of several steps checks its bound on
-entry, before any charge. Euclid's steps in `gcd` and `lcm` are covered by
+entry, before any charge; the one domain test that comes later, of a
+negative power in `modular_power` whose base is not a unit, follows the
+charges of the inverse. Euclid's steps in `gcd` and `lcm` are covered by
 that bound, since their remainders decrease, and are only charged; every
 other step, of the extended GCD, the quotient and the product of the LCM,
 the modular inverse, binary powering and the merges of `crt`, checks its
@@ -810,13 +812,16 @@ stated:
 
 - **Rule 1, check, then execute.** As in the rule "Check, then write" of
   the [context](../context/contract.md#frames-and-temporaries), the charges
-  count among the checks: the domain test and the bound of every entry are
-  checked before its first charge, every step other than Euclid's steps in
-  `gcd` and `lcm`, which that bound covers, checks its own bound and charges
-  before it computes, and the operands are never written. A charge is not
-  undone: a failure after a charge, of the bound of a later step, of the
-  work limit or of the storage of the result, keeps the work charged before
-  it, where the rule restores the state from before the operation.
+  count among the checks: the domain test of the divisor or the modulus and
+  the bound on entry are checked before the first charge, every step other
+  than Euclid's steps in `gcd` and `lcm`, which that bound covers, checks
+  its own bound and charges before it computes, and the operands are never
+  written. The one later domain test, of a negative power whose base is not
+  a unit, comes after the charges of the inverse. A charge is not undone: a
+  failure after a charge, of the bound of a later step, of a later charge
+  (the work limit, a cancellation or the deadline), of the domain of a
+  negative power or of the storage of the result, keeps the work charged
+  before it, where the rule restores the state from before the operation.
 - **Rule 2, no allocation at run time.** The rule is written for kernels
   whose capacities are fixed at boot. num-bigint allocates each integer at
   run time, only after a bound that covers it has been checked against
