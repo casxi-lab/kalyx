@@ -282,16 +282,23 @@ The arithmetic of `Integer` and the functions of the integer kernel run in
 the order of the rationals: the domain test, where the operation has one;
 the check of a bound against `max_integer_bits`, computed from the operands
 alone; the charge, whose amount depends only on the operands; the
-computation; the check of the bits of the result; and the check of the
-storage cost of the returned value with `check_storage` at
+computation; the check of the bits of the integers that it computes; and
+the check of the storage cost of the returned value with `check_storage` at
 `LimitScope::Value`, so that it counts together with the open frames and
 the reserved temporaries. A function of several steps checks its bound on
-entry, before any charge, and each step then checks its own bound and
-charges before it computes; the intermediate integers are checked by their
-bits only. The kernel charges work and checks storage, and opens no frame and
-reserves no temporary, so `Context::retained()` is the same before and after
-every call. Write $W(x) = \max(1, \lceil \lvert x \rvert / 64 \rceil)$ for
-the machine words of $x$: a product, a Euclidean division and a remainder of
+entry, before any charge. Euclid's steps in `gcd` and `lcm` are covered by
+that bound, since their remainders decrease, and are only charged; every
+other step, of the extended GCD, the quotient and the product of the LCM,
+the modular inverse, binary powering and the merges of `crt`, checks its
+own bound and charges before it computes, and checks the bits of the
+integers that it computes. An integer that a function returns without
+computing it, such as the power $a^0 \bmod m = 1$ for $m \gt 1$ or the
+modulus of a congruence, is covered by the bound on entry. The intermediate
+integers are checked by their bits only, never by their storage. The kernel
+charges work and checks storage, and opens no frame and reserves no
+temporary, so `Context::retained()` is the same before and after every call.
+Write $W(x) = \max(1, \lceil \lvert x \rvert / 64 \rceil)$ for the
+machine words of $x$: a product, a Euclidean division and a remainder of
 $x$ and $y$ charge $W(x) W(y)$ units, and a sum, a difference, a negation
 and an absolute value one unit.
 
@@ -797,8 +804,9 @@ only loop of a helper that holds the owned integers across its loop and has
 no `?` and no `return` before it, and the checks that return early are in
 the loopless functions that call the helpers; slices are walked by index
 loops, and no loop condition is a macro. The bound of every entry is
-checked before its first charge, and every step checks its own bound and
-charges before it computes. The kernel is
+checked before its first charge, and every step other than Euclid's steps in
+`gcd` and `lcm`, which that bound covers, checks its own bound and charges
+before it computes. The kernel is
 not a proof target, so the module list does not hold it.
 
 The module list of the component, the files that the `subset` step of

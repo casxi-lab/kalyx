@@ -7,12 +7,16 @@
 //! where it has one; the check of a bound on the bits of the integers that it
 //! computes against `max_integer_bits`, computed from its operands alone; the
 //! charge, whose amount depends only on the operands; the computation; the
-//! check of the bits of the result; and the check of the storage cost of the
-//! returned value with `check_storage` at `LimitScope::Value`. An entry that
-//! runs several steps checks its bound on entry, charges each step before
-//! the step, and checks the bound of each step again before its charge; the
-//! bound of the entry covers the steps wherever the contract says so. The
-//! intermediate values are checked by their bits only. The kernel charges
+//! check of the bits of the integers that it computes; and the check of the
+//! storage cost of the returned value with `check_storage` at
+//! `LimitScope::Value`. An entry that runs several steps checks its bound on
+//! entry, before any charge. Euclid's steps in `gcd` and `lcm` are covered by
+//! that bound, since their remainders decrease, and are only charged; every
+//! other step checks its own bound and charges before it computes, and
+//! checks the bits of the integers that it computes. An integer that an
+//! entry returns without computing it, such as the power $a^0 \bmod m = 1$
+//! for $m \gt 1$, is covered by the bound on entry. The intermediate values
+//! are checked by their bits only, never by their storage. The kernel charges
 //! work and checks storage, and opens no frame and reserves no temporary.
 //!
 //! The amounts are counted in machine words: with
@@ -65,9 +69,9 @@ fn admit(bound: u64, units: u64, context: &mut Context) -> Result<()> {
     context.charge(units)
 }
 
-/// `value` after the check of its bits against `max_integer_bits`. Every
-/// step checked a bound of at least these bits before it charged, so this
-/// check fails only if a bound is wrong.
+/// `value` after the check of its bits against `max_integer_bits`. A bound
+/// of at least these bits was checked before the charge, by the step or on
+/// entry, so this check fails only if a bound is wrong.
 fn checked(value: BigInt, context: &Context) -> Result<BigInt> {
     context.check(LimitField::IntegerBits, value.bits())?;
     Ok(value)
