@@ -230,10 +230,15 @@ impl<T> Run<'_, T> {
 /// does not decrease as $b$ grows. A run with exactly the work of a failure
 /// as its budget stops with the same work, and with `EARLIER_WORK` charged
 /// before it keeps those units as well; with `EARLIER_WORK` charged before a
-/// budget of $w$ more, it repeats the outcome. Doubled size limits do not
-/// change a run that no limit stopped. Under a deadline that has passed, a
-/// run that charges fails at its first charge with `DeadlineExceeded` and no
-/// work, and a run that charges nothing repeats its outcome.
+/// budget of $w$ more, it repeats the outcome. That a failed charge keeps
+/// the charges of the run before it is a property of `Context`, which adds
+/// the units of a charge only when the charge passes and never lowers its
+/// work; the check confirms only that the stops are monotone and
+/// reproducible and that the charges made before the run are kept. Doubled
+/// size limits do not change a run that no limit stopped. Under a deadline
+/// that has passed, a run that charges fails at its first charge with
+/// `DeadlineExceeded` and no work, and a run that charges nothing repeats
+/// its outcome.
 pub fn work_accounting<T>(limits: &Limits, run: &Run<'_, T>) {
     let (expected, work) = run.measure(limits, &CountingProbe::never());
     case(
