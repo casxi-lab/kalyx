@@ -90,8 +90,10 @@ fn the_model_reduces_like_a_field_of_fractions() {
 // ---------------------------------------------------------------------------
 // The checks of the tool on the rationals
 
-/// Ten fixed rationals and 64 generated ones of every kind, from 64-bit
-/// integers to fractions of 120-bit terms, with 2,000 drawn triples.
+/// Ten fixed rationals and 64 generated ones of the eight kinds of
+/// `rationals`, from small integers to integers of up to 200 bits,
+/// fractions of 120-bit terms and dyadic fractions with denominators up to
+/// $2^{130}$, with 2,000 drawn triples.
 fn axiom_inputs() -> (Vec<Rational>, Vec<(usize, usize, usize)>) {
     let mut sequence = Sequence::new(0xC0EF_0001);
     let values = rationals(&mut sequence, 64);
