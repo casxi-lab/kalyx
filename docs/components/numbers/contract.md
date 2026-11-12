@@ -699,9 +699,29 @@ $0^0$ included; a negative power of a non-unit is `OutsideDomain`; a
 product of residues is the integer product followed by its remainder, on
 one path, bounded by twice the bits of the modulus; and the exponent is
 checked by its bits against `max_integer_bits`, never against
-`max_exponent`. The charges do not depend on the limits. The parents of
-residue rings, their zero rules and the mismatch of moduli are not part of
-this component.
+`max_exponent`. The charges do not depend on the limits. Under limits at or
+above the bounds of [the integer kernel](#the-integer-kernel), among them
+$\lvert m \rvert + 2$ bits for an inverse modulo $m \gt 1$ and
+$2 \lvert m \rvert$ for a power with a nonzero exponent, and at or above the
+storage of the outcome, when the charges succeed, a function returns its
+outcome. kalyx differs from the earlier requirement on purpose in four
+places, as the items on the order, the modular inverse and the storage of
+[the integer kernel](#the-integer-kernel) and the section
+[storage](#storage) state: the modulus is tested before any check and
+charge, where the earlier requirement charged and revalidated the residues
+and the modulus first; an integer costs $(1, \lvert z \rvert + 4)$ in place
+of one node and $\lceil \lvert z \rvert / 8 \rceil + 8$ bytes, the inverse
+checks the bits of its estimate but not its six nodes and
+$6 (\lceil b / 8 \rceil + 8)$ bytes, and only the returned value is
+admitted; a non-unit gives `NonUnit(g)`, where the earlier counterpart
+`modular_inverse` returned no inverse; and the bound $\lvert m \rvert + 2$
+of an inverse is checked for a residue of zero as well, where the earlier
+requirement states no estimate for zero, so that the inverse of zero modulo
+$m \gt 1$ needs two bits more than the modulus has. That is the one bound
+above the estimates of the earlier requirement; the others are its
+estimates of $b + 2$ bits for an inverse and $2 b$ bits for each product of
+a power, $b$ being the bits of the modulus. The parents of residue rings,
+their zero rules and the mismatch of moduli are not part of this component.
 
 - **Implemented here.** `modular_inverse`, `modular_power`,
   `Congruence::new` and `crt` in `src/number/integer.rs`.
