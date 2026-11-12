@@ -1,7 +1,8 @@
 //! The shared result types, `Evidence` and `Truth`, as code outside the
 //! library sees them: the negative cases of their combinations. No public
-//! entry of the library produces numerical evidence yet, so these tests
-//! build every variant themselves and give it to the combinations.
+//! entry of the library produces numerical evidence yet except by combining
+//! evidence that is already numerical, so these tests build every variant
+//! themselves and give it to the combinations.
 
 use kalyx::{Evidence, Truth};
 

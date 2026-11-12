@@ -150,7 +150,8 @@ mod tests {
 
     // Evidence, positive: each of the four kinds of evidence comes out of a
     // conjunction. No public entry of the library produces numerical
-    // evidence yet, so this test gives it to the conjunction as an operand.
+    // evidence yet except by combining evidence that is already numerical,
+    // so this test gives it to the conjunction as an operand.
     #[test]
     fn each_evidence_comes_out_of_a_conjunction() {
         assert_eq!(Evidence::Proved.and(Evidence::Proved), Evidence::Proved);

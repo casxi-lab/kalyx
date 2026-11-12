@@ -18,13 +18,15 @@ concern these types and are not restated here. The mathematical states of
 **Status.** Implemented in `src/shared.rs`, at tier A1 (tested with a written
 contract). The types are written anew for kalyx; the earlier implementation
 served only as a reference, so [PORTING](../../../PORTING.md) has no row for
-them. No public entry of the library returns either type yet: their first
-production caller is to be the assumption queries of function expressions,
-planned for release 0.2, and no entry of that release produces numerical
-evidence. The unit tests of `src/shared.rs` and the tests in
-`tests/shared_results.rs` produce every variant through the operations.
-The other shared result types of the architecture, `Completeness` and
-`Guarantee`, are planned and not part of this contract yet.
+them. No public entry of the library other than their own three operations
+returns either type yet: their first production caller is to be the
+assumption queries of function expressions, planned for release 0.2, and no
+entry of that release produces numerical evidence except by combining
+evidence that is already numerical. The unit tests of `src/shared.rs` and
+the tests in `tests/shared_results.rs` produce every variant through the
+operations. The other shared result types of the architecture,
+`Completeness` and `Guarantee`, are planned and not part of this contract
+yet.
 
 ## Interface
 
@@ -144,9 +146,10 @@ operation.
 - **Tests.** `each_evidence_comes_out_of_a_conjunction` gives all four kinds
   of evidence from `Evidence::and`, and `each_truth_comes_out_of_evidence`
   all three truth values from `Evidence::truth`, both in `src/shared.rs`.
-  No entry of this release produces numerical evidence, so the unit test
-  gives `NumericEvidence` to the conjunction as an operand, as the unit tests
-  of the errors produce each `MathState`.
+  No entry produces numerical evidence yet except by combining evidence that
+  is already numerical, so the unit test gives `NumericEvidence` to the
+  conjunction as an operand, as the unit tests of the errors produce each
+  `MathState`.
 
 ### Combining never raises the evidence
 
