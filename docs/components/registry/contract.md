@@ -21,8 +21,8 @@ records. No code outside the module reads it yet. Its first production
 caller is planned to be the function-expression baseline of release 0.2,
 with the derivatives and Taylor series of function expressions; the call
 constructor of the term core is planned to read its records in the same
-release. The registry fixes all its slots at once, the one exception that
-the [architecture](../../architecture.md#components) lists.
+release. The registry fixes all its slots at once, an exception that the
+[architecture](../../architecture.md#components) lists.
 
 ## Scope
 
