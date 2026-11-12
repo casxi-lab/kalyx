@@ -130,16 +130,38 @@ pub(crate) fn power_bits(x: &BigUint, m: u64) -> Option<u64> {
     u64::try_from(bound).ok()
 }
 
+/// A bound of the bits of the power $x^j$ of a part $x$ that is an operand
+/// of a step of binary powering: the bound `power_bits(x, j)`, capped for
+/// $j \ge 1$ at $j \lvert x \rvert$, which bounds $x^j$ since
+/// $x \lt 2^{\lvert x \rvert}$, so that it is exact for $j = 1$. A bound
+/// that does not fit in a `u64`, which the check of the bound of the power
+/// rejects first, leaves the cap, which is then `u64::MAX`, since the bound
+/// is at most $j \lvert x \rvert + 1$.
+fn operand_bits(x: &BigUint, j: u64) -> u64 {
+    let cap = if j == 0 {
+        1
+    } else {
+        j.saturating_mul(x.bits())
+    };
+    match power_bits(x, j) {
+        Some(bound) => {
+            if bound < cap {
+                bound
+            } else {
+                cap
+            }
+        }
+        None => cap,
+    }
+}
+
 /// The machine words of the operand $x^j$ of a step of binary powering of a
 /// rational $x$ with the parts `numerator` and `denominator`: the words of
-/// the larger of the bounds $P$ of the bits of its parts, and those of
-/// `u64::MAX` bits when a bound does not fit in a `u64`, which the check of
-/// the bound of the power rejects first.
+/// the larger of the bounds `operand_bits` of its parts.
 fn operand_words(numerator: &BigUint, denominator: &BigUint, j: u64) -> u64 {
-    match (power_bits(numerator, j), power_bits(denominator, j)) {
-        (Some(n), Some(d)) => words(if n < d { d } else { n }),
-        _ => words(u64::MAX),
-    }
+    let n = operand_bits(numerator, j);
+    let d = operand_bits(denominator, j);
+    words(if n < d { d } else { n })
 }
 
 /// The work charged for the power $x^m$ of a rational $x$ with the parts
@@ -153,11 +175,11 @@ fn operand_words(numerator: &BigUint, denominator: &BigUint, j: u64) -> u64 {
 /// highest bit it squares $x^{2^i}$, for $W(x^{2^i})^2$ units, where $W$ is
 /// `operand_words`. A step on a rational squares or multiplies both its
 /// numerator and its denominator, so it costs at most twice what it is
-/// charged. When the bound of every operand is at most 64 bits, every step
-/// charges one unit, and the charge is $1 + \lvert m \rvert + w(m)$ for the
-/// bit length $\lvert m \rvert$ and the number $w(m)$ of one bits of $m$:
-/// one unit, one more, $\lvert m \rvert - 1$ squarings and $w(m)$
-/// multiplications.
+/// charged. When every operand has at most 64 bits, so has its bound, and
+/// every step charges one unit: the charge is then
+/// $1 + \lvert m \rvert + w(m)$ for the bit length $\lvert m \rvert$ and the
+/// number $w(m)$ of one bits of $m$: one unit, one more,
+/// $\lvert m \rvert - 1$ squarings and $w(m)$ multiplications.
 pub(crate) fn power_charge(numerator: &BigUint, denominator: &BigUint, m: u64) -> u64 {
     let length = u64::from(u64::BITS - m.leading_zeros());
     let mut charge: u64 = if m == 0 { 1 } else { 2 };
@@ -390,5 +412,36 @@ mod tests {
             power_charge(&BigUint::from(3_u8), &BigUint::one(), u64::MAX),
             u64::MAX
         );
+    }
+
+    #[test]
+    fn every_operand_of_one_word_charges_one_unit() {
+        let one = BigUint::one();
+        let largest = (BigUint::one() << 64_u32) - 1_u32;
+        // The bound of an operand x^1 is its bit length, also where the bound
+        // of the power x^1 is one bit above it.
+        assert_eq!(power_bits(&largest, 1), Some(65));
+        for x in [
+            largest.clone(),
+            &largest - (BigUint::one() << 31_u32),
+            (BigUint::one() << 128_u32) - 1_u32,
+            (BigUint::one() << 63_u32) + 1_u32,
+        ] {
+            assert_eq!(operand_bits(&x, 1), x.bits(), "{x}");
+        }
+        // The bound grows with the base and with the exponent, so for each
+        // exponent j it is enough to check the largest base x whose power
+        // x^j has at most 64 bits: the bound of x^j is at most 64 bits, and
+        // so are those of the operands x^i, i <= j, of the steps of the
+        // power x^j, each of which charges one unit.
+        for j in 1_u32..=64 {
+            let x = largest.nth_root(j);
+            assert!(x.pow(j) <= largest && (&x + 1_u32).pow(j) > largest, "{j}");
+            let m = u64::from(j);
+            assert!(operand_bits(&x, m) <= 64, "{x} to the {m}");
+            let expected = 1 + u64::from(u64::BITS - m.leading_zeros()) + u64::from(m.count_ones());
+            assert_eq!(power_charge(&x, &one, m), expected, "{x} to the {m}");
+            assert_eq!(power_charge(&one, &x, m), expected, "1/{x} to the {m}");
+        }
     }
 }

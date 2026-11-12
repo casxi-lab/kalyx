@@ -643,12 +643,14 @@ fn modular_power_work(a: &Integer, e: u64, m: &Integer) -> u64 {
 // $x$ and $y$ charge $W(x) W(y)$, the product of the machine words of the
 // operands, and a power charges, before it computes, one unit, one more for
 // $m \ge 1$ and the words of the operands of each squaring and each
-// multiplication of binary powering, from the bounds of their bits; the
-// bound of a part that is a power of two is exact, so the bases here have
-// such a larger part. Operands of one word keep the amounts of release 0.1:
-// one unit for a product or a quotient and $1 + \lvert m \rvert + w(m)$ for
-// a power. The modular power of the integer kernel charges each of its
-// steps by the words of the integers that it computes.
+// multiplication of binary powering, from the bounds of their bits, each
+// capped at $j \lvert p \rvert$ for the power $p^j$ of a part $p$; the
+// bound of a power of two is exact, and the cap makes that of $p^1$ exact,
+// so the amounts here count the words of the actual operands. Operands of
+// one word keep the amounts of release 0.1: one unit for a product or a
+// quotient and $1 + \lvert m \rvert + w(m)$ for a power. The modular power
+// of the integer kernel charges each of its steps by the words of the
+// integers that it computes.
 #[test]
 fn rational_products_quotients_and_powers_charge_word_products() {
     let three = q(3, 1);
@@ -707,6 +709,17 @@ fn rational_products_quotients_and_powers_charge_word_products() {
     assert_eq!(work_of(|c| three.power(40, c)), 1 + 6 + 2);
     assert_eq!(work_of(|c| q(2, 3).power(5, c)), 1 + 3 + 2);
     assert_eq!(work_of(|c| q(1, 3).power(-5, c)), 1 + 3 + 2);
+    // 2^64 - 1 has one word, and the bound of the operand x^1 is its bit
+    // length, although the bound of the power x^1 is 65 bits: x^1 and x^-1
+    // charge 1 + 1 + 1.
+    assert_eq!(work_of(|c| all_ones.power(1, c)), 3);
+    assert_eq!(work_of(|c| all_ones.power(-1, c)), 3);
+    // (2^128 - 1)^2: 2, the squaring of x of 2^2 words, and 1 * x^2 of
+    // 1 * 4 words, since the bound of x^2 is at most 2 * 128 bits.
+    let two_words = two_to(128)
+        .subtract(&q(1, 1), &mut default_context())
+        .unwrap();
+    assert_eq!(work_of(|c| two_words.power(2, c)), 2 + 4 + 4);
 
     // The modular power, by the model of its steps.
     let modulus = two_to(127)

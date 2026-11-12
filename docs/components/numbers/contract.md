@@ -234,14 +234,19 @@ for the machine words of $x$.
   steps of binary powering by their machine words: one unit, one more for
   $m \ge 1$, and for each squaring of a power $y$ of the base $W(y)^2$
   units and for each multiplication of $y$ by $z$ $W(y) W(z)$ units, where
-  the words of an operand $x^j$ are those of the larger of the bounds
-  $P(a, j)$ and $P(b, j)$ of its parts. Binary powering reads $m$ from its
-  lowest bit and squares $\lvert m \rvert - 1$ times and multiplies $w(m)$
-  times, where $\lvert m \rvert$ is the bit length of $m$ and $w(m)$ the
-  number of its one bits, so when the bound of every operand is at most 64
-  bits the charge is $1 + \lvert m \rvert + w(m)$, the amount of release
-  0.1. It computes the numerator and the denominator separately, so a step
-  costs at most twice what it is charged. For $(3/2^{64})^5$ the charge is
+  the words of an operand $x^j$ are those of the larger of the bounds of
+  its parts, $\min(P(a, j), j \lvert a \rvert)$ and
+  $\min(P(b, j), j \lvert b \rvert)$ for $j \ge 1$ and 1 bit for $j = 0$: a
+  part $a$ is below $2^{\lvert a \rvert}$, so $a^j$ has at most
+  $j \lvert a \rvert$ bits, and the bound of $x^1$ is exact. Binary
+  powering reads $m$ from its lowest bit and squares $\lvert m \rvert - 1$
+  times and multiplies $w(m)$ times, where $\lvert m \rvert$ is the bit
+  length of $m$ and $w(m)$ the number of its one bits. When every operand
+  has at most 64 bits, so has its bound
+  (`every_operand_of_one_word_charges_one_unit`), and the charge is
+  $1 + \lvert m \rvert + w(m)$, the amount of release 0.1. It computes the
+  numerator and the denominator separately, so a step costs at most twice
+  what it is charged. For $(3/2^{64})^5$ the charge is
   $2 + 1 \cdot 2 + 2^2 + 3^2 + 2 \cdot 5 = 27$ units. A power whose steps
   need more work than is left fails before it is computed: with
   `max_exponent` raised to $2^{32}$ and `max_integer_bits` to $2^{33}$,
@@ -630,8 +635,9 @@ succeeds.
   `the_power_bound_holds_its_claims_for_large_exponents`,
   `the_power_bound_holds_where_the_last_unit_of_the_logarithm_decides`,
   `the_power_bound_can_be_two_bits_above_just_below_2_pow_32`,
-  `binary_powering_matches_repeated_products` and
-  `the_charge_of_a_power_counts_the_words_of_its_steps`.
+  `binary_powering_matches_repeated_products`,
+  `the_charge_of_a_power_counts_the_words_of_its_steps` and
+  `every_operand_of_one_word_charges_one_unit`.
 
 ### FLD-R04
 

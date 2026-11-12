@@ -453,14 +453,16 @@ impl Rational {
     /// of a power $y$ of the base $W(y)^2$ units and for each multiplication of
     /// $y$ by $z$ $W(y) W(z)$ units, with the words
     /// $W = \max(1, \lceil b / 64 \rceil)$ of the bound $b$ of the bits of
-    /// the step's operand, the larger of the bounds of its numerator and its
-    /// denominator; then computes the power of each part by binary powering.
-    /// When the bound of every operand is at most 64 bits the charge is
-    /// $1 + \lvert m \rvert + w(m)$ units, where $\lvert m \rvert$ is the bit
-    /// length of $m$ and $w(m)$ the number of its one bits. The bound of a part
-    /// $x$ is exact when $x$ is a power of two, never above
-    /// $m \lvert x \rvert + 1$, and at most one bit above the bits of $x^m$ for
-    /// $m \lt 2^{31}$; a bound that does not fit in a `u64` exceeds every limit.
+    /// the step's operand, the power of the base to some $j \le m$: the larger
+    /// of the bounds of the powers $x^j$ of its parts $x$, each the bound
+    /// below capped at $j \lvert x \rvert$ for $j \ge 1$; then computes the
+    /// power of each part by binary powering. When every operand has at most
+    /// 64 bits the charge is $1 + \lvert m \rvert + w(m)$ units, where
+    /// $\lvert m \rvert$ is the bit length of $m$ and $w(m)$ the number of its
+    /// one bits. The bound of a part $x$ is exact when $x$ is a power of two,
+    /// never above $m \lvert x \rvert + 1$, and at most one bit above the bits
+    /// of $x^m$ for $m \lt 2^{31}$; a bound that does not fit in a `u64`
+    /// exceeds every limit.
     /// So a power whose steps need more work than is left fails before it is
     /// computed.
     ///
