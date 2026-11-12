@@ -12,10 +12,29 @@ const EVIDENCE: [Evidence; 4] = [
     Evidence::Unknown,
 ];
 
+// The conjunction of `left` and `right` by the rule of the contract, written
+// apart from `Evidence::and`: one `Refuted` refutes it; otherwise one
+// `Unknown` makes it `Unknown`; otherwise one `NumericEvidence` makes it
+// `NumericEvidence`; otherwise both are `Proved`, and so is the conjunction.
+fn conjunction_by_the_rule(left: Evidence, right: Evidence) -> Evidence {
+    let either = |evidence| left == evidence || right == evidence;
+    if either(Evidence::Refuted) {
+        Evidence::Refuted
+    } else if either(Evidence::Unknown) {
+        Evidence::Unknown
+    } else if either(Evidence::NumericEvidence) {
+        Evidence::NumericEvidence
+    } else {
+        Evidence::Proved
+    }
+}
+
 // Negative: over all 16 pairs, a conjunction of evidence is proved only when
 // both operands are proved and refuted exactly when one of them is refuted,
 // and the truth value of a conjunction of evidence is the conjunction of
-// the truth values of its operands.
+// the truth values of its operands. Each pair, in either order, also gives
+// the conjunction of the rule, so neither `Unknown` nor `NumericEvidence`
+// turns into the other.
 #[test]
 fn combining_evidence_never_raises_its_level() {
     let mut pairs = 0;
@@ -31,6 +50,12 @@ fn combining_evidence_never_raises_its_level() {
                 left.truth().and(right.truth()),
                 "{left:?} and {right:?}"
             );
+            assert_eq!(
+                both,
+                conjunction_by_the_rule(left, right),
+                "{left:?} and {right:?}"
+            );
+            assert_eq!(both, right.and(left), "{left:?} and {right:?}");
             pairs += 1;
         }
     }

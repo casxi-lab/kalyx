@@ -154,7 +154,11 @@ operation.
 - **Tests.** Negative: `combining_evidence_never_raises_its_level`, over all
   16 pairs of evidence: the conjunction is `Proved` exactly when both operands
   are, `Refuted` exactly when one is, and its truth value is the conjunction
-  of the truth values of its operands.
+  of the truth values of its operands. Each pair, in either order, also gives
+  the conjunction that the rule of the [combinations](#combinations) table
+  gives, computed in the test apart from `Evidence::and`, so the test fixes
+  all 16 results and neither `Unknown` nor `NumericEvidence` turns into the
+  other.
 
 ### Numerical evidence is never a proof
 
