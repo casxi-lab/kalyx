@@ -22,10 +22,10 @@
 //! it is computed in full, for minutes, before any limit can stop it: a
 //! primitive operation is not interrupted, and real memory and CPU time are
 //! bounded by the host, as the command contract states. So that the test
-//! ends in bounded time also where its random limits raise `max_work`, the
-//! exponent category keeps `max_integer_bits` at most $2^{20}$, and the
-//! inputs of the category of largest limits keep their size and the degrees
-//! of their powers small.
+//! ends in bounded time, the exponent category still keeps
+//! `max_integer_bits` at most $2^{20}$, and the inputs of the category of
+//! largest limits, where `max_work` can be `u64::MAX`, keep their size and
+//! the degrees of their powers small.
 
 #![allow(
     clippy::expect_used,
