@@ -168,6 +168,7 @@ fn fault_name(fault: FaultKind) -> &'static [u8] {
         FaultKind::NotPolynomial => b"NotPolynomial",
         FaultKind::Unsupported => b"Unsupported",
         FaultKind::Internal => b"Internal",
+        FaultKind::OutsideDomain => b"OutsideDomain",
     }
 }
 

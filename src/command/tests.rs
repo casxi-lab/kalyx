@@ -178,6 +178,7 @@ fn every_kind_has_its_name() {
         (FaultKind::NotPolynomial, "NotPolynomial"),
         (FaultKind::Unsupported, "Unsupported"),
         (FaultKind::Internal, "Internal"),
+        (FaultKind::OutsideDomain, "OutsideDomain"),
     ] {
         let (text, _) = line(&outcome(Err(Error::new(fault, None, "fault"))));
         assert_eq!(

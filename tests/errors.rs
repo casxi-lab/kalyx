@@ -4,7 +4,7 @@
 
 use kalyx::{Error, ErrorClass, ErrorKind, FaultKind, LimitField, MathState, Settled, Span};
 
-const FAULTS: [FaultKind; 7] = [
+const FAULTS: [FaultKind; 8] = [
     FaultKind::Syntax,
     FaultKind::UnknownSymbol,
     FaultKind::DivisionByZero,
@@ -12,6 +12,7 @@ const FAULTS: [FaultKind; 7] = [
     FaultKind::NotPolynomial,
     FaultKind::Unsupported,
     FaultKind::Internal,
+    FaultKind::OutsideDomain,
 ];
 
 // Carried over: code outside the library constructs errors of its own, with
@@ -64,7 +65,7 @@ fn display_appends_the_span_to_the_message() {
     assert_eq!(ragged.to_string(), ragged.message());
 }
 
-// `Error::new` builds every foundation fault, and none of them is a request
+// `Error::new` builds every fault kind, and none of them is a request
 // failure. Its compile-fail documentation test shows that it does not accept
 // a request kind.
 #[test]

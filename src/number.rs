@@ -12,6 +12,16 @@
 //! rejected operation therefore charges nothing and allocates nothing but its
 //! error.
 //!
+//! The integer kernel follows the same order: the arithmetic of [`Integer`]
+//! and the functions [`gcd`], [`lcm`], [`extended_gcd`], [`modular_inverse`],
+//! [`modular_power`] and [`crt`] over [`Congruence`]. It tests its domain
+//! first, then checks its bounds, then charges, and checks the storage cost
+//! of each value that it returns. A missing inverse
+//! ([`ModularInverse::NonUnit`]), an inexact quotient
+//! ([`ExactQuotient::NotDivisible`]) and an inconsistent system
+//! ([`CrtResult::Inconsistent`]) are values; a modulus that is not positive
+//! is the fault `OutsideDomain`.
+//!
 //! ```
 //! use kalyx::context::CancelFlag;
 //! use kalyx::number::Rational;
@@ -31,11 +41,14 @@
 //! `docs/components/numbers/contract.md`.
 
 mod arithmetic;
+mod integer;
 mod literal;
 mod power;
 
 #[cfg(test)]
 mod dyadic_tests;
+#[cfg(test)]
+mod integer_tests;
 #[cfg(test)]
 mod positive_compare_tests;
 
@@ -48,6 +61,10 @@ use num_traits::{One, Signed, ToPrimitive, Zero};
 use crate::context::{Storage, StorageCost};
 use crate::{Context, Error, FaultKind, LimitField, Result, Span};
 use arithmetic::{ArithmeticOperation, OrderPath, Parts};
+pub use integer::{
+    Congruence, CrtResult, ExactQuotient, IntegerBezout, IntegerDivision, ModularInverse, crt,
+    extended_gcd, gcd, lcm, modular_inverse, modular_power,
+};
 
 /// The work units charged by every operation on rationals except a power and
 /// a decimal literal.
@@ -55,8 +72,10 @@ const OPERATION_CHARGE: u64 = 1;
 
 /// An integer of any size.
 ///
-/// Integers are built from machine integers with `From`, and are read from
-/// rationals with [`Rational::numerator`] and [`Rational::denominator`].
+/// Integers are built from machine integers with `From`, are read from
+/// rationals with [`Rational::numerator`] and [`Rational::denominator`], and
+/// are computed by the checked arithmetic below, such as [`Integer::add`]
+/// and [`Integer::divide_with_remainder`], and by the integer kernel.
 ///
 /// ```
 /// use kalyx::number::Integer;

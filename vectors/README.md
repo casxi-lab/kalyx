@@ -85,7 +85,7 @@ The `result` column takes one value from this fixed table:
 | --- | --- |
 | `ok` | The request returns an answer. |
 | `ResourceLimit`, `Cancelled`, `DeadlineExceeded` | Request failures raised by the context. |
-| `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal` | Faults of the input or of the library. |
+| `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal`, `OutsideDomain` | Faults of the input or of the library; no case of `r02.tsv` names `OutsideDomain`, which the integer kernel reports and no operation of these cases reaches. |
 
 The error kinds of the earlier implementation that occur in these cases keep
 their names: `Syntax`, `UnknownSymbol`, `DivisionByZero`,
@@ -404,7 +404,8 @@ fixes it:
 | `Syntax`, `DivisionByZero`, `UnknownSymbol`, `NotPolynomial`, `NonIntegerExponent` | the same names |
 | `UnsupportedSymbolic`, `UnsupportedValue` | `Unsupported` |
 | `NonConstantExponent` | `NonIntegerExponent` |
-| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `OutsideDomain`, `InvalidInterval` | the same names |
+| `OutsideDomain` | the same name, a kind of kalyx since the integer kernel |
+| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `InvalidInterval` | the same names |
 | `StaleEnvironment`, `DimensionMismatch` | the same names |
 | `InvalidMatrix`, `SingularMatrix` | the same names |
 | `FactorizationFailure`, `RootIsolationFailure` | `Internal`: every constructor of these kinds in the earlier implementation reports a failed self-check, so the state `NotApplicable` of a method that legitimately gives up does not occur |
@@ -472,7 +473,7 @@ to none:
 | `max_degree` | 256 | `max_exponent` | 4096 | derived | Under the defaults a degree from 257 to 4096 is admitted. `max_exponent=256` reproduces the earlier bound and also bounds exponents by 256. |
 | `max_terms` | 257 | `max_nodes` | 8192 | derived | A term is at least one node. Under the defaults up to 8192 one-node terms are admitted where 257 terms were. |
 | `max_symbolic_depth` | 128 | `max_depth` | 128 | renamed | One depth for syntax, terms and values. |
-| `max_symbolic_bytes` | 262144 | `max_storage_bytes` | 262144 | derived | Measured by kalyx's byte formulas; the bytes of an output, which the earlier field also bounded, are bounded by `max_output_bytes`. |
+| `max_symbolic_bytes` | 262144 | `max_storage_bytes` | 262144 | derived | Measured by kalyx's byte formulas; the bytes of an output, which the earlier field also bounded, are bounded by `max_output_bytes`. The earlier integer functions compared the bytes of their operands, and those of each result of several integers, with this field as a bound on one value; kalyx admits each value that the integer kernel returns with `check_storage` at `LimitScope::Value`, together with the open frames and the reserved temporaries, and does not check the operands, so the bound on one value is the case of `max_storage_bytes` in which nothing else is retained. |
 | `max_domain_conditions` | 64 | `max_nodes` | 8192 | derived | A condition is at least one node. Under the defaults up to 8192 one-node conditions are admitted where 64 were. |
 | `max_environment_bindings` | 128 | none | | cannot map | Bindings of a session; no kalyx request holds a session yet. |
 | `max_call_depth` | 32 | `max_frames` | 32 | renamed | The earlier field was also capped at 64. |

@@ -20,7 +20,8 @@ contract). The request context, the only code that constructs request
 failures, returns them from its charge points and checks. The exact numbers
 (`kalyx::number` and `kalyx::coefficient`) are the first entries of the
 library that compute: they return the faults `DivisionByZero`, `Syntax` and
-`Internal` and the request failures of the context. The first public method
+`Internal` and the request failures of the context, and the integer kernel of
+the exact numbers returns `OutsideDomain` as well. The first public method
 with result states comes with a later release. The crate-internal channel and its boundaries are
 exercised by the unit tests of `src/error.rs`.
 
@@ -153,7 +154,9 @@ requirement.
 - The foundation faults are `Syntax`, `UnknownSymbol`, `DivisionByZero`,
   `NonIntegerExponent` (the exponent is not an integer constant),
   `NotPolynomial`, `Unsupported` and `Internal`. A feature adds a kind of its
-  own in the release that brings the feature. `ErrorKind` and `FaultKind` are
+  own in the release that brings the feature, after the kinds before it: the
+  integer kernel of the exact numbers added `OutsideDomain`, an argument
+  outside the domain of an operation, in release 0.2. `ErrorKind` and `FaultKind` are
   `#[non_exhaustive]`, so code outside the library matches them with a
   wildcard arm.
 - `class()` sorts every kind into one of three classes: `Context` for the
@@ -286,7 +289,8 @@ failures with mathematical outcomes. Each kind has this place in kalyx:
 | `Syntax`, `DivisionByZero`, `UnknownSymbol`, `NotPolynomial`, `NonIntegerExponent` | `FaultKind`, same names (foundation faults) | the parser, exact numbers, the term core and the polynomials over $\mathbb{Q}$, 0.1 |
 | `UnsupportedSymbolic`, `UnsupportedValue` | merged into `FaultKind::Unsupported`; collection values may add a finer kind of their own | the term core (reserved names), the parser and the command entry, 0.1 |
 | `NonConstantExponent` | merged into `NonIntegerExponent`, which means that the exponent is not an integer constant | the parser, 0.1, since the powers of the term core take an integer exponent |
-| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `OutsideDomain`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, coefficient fields, real root isolation and algebraic numbers, and real sets and inequalities, 0.2 |
+| `OutsideDomain` | `FaultKind::OutsideDomain`, a feature kind appended under the same name | the integer kernel of the exact numbers, 0.2 |
+| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, coefficient fields, and real sets and inequalities, 0.2 |
 | `StaleEnvironment`, `DimensionMismatch` | feature kinds, appended under the same names | the computation environment with versioned requests, and the arrays of collection values, 0.3 |
 | `InvalidMatrix`, `SingularMatrix` | feature kinds, appended under the same names | exact rational matrices and linear systems, 0.4 |
 | `FactorizationFailure`, `RootIsolationFailure` | `FaultKind::Internal` when a self-check fails; `MathState::NotApplicable` when the method legitimately gives up | polynomial factorization and real root isolation, 0.2 |
@@ -321,7 +325,7 @@ the mapping above is fixed, so each difference is accepted by its row.
 4. **Construction.** The `compile_fail,E0308` documentation test of
    `Error::new` rejects a request kind, and
    `error_new_builds_faults_and_never_request_failures` in `tests/errors.rs`
-   builds every foundation fault.
+   builds every fault kind.
 5. **Public interface.** `tests/errors.rs` checks the public interface as code
    outside the library sees it: errors that such code constructs, the
    standard error trait, the `Display` form (the message, then the span),

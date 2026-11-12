@@ -19,11 +19,11 @@ limits, the exact numbers with the coefficient-field trait over
 $\mathbb{Q}$, the term core, the parser, the univariate polynomials over
 $\mathbb{Q}$, the command entry with its output lines, the command-line
 program `kalyx` and the repository checks. The errors and result
-states, the context and limits, the exact numbers with the two layers of the
-coefficient-field trait and `Rationals`, the term core with its canonical
-forms, the parser of the [input syntax](semantics.md), the univariate
-polynomials with expansion and differentiation and the command entry with
-the [output lines](semantics.md#output-lines) are implemented, each with its
+states, the context and limits, the exact numbers with the integer kernel,
+the two layers of the coefficient-field trait and `Rationals`, the term core
+with its canonical forms, the parser of the [input syntax](semantics.md), the
+univariate polynomials with expansion and differentiation and the command
+entry with the [output lines](semantics.md#output-lines) are implemented, each with its
 contract ([errors](components/errors/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
@@ -115,7 +115,7 @@ when each release is planned, except where the plan already fixes them.
 | Component | Release | Planned tiers | First production caller |
 | --- | --- | --- | --- |
 | Term core extension: constants, function-call nodes, conditions and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, conditions and `piecewise`), 0.2 |
-| Coefficient fields beyond $\mathbb{Q}[x]$: integer kernel, $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
+| Coefficient fields beyond $\mathbb{Q}[x]$: integer kernel (implemented in `number`, [contract](components/numbers/contract.md#the-integer-kernel)), $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Function registry | 0.2 | A3 upgrade in 0.2 | the function-expression baseline, Taylor series and derivatives of function expressions, 0.2 |
 | Shared result types: `Completeness`, `Evidence`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | set when planned | root lists and real sets (`Completeness`), zero tests of algebraic numbers and assumption queries (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
 | Numerical kernel and evaluation framework: rational-endpoint intervals, complex balls, summation, elementary kernels, one precision driver | 0.3 | A2 for inclusion; A1 for the framework; A3 upgrade in 0.3 for the series summer | the numerical evaluation entries `precision`, `ball`, `round` and `approx`, 0.3 |
@@ -1751,13 +1751,35 @@ symbol name.
   The number of terms of a polynomial is bounded through this cost. Over a
   coefficient ring other than $\mathbb{Q}$, a coefficient $c$ costs the
   `measure` $(n_c, b_c)$ of the ring in place of $(1, \mathrm{rb}(c))$.
-- The formulas for integer results and number-field elements are fixed with
-  them in 0.2; strings, lists, records and session bindings in 0.3, where the
-  value encoding uses the same formulas; matrices in 0.4.
+- An integer $z$ costs $(1, \lvert z \rvert + 4)$, the cost of the rational
+  $z/1$, wherever it occurs. A result of several integers, such as a
+  quotient with its remainder, a GCD with its Bézout coefficients or a
+  congruence, costs the sum of the costs of its integers, and an outcome
+  without an integer, such as an inconsistent system of congruences or a
+  quotient that is not exact, costs $(1, 4)$. The
+  [numbers](components/numbers/contract.md#storage) list the results of the
+  integer kernel.
+- An element of a number field $\mathbb{Q}(a)$ costs its representative: the
+  univariate polynomial over $\mathbb{Q}$ in the generator, of degree below
+  that of the minimal polynomial, by the formula of univariate polynomials
+  above, with the generator as its variable. The minimal polynomial belongs
+  to the parent and is not counted. Number fields are planned; this is the
+  formula that their `measure` is to use.
+- The formulas of strings, lists, records and session bindings are fixed in
+  0.3, where the value encoding uses the same formulas; those of matrices in
+  0.4.
 
 A formula becomes part of the compatibility contract with the release tag of
 its component. Changing one changes which limit is reached first, so it is a
 change of the answer vectors, made on purpose.
+
+The retained totals replace bounds of the earlier implementation: its bound
+on the bytes of one value, `max_symbolic_bytes`, is the case of
+`max_storage_bytes` in which nothing else is retained, and its separate
+bounds on degrees, terms and conditions are derived from `max_exponent` and
+`max_nodes`, as the
+[mapping of its limits](../vectors/README.md#limits-of-the-earlier-implementation)
+states.
 
 ### Charging, the clock and cancellation
 
@@ -1915,11 +1937,11 @@ state to an `Error`, or back.
 - `FaultKind` has seven foundation kinds in 0.1: `Syntax`, `UnknownSymbol`,
   `DivisionByZero`, `NonIntegerExponent` (the exponent is not an integer
   constant), `NotPolynomial`, `Unsupported` and `Internal`. Features append
-  their own kinds in the release that needs them, such as
-  `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`,
-  `OutsideDomain` and `InvalidInterval` in 0.2, `StaleEnvironment` and
-  `DimensionMismatch` in 0.3, and `InvalidMatrix` and `SingularMatrix` in
-  0.4.
+  their own kinds in the release that needs them. The integer kernel of the
+  exact numbers has appended `OutsideDomain` in 0.2; the others are planned:
+  `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch` and
+  `InvalidInterval` in 0.2, `StaleEnvironment` and `DimensionMismatch` in
+  0.3, and `InvalidMatrix` and `SingularMatrix` in 0.4.
 - Both enums are `#[non_exhaustive]`, and `class()` sorts every kind into
   one of three classes: `Context` for the request failures, `Input` and
   `Internal`.

@@ -651,6 +651,7 @@ fn named(name: &str) -> Option<Named> {
         "NotPolynomial" => fault(FaultKind::NotPolynomial),
         "Unsupported" => fault(FaultKind::Unsupported),
         "Internal" => fault(FaultKind::Internal),
+        "OutsideDomain" => fault(FaultKind::OutsideDomain),
         _ => return None,
     })
 }
