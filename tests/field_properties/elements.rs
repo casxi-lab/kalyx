@@ -205,8 +205,8 @@ where
 /// The ring operations against the model of the adapter on small
 /// `elements`: the images of `integers`, the zero test of each element, and
 /// the sums, differences, negations and products of `pairs` agree with the
-/// model; and among the first `pool` results two stored forms are equal
-/// exactly when their values are.
+/// model; and among `pool` of these results, spread evenly over all of
+/// them, two stored forms are equal exactly when their values are.
 pub fn ring_model_agreement<A: Modelled>(
     adapter: &A,
     elements: &[Element<A>],
@@ -258,13 +258,24 @@ pub fn ring_model_agreement<A: Modelled>(
             },
         );
     }
-    results.truncate(pool);
-    let representations: Vec<String> = results.iter().map(|r| adapter.representation(r)).collect();
-    let values: Vec<String> = results
+    let pooled = spread(&results, pool);
+    let representations: Vec<String> = pooled.iter().map(|r| adapter.representation(r)).collect();
+    let values: Vec<String> = pooled
         .iter()
         .map(|r| adapter.value(r).to_string())
         .collect();
     unique_forms(&adapter.label(), &representations, &values);
+}
+
+/// `pool` of `results`, spread evenly over all of them, or all of them
+/// when there are at most `pool`.
+fn spread<T>(results: &[T], pool: usize) -> Vec<&T> {
+    if results.len() <= pool {
+        return results.iter().collect();
+    }
+    (0..pool)
+        .map(|i| &results[i * results.len() / pool])
+        .collect()
 }
 
 /// The quotients and inverses against the model of the adapter on small
