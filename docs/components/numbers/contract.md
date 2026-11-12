@@ -793,21 +793,35 @@ each; `log2_upper` in `src/number/power.rs` is a `const fn` over machine
 integers. No proof target is registered for this component.
 
 The integer kernel in `src/number/integer.rs` is written to follow the
-provable subset of the krepi convention, its constructs R1 to R7, its design
-rules 1 to 9 and its loop shapes, apart from its integers, whose num-bigint
-operations would be trusted external functions; it has not been extracted. No function item is passed
-as a value, no iterator adapter or combinator with a closure is used, and
-dispatch is a `match` or an `if`. Each function has at most one loop, at the
-top level of its body: Euclid's algorithm, the extended Euclidean algorithm,
-binary powering, the scan of the congruences and their merge are each the
-only loop of a helper that holds the owned integers across its loop and has
-no `?` and no `return` before it, and the checks that return early are in
-the loopless functions that call the helpers; slices are walked by index
-loops, and no loop condition is a macro. The bound of every entry is
-checked before its first charge, and every step other than Euclid's steps in
-`gcd` and `lcm`, which that bound covers, checks its own bound and charges
-before it computes. The kernel is
-not a proof target, so the module list does not hold it.
+provable subset of the krepi convention, its constructs R1 to R7, its loop
+shapes and its design rules 3 to 9, apart from its integers, whose
+num-bigint operations would be trusted external functions; it has not been
+extracted. No function item is passed as a value, no iterator adapter or
+combinator with a closure is used, and dispatch is a `match` or an `if`.
+Each function has at most one loop, at the top level of its body: Euclid's
+algorithm, the extended Euclidean algorithm, binary powering, the scan of
+the congruences and their merge are each the only loop of a helper that
+holds the owned integers across its loop and has no `?` and no `return`
+before it, and the checks that return early are in the loopless functions
+that call the helpers; slices are walked by index loops, and no loop
+condition is a macro. Design rules 1 and 2 are met as adapted, not as
+stated:
+
+- **Rule 1, check, then execute.** As in the rule "Check, then write" of
+  the [context](../context/contract.md#frames-and-temporaries), the charges
+  count among the checks: the domain test and the bound of every entry are
+  checked before its first charge, every step other than Euclid's steps in
+  `gcd` and `lcm`, which that bound covers, checks its own bound and charges
+  before it computes, and the operands are never written. A charge is not
+  undone: a failure after a charge, of the bound of a later step, of the
+  work limit or of the storage of the result, keeps the work charged before
+  it, where the rule restores the state from before the operation.
+- **Rule 2, no allocation at run time.** The rule is written for kernels
+  whose capacities are fixed at boot. num-bigint allocates each integer at
+  run time, only after a bound that covers it has been checked against
+  `max_integer_bits`, and the kernel builds no collection.
+
+The kernel is not a proof target, so the module list does not hold it.
 
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that
