@@ -383,7 +383,8 @@ and an absolute value one unit.
   [storage](#storage); the storage of the operands is not checked. The
   earlier implementation also checked the nodes and bytes of the operands,
   so that $\gcd(-12, 18)$ returned no value under one node or 17 bytes; in
-  kalyx it returns 6, which costs one node and 7 bytes.
+  kalyx it returns 6 under one node and 7 bytes, the cost of 6
+  (`integer_results_are_measured_by_their_bits`).
 
 ### Division by zero
 

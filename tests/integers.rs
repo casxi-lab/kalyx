@@ -781,13 +781,25 @@ fn admitted_exactly<T>(cost: Storage, operation: impl Fn(&mut Context) -> kalyx:
 // architecture: an integer z costs one node and |z| + 4 bytes, as z/1 does,
 // a result of several integers the sum of their costs, and an outcome
 // without an integer one node and 4 bytes. Each result is admitted with
-// exactly its cost and rejected with one byte or one node less.
+// exactly its cost and rejected with one byte or one node less. Only the
+// returned value is admitted: the GCD 6 of -12 and 18, of one node and
+// 7 bytes, is returned under one node and 7 bytes, below the 2 nodes and
+// 17 bytes of its operands.
 #[test]
 fn integer_results_are_measured_by_their_bits() {
     assert_eq!(z(-12).storage(), Storage::new(1, 8));
     assert_eq!(z(0).storage(), Storage::new(1, 4));
     assert_eq!(z(-12).storage(), q(&z(-12)).storage());
     admitted_exactly(Storage::new(1, 8), |c| z(-12).absolute(c).map(|_| ()));
+
+    let gcd = |c: &mut Context| number::gcd(&z(-12), &z(18), c);
+    assert_eq!(gcd(&mut c()).unwrap(), z(6));
+    assert_eq!(z(6).storage(), Storage::new(1, 7));
+    assert_eq!(
+        z(-12).storage().saturating_add(z(18).storage()),
+        Storage::new(2, 17)
+    );
+    admitted_exactly(Storage::new(1, 7), gcd);
 
     // -7 = (-4) * 2 + 1: 3 and 1 bits.
     let division = |c: &mut Context| z(-7).divide_with_remainder(&z(2), c);
