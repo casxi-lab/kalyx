@@ -41,18 +41,12 @@ use num_bigint::{BigInt, BigUint};
 use num_traits::{Euclid, One, Signed, Zero};
 
 use super::arithmetic::internal;
-use super::{Integer, division_by_zero};
+use super::{Integer, division_by_zero, words};
 use crate::context::{Storage, StorageCost};
 use crate::{Context, Error, FaultKind, LimitField, LimitScope, Result};
 
 // ---------------------------------------------------------------------------
 // Words, bounds and checks
-
-/// The machine words $W(x) = \max(1, \lceil \lvert x \rvert / 64 \rceil)$ of
-/// an integer of `bits` bits.
-const fn words(bits: u64) -> u64 {
-    if bits == 0 { 1 } else { (bits - 1) / 64 + 1 }
-}
 
 /// The charge of a product, a quotient or a remainder of `x` and `y`: the
 /// product $W(x) W(y)$ of their words, saturating at `u64::MAX`.
