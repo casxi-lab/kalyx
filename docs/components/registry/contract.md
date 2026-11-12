@@ -131,8 +131,9 @@ translate:
 - The tables are written out in the source; no macro generates them.
 - A slot whose value depends on the degree of `rootn`, such as its cut, is a
   template that its reader instantiates at the degree of the call.
-- The only string literal of the module is the message of the error of the
-  entry.
+- The only string literal in the code of the module is the message of the
+  error of the entry; the reason of the lint expectation of the module is
+  an argument of an attribute, outside every function.
 
 ### Identity fields
 
