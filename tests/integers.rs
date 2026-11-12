@@ -945,7 +945,7 @@ fn run(witness: &Witness, mut context: Context) -> (String, u64) {
 /// that have a counterpart in the integer kernel. Their bounds of bits and
 /// nodes are those of the theorems; their bounds of bytes are recomputed by
 /// the storage formulas of kalyx, where an integer $z$ costs
-/// $\lvert z \rvert + 4$ bytes and the earlier formula
+/// $\lvert z \rvert + 4$ bytes in place of the earlier
 /// $\lceil \lvert z \rvert / 8 \rceil + 8$. An "any" bound of bits is 0.
 const WITNESSES: [Witness; 24] = [
     Witness {
