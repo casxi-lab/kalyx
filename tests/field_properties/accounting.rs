@@ -6,10 +6,11 @@
 //! above $w$, charges made before the run, raised size limits and an
 //! expired deadline; the cancellation check injects a cancellation at each
 //! charge point of the run in turn. Every run reserves a temporary first,
-//! and after every run the inputs keep their stored forms and
-//! `Context::retained()` is what it was before the run. Outcomes are
-//! compared by the stored form of the result, and errors by their kind and
-//! the identifier of the exceeded limit, never by message.
+//! and after every run the inputs keep their stored forms,
+//! `Context::retained()` is what it was before the run and a result is
+//! canonical. Outcomes are compared by the stored form of the result, and
+//! errors by their kind and the identifier of the exceeded limit, never by
+//! message.
 //!
 //! The clock and the cancellation probe of these runs are written here: a
 //! clock with a fixed reading, so that no run depends on the time, and a
@@ -26,7 +27,7 @@ use kalyx::number::Integer;
 use kalyx::polynomial::{Polynomial, PolynomialRing};
 use kalyx::{Context, ErrorKind, LimitField, LimitId, Limits, Result};
 
-use super::{Element, FieldLayer, Inspect, Lazy, Library, Polynomials, RingLayer};
+use super::{Element, FieldLayer, Inspect, Lazy, Library, Polynomials, RingLayer, roomy};
 use crate::support::case;
 
 /// The work budget of the run that measures an operation, far above the
@@ -147,11 +148,13 @@ pub fn raised(limits: &Limits) -> Limits {
 }
 
 /// One operation under the checks: its label, its run on a context, the
-/// stored form of its result and the stored forms of its inputs.
+/// stored form of its result, whether its result is canonical, and the
+/// stored forms of its inputs.
 pub struct Run<'a, T> {
     pub label: &'a str,
     pub run: &'a dyn Fn(&mut Context) -> Result<T>,
     pub show: &'a dyn Fn(&T) -> String,
+    pub canonical: &'a dyn Fn(&T) -> bool,
     pub inputs: &'a dyn Fn() -> String,
 }
 
@@ -182,8 +185,8 @@ impl Outcome {
 
 impl<T> Run<'_, T> {
     /// Runs on `context` with a reserved temporary, and checks that the
-    /// inputs keep their stored forms and that the run leaves
-    /// `Context::retained()` as it found it.
+    /// inputs keep their stored forms, that the run leaves
+    /// `Context::retained()` as it found it and that a result is canonical.
     fn on(&self, context: &mut Context) -> Outcome {
         let inputs = (self.inputs)();
         let reserved = context.reserve(RESERVED).unwrap();
@@ -193,7 +196,15 @@ impl<T> Run<'_, T> {
         context.release(reserved);
         assert_eq!((self.inputs)(), inputs, "{}: inputs changed", self.label);
         match result {
-            Ok(value) => Outcome::Value((self.show)(&value)),
+            Ok(value) => {
+                assert!(
+                    (self.canonical)(&value),
+                    "{}: the noncanonical {}",
+                    self.label,
+                    (self.show)(&value)
+                );
+                Outcome::Value((self.show)(&value))
+            }
             Err(error) => Outcome::Error(error.kind(), error.exceeded().map(|e| e.id().clone())),
         }
     }
@@ -359,6 +370,11 @@ fn decision<U>(answer: &ZeroTest<U>) -> String {
     }
 }
 
+/// A zero test is always canonical: it has no stored form to check.
+fn decided<U>(_: &ZeroTest<U>) -> bool {
+    true
+}
+
 /// Applies `check` to every element operation of a field: zero, one, the
 /// images of $-7$, $0$ and $12$, and for each pair $(a, b)$ the zero test
 /// of $a$, $a + b$, $a - b$, $a b$, $a / b$, $-a$ and $b^{-1}$, a zero
@@ -375,6 +391,7 @@ where
     let ring = adapter.ring();
     let label = adapter.label();
     let show = |a: &Element<A>| adapter.representation(a);
+    let canonical = |a: &Element<A>| adapter.canonical(a);
     let mut runs = 0;
     let mut apply = |what: String,
                      run: &dyn Fn(&mut Context) -> Result<Element<A>>,
@@ -386,6 +403,7 @@ where
                 label: &label,
                 run,
                 show: &show,
+                canonical: &canonical,
                 inputs,
             },
         );
@@ -430,6 +448,7 @@ where
                 label: &label,
                 run: &|c: &mut Context| ring.zero_test(a, c),
                 show: &decision,
+                canonical: &decided,
                 inputs: &inputs,
             },
         );
@@ -457,6 +476,7 @@ where
     let view = Polynomials { ring, adapter };
     let label = format!("polynomials over {}", adapter.label());
     let show = |p: &Polynomial<K>| view.representation(p);
+    let canonical = |p: &Polynomial<K>| view.canonical(p, &mut roomy());
     let mut runs = 0;
     let mut apply = |what: String,
                      run: &dyn Fn(&mut Context) -> Result<Polynomial<K>>,
@@ -468,6 +488,7 @@ where
                 label: &label,
                 run,
                 show: &show,
+                canonical: &canonical,
                 inputs,
             },
         );
