@@ -411,8 +411,11 @@ code, and the `rand` family of packages in `Cargo.lock`.
 The integer factorization splits a cofactor $n$ by Pollard's rho method,
 iterating $x \mapsto x^2 + c$ modulo $n$ from $x = 2$ with the constants
 $c = 1, 2, \dots$ in turn, all written into the code; its options,
-`FactorOptions` at lines 551-556 of the same file, give only the number of
-steps and of constants. Its result, `IntegerFactorization` at lines 607-612,
+`FactorOptions` at
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/algebra/integer.rs:551-556`,
+give only the number of steps and of constants. Its result,
+`IntegerFactorization` at
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/algebra/integer.rs:607-612`,
 may leave a cofactor unsplit, yet names neither the method nor the constants
 that were tried. A caller can neither give the choices nor continue the
 search with other ones.
