@@ -369,7 +369,10 @@ and an absolute value one unit.
   for $b \gt 0$ and up for $b \lt 0$, so $-7$ divided by $2$ is
   $(-4, 1)$ and by $-2$ is $(4, 1)$. `exact_quotient` takes the same
   division and returns `NotDivisible`, a value and not an error, when the
-  remainder is not zero.
+  remainder is not zero. `divide_with_remainder` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states the Euclidean remainder only in its documentation, and its
+  result does not name it.
 - **GCD and Bézout coefficients.** The bound of `gcd` covers every step,
   since the remainders decrease. `extended_gcd` runs on $\lvert a \rvert$
   and $\lvert b \rvert$ and gives the signs of $a$ and $b$ to $s$ and $t$:
@@ -377,7 +380,10 @@ and an absolute value one unit.
   coefficients of the rounds alternate in sign and never exceed
   $\max(\lvert a \rvert, \lvert b \rvert)$ in absolute value, so the bound
   of $\max(\lvert a \rvert, \lvert b \rvert) + 2$ bits covers every product
-  and difference of a round.
+  and difference of a round. `extended_gcd` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states these coefficients only in its documentation, and its result
+  does not name the choice.
 - **Modular inverse.** Modulo 1 every residue is the unit 0, with inverse
   0. For $m \gt 1$ the result is `Inverse(v)` when
   $g = \gcd(a \bmod m, m) = 1$, and otherwise `NonUnit(g)`, which is $m$ for
