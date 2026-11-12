@@ -308,7 +308,7 @@ and an absolute value one unit.
 | `modular_inverse(a, m)` | $m \le 0$ | $\max(\lvert a \rvert, \lvert m \rvert)$, and for $m \gt 1$ also $\lvert m \rvert + 2$ | the remainder $a \bmod m$; for $m \gt 1$ the rounds of `extended_gcd` on it and $m$, and for a unit the remainder of $s$ modulo $m$ | `Inverse(v)`, $0 \le v \lt m$, or `NonUnit(g)` |
 | `modular_power(a, e, m)` | $m \le 0$; after the inverse, $e \lt 0$ with a base that is not a unit | $\max(\lvert a \rvert, \lvert e \rvert, \lvert m \rvert)$, and for $e \ne 0$ also $2 \lvert m \rvert$ | the remainder $a \bmod m$ or the inverse; then each multiplication and each squaring: one product and one remainder modulo $m$ | $a^e \bmod m$ in $[0, m)$ |
 | `Congruence::new(r, m)` | $m \le 0$ | $\max(\lvert r \rvert, \lvert m \rvert)$ | the remainder: $W(r) W(m)$ | $r \bmod m$ in $[0, m)$ |
-| `crt(congruences)` | none: the moduli are positive | every residue and modulus | each merge, as below | `Solution(r mod l)` or `Inconsistent` |
+| `crt(congruences)` | none: the moduli are positive | every residue and modulus, and at least 1 | each merge, as below | `Solution(r mod l)` or `Inconsistent` |
 
 - **Order.** A zero divisor and a modulus that is not positive are reported
   before any check of `max_integer_bits` and before any charge, so the
@@ -368,7 +368,10 @@ and an absolute value one unit.
   otherwise the result is the solution modulo the LCM of the moduli. The
   check on entry reads every congruence once, before any charge, so a
   congruence built under other limits is checked against the receiving
-  `max_integer_bits`.
+  `max_integer_bits`. Its bound is at least one bit, the bits of the
+  modulus 1 of the empty system's solution, so that under
+  `max_integer_bits` 0 the empty system fails with the amount 1, as
+  `Congruence::new` does for $0 \bmod 1$.
 - **Storage.** Only the returned value is admitted, by the formulas of
   [storage](#storage); the storage of the operands is not checked. The
   earlier implementation also checked the nodes and bytes of the operands,

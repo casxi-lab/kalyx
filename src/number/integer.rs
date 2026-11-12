@@ -884,7 +884,8 @@ impl fmt::Display for CrtResult {
 /// [`CrtResult::Inconsistent`]. The empty system is $0 \bmod 1$.
 ///
 /// Checks the bits of every residue and modulus against the receiving
-/// `max_integer_bits`, before any charge; then merges the congruences in
+/// `max_integer_bits`, and at least one bit, the bits of the modulus 1 of the
+/// empty system, before any charge; then merges the congruences in
 /// order into $r \bmod M$, from $0 \bmod 1$, and returns `Inconsistent` at
 /// the first congruence that contradicts the ones before it. Merging
 /// $x \equiv r_i \pmod{m_i}$ runs, each with its own bound and charge: the
@@ -918,9 +919,11 @@ pub fn crt(congruences: &[Congruence], context: &mut Context) -> Result<CrtResul
     admitted(result, context)
 }
 
-/// The largest bit length of the residues and moduli of `congruences`.
+/// The largest bit length of the residues and moduli of `congruences`, and
+/// at least 1, which covers the modulus 1 of the solution of the empty
+/// system.
 fn widest(congruences: &[Congruence]) -> u64 {
-    let mut bits = 0;
+    let mut bits = 1;
     let mut index = 0;
     while index < congruences.len() {
         let congruence = &congruences[index];

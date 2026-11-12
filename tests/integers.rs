@@ -655,7 +655,9 @@ fn assert_euclidean(a: &Integer, b: &Integer, quotient: &Integer, remainder: &In
 // charge; sums, differences, negations and absolute values charge one unit,
 // products and divisions $W(a) W(b)$. The Euclidean division of every
 // dividend in -20..=20 by every divisor in ±1..±7 is that of `i64`, and a
-// zero divisor fails before the bound and the charge.
+// zero divisor fails before the bound and the charge. The solution
+// 0 mod 1 of the empty system of congruences needs one bit, as the
+// congruence 0 mod 1 does.
 #[test]
 fn integer_operations_check_bits_before_charging() {
     let large = (two_to_plus(200, -1), minus(&two_to_plus(65, 3)));
@@ -710,6 +712,11 @@ fn integer_operations_check_bits_before_charging() {
         );
     }
     assert_eq!(nothing.work_used(), 0);
+
+    let empty = at_the_bound(1, 0, |c| number::crt(&[], c));
+    assert_eq!(empty.to_string(), "0 mod 1");
+    let one = at_the_bound(1, 1, |c| Congruence::new(&z(0), &z(1), c));
+    assert_eq!(one.to_string(), "0 mod 1");
 }
 
 // A modulus that is not positive is `OutsideDomain` before every check and
