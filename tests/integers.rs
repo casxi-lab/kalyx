@@ -1722,13 +1722,14 @@ fn seeded_call(index: u64) -> (Call, Limits) {
 
 /// Whether `error` is an outcome that `call` may end with: a resource
 /// limit, a zero divisor of a division, or a modular power outside its
-/// domain, whose modulus is not positive or whose exponent is negative.
+/// domain, whose modulus is not positive, or whose exponent is negative and
+/// whose base is not a unit modulo the modulus, sharing a factor with it.
 fn admissible(call: &Call, error: &Error) -> bool {
     match (call, error.kind()) {
         (_, ErrorKind::ResourceLimit) => true,
         (Call::Division(_, b), ErrorKind::Fault(FaultKind::DivisionByZero)) => b.is_zero(),
-        (Call::Power(_, e, m), ErrorKind::Fault(FaultKind::OutsideDomain)) => {
-            !m.is_positive() || e.is_negative()
+        (Call::Power(a, e, m), ErrorKind::Fault(FaultKind::OutsideDomain)) => {
+            !m.is_positive() || (e.is_negative() && number::gcd(a, m, &mut wide()).unwrap() != z(1))
         }
         _ => false,
     }
@@ -1739,8 +1740,9 @@ fn admissible(call: &Call, error: &Error) -> bool {
 // bits, under the default limits or with one of the work, the bits, the
 // nodes and the bytes lowered to a random value: none panics, each returns
 // its value or fails with `ResourceLimit`, with `DivisionByZero` for a zero
-// divisor or with `OutsideDomain` for a power outside its domain, and each
-// leaves its inputs and `Context::retained()` unchanged.
+// divisor or with `OutsideDomain` for a power outside its domain, with a
+// modulus that is not positive or a negative power of a base that is not a
+// unit, and each leaves its inputs and `Context::retained()` unchanged.
 #[test]
 fn seeded_random_calls_of_the_representative_operations_do_not_panic() {
     let mut counts = [[0_u64; 3]; 4];
