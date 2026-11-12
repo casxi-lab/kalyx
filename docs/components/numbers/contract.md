@@ -12,14 +12,17 @@ state the rules that every public interface follows. The limits and the
 charges belong to the [context](../context/contract.md), and the errors to the
 [errors and result states](../errors/contract.md).
 
-**Status.** Implemented in `src/number.rs`, with the integer kernel in
-`src/number/integer.rs`, and in `src/coefficient.rs`, at tier A0 (tested);
-the trait is planned for tier A2 in release 0.2. The first caller in the
-library is the [term core](../terms/contract.md), whose numbers,
-coefficients and constants are rationals; the
-[polynomials](../polynomials/contract.md) over $\mathbb{Q}$ reach their
-coefficients through the coefficient-field trait. The integer kernel has no
-caller in the library yet.
+**Status.** Implemented in `src/number.rs` and `src/coefficient.rs`, at tier
+A0 (tested), with the integer kernel in `src/number/integer.rs` at tier A1
+(tested with a written contract); the trait is planned for tier A2 in
+release 0.2. The first caller in the library is the
+[term core](../terms/contract.md), whose numbers, coefficients and constants
+are rationals; the [polynomials](../polynomials/contract.md) over
+$\mathbb{Q}$ reach their coefficients through the coefficient-field trait.
+The integer kernel has no caller in the library yet: its first production
+caller is planned to be the GCD and the factorization of polynomials over
+$\mathbb{Q}$, in release 0.2. Chinese remaindering is planned for tier A2 in
+release 0.4, and the kernel has no A3 upgrade.
 
 ## Scope
 
