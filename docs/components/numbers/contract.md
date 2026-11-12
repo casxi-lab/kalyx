@@ -717,7 +717,10 @@ inexact and the maps out of $\mathbb{Z}$ are not part of this component.
   bound and a zero divisor under no bits and no work. Also
   `bezout_identity_holds_for_seeded_operands`,
   `lcm_times_gcd_is_the_absolute_product`,
-  `integer_results_are_measured_by_their_bits` and, in
+  `integer_results_are_measured_by_their_bits`,
+  `representative_operations_succeed_at_exact_limits_and_fail_one_below`,
+  `cancellation_at_every_charge_point_of_the_representative_operations`,
+  `seeded_random_calls_of_the_representative_operations_do_not_panic` and, in
   `src/number/integer_tests.rs`, `bezout_and_lcm_all_signs_and_zeros` and
   `gcd_lcm_and_bezout_hold_for_seeded_150_bit_operands`.
 
@@ -770,7 +773,8 @@ their zero rules and the mismatch of moduli are not part of this component.
   Also `modular_operations_match_exhaustive_residues`,
   `crt_general_moduli_empty_duplicates_and_inconsistency`,
   `crt_solutions_satisfy_every_congruence_and_are_unique_modulo_the_lcm`,
-  `request_budget_receiving_limits_preflight_and_cancellation` and, in
+  `request_budget_receiving_limits_preflight_and_cancellation`, the three
+  tests of the representative operations named under FLD-R14 and, in
   `src/number/integer_tests.rs`,
   `modular_powers_and_inverses_match_repeated_multiplication` and
   `crt_systems_of_up_to_four_congruences_match_brute_force`.
@@ -833,9 +837,17 @@ the rule is stated under [decimal literals](#decimal-literals).
    1,000 cases each, from fixed seeds of a SplitMix64 generator written in
    the test, against models in `i128`; the domain errors, the storage of
    every kind of result at its exact cost and one byte and one node below;
-   and the witnesses of the integers and residues of the earlier
+   the witnesses of the integers and residues of the earlier
    specification at their stated bounds, with the bytes recomputed by the
-   formulas of kalyx.
+   formulas of kalyx; and its representative operations, the product of
+   large integers, the Euclidean division, the modular power and Chinese
+   remaindering, on seven inputs: each returns its outcome with exactly the
+   work, the nodes, the bytes and the bits that it needs and fails with one
+   less, with the limit named; a cancellation at each of its charge points
+   gives `Cancelled`; and 4,000 calls from fixed seeds, 1,000 for each
+   operation, end with a value or an admissible error and never panic. Each
+   of these leaves its inputs and `Context::retained()` unchanged. The
+   kernel does not recurse, so it has no case of depth.
 
 ## Extractability
 
