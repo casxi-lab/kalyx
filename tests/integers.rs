@@ -248,7 +248,10 @@ fn ex1_gcd_lcm_and_bezout_coefficients() {
         (&z(2), &z(-9), &z(47))
     );
     // Back-substituting Euclid's steps: 47*46 - 9*240 = 2162 - 2160 = 2.
-    assert_eq!(47 * 46 - 9 * 240, 2);
+    assert_eq!(
+        wide_value(bezout.left()) * 240 + wide_value(bezout.right()) * 46,
+        2
+    );
     assert_eq!(
         number::extended_gcd(&z(0), &z(0), &mut context)
             .unwrap()
