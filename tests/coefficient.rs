@@ -8,9 +8,10 @@
 //! a reduced fraction of two `i128`s with its own GCD. The ring axioms and
 //! the field axioms are separate checks, and so are the agreement with the
 //! model on small operands, the polynomials over $\mathbb{Q}$, the map
-//! $\mathbb{Z} \to \mathbb{Q}$, the characteristic, and the work accounting
-//! and the cancellation of every element and polynomial operation. Five
-//! families from fixed seeds of the SplitMix64 sequence of
+//! $\mathbb{Z} \to \mathbb{Q}$, the characteristic, and, on fixed inputs,
+//! the work accounting and the cancellation of the operations of both
+//! layers and of the arithmetic of the polynomials. Five families from
+//! fixed seeds of the SplitMix64 sequence of
 //! `tests/support/mod.rs` run 1,000 cases each against the model and 50
 //! cases of large operands, checked by identities alone: associativity,
 //! commutativity and distributivity on the ring layer, inverses and

@@ -518,8 +518,10 @@ the rule is stated under [decimal literals](#decimal-literals).
    forms, the zero test, the errors of zero divisors, characteristic zero,
    the map from the integers, the laws of the polynomials over
    $\mathbb{Q}$ and their agreement with that model coefficient by
-   coefficient, and the work accounting and the cancellation of every
-   element and polynomial operation on fixed inputs. Five families state
+   coefficient, and, on fixed inputs, the work accounting and the
+   cancellation of the operations of both layers and of the arithmetic of
+   the polynomials: zero, one, the generator, constants, sums, differences,
+   products, powers, derivatives and negation. Five families state
    associativity, commutativity and distributivity on the ring layer, and
    inverses and canonical uniqueness on the field layer: each runs 1,000
    cases from a fixed seed of the SplitMix64 sequence of

@@ -380,10 +380,11 @@ fn decided<U>(_: &ZeroTest<U>) -> bool {
     true
 }
 
-/// Applies `check` to every element operation of a field: zero, one, the
-/// images of $-7$, $0$ and $12$, and for each pair $(a, b)$ the zero test
-/// of $a$, $a + b$, $a - b$, $a b$, $a / b$, $-a$ and $b^{-1}$, a zero
-/// divisor included. Returns the number of runs.
+/// Applies `check` to every operation of the ring layer and the field
+/// layer of a field: zero, one, the images of $-7$, $0$ and $12$, and for
+/// each pair $(a, b)$ the zero test of $a$, $a + b$, $a - b$, $a b$,
+/// $a / b$, $-a$ and $b^{-1}$, a zero divisor included. Returns the number
+/// of runs.
 pub fn element_accounting<A: Inspect>(
     check: Check,
     adapter: &A,
@@ -462,9 +463,9 @@ where
     runs
 }
 
-/// Applies `check` to every polynomial operation over a coefficient ring:
-/// zero, one, the generator and the constant `factor`, and for each pair
-/// $(a, b)$ $a + b$, $a - b$, $a b$, $a^3$, $a'$ and $-a$. Returns the
+/// Applies `check` to the arithmetic of the polynomials over a coefficient
+/// ring: zero, one, the generator and the constant `factor`, and for each
+/// pair $(a, b)$ $a + b$, $a - b$, $a b$, $a^3$, $a'$ and $-a$. Returns the
 /// number of runs.
 pub fn polynomial_accounting<K, A>(
     check: Check,
