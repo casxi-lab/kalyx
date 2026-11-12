@@ -320,9 +320,9 @@ fn positive(sequence: &mut Sequence, bits: i64) -> Integer {
 
 /// A rational of one of eight kinds, selected by `kind`: small integers,
 /// integers of up to 200 bits, dyadic fractions with exponents around the
-/// word sizes, small fractions, fractions of up to 120-bit terms, fractions
-/// with an even denominator that is not a power of two, unit fractions and
-/// a fixed set of tiny values.
+/// word sizes, small fractions, fractions of terms of up to 120 bits,
+/// fractions with an even denominator that is not a power of two, unit
+/// fractions and a fixed set of tiny values.
 fn rational(sequence: &mut Sequence, kind: usize) -> Rational {
     match kind % 8 {
         0 => Rational::from(sequence.next_in(-1000, 1000)),
