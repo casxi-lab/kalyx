@@ -953,7 +953,7 @@ fn run(witness: &Witness, mut context: Context) -> (String, u64) {
 /// or estimate, the stricter bound. Where a theorem states one premise of
 /// bytes for several parts, that premise recomputes to the largest of their
 /// bounds, and a part with a smaller bound runs also at the shared one.
-const WITNESSES: [Witness; 24] = [
+const WITNESSES: [Witness; 25] = [
     Witness {
         name: "gcd_must_return: gcd(-12, 18)",
         call: |c| number::gcd(&z(-12), &z(18), c).map(|g| g.to_string()),
@@ -1083,7 +1083,21 @@ const WITNESSES: [Witness; 24] = [
         max_exponent: None,
         shared_bytes: None,
         stated: Stated::Returns("5"),
-        no_value: &[(7, 6, 48, LimitField::IntegerBits)],
+        no_value: &[],
+    },
+    Witness {
+        // The theorem only allows a rejection at 7 bits. kalyx rejects by its
+        // own bound of 2 |m| = 8 bits for the products, which
+        // `a_modular_power_takes_one_path_under_every_bit_limit` checks.
+        name: "residuePow_must_return: 3^-2 modulo 11 at 7 bits",
+        call: |c| number::modular_power(&z(3), &z(-2), &z(11), c).map(|p| p.to_string()),
+        bits: 7,
+        nodes: 6,
+        bytes: 48,
+        max_exponent: None,
+        shared_bytes: None,
+        stated: Stated::ReturnsOrLimit("5"),
+        no_value: &[],
     },
     Witness {
         name: "residuePow_must_return: 0^0 modulo 9",
