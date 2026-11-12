@@ -62,8 +62,10 @@ The module is declared as `mod registry;` in `src/lib.rs`, and its items are
 - `record(id: FunctionId) -> FunctionRecord` and
   `items(id: FunctionId) -> FunctionItems`, which return copies of the two
   parts of a record.
-- `FunctionItems`, the 39 slots, one field each, and one enumeration per
-  slot, as the [record schema](#the-record-schema) lists them.
+- `FunctionItems`, the 39 slots, one field each, and the 35 enumerations of
+  the slots, as the [record schema](#the-record-schema) states: the four
+  values at points share one enumeration, and so do the two behaviours at
+  infinity.
 - `FunctionIdentity`, an entry of the [identity list](#identity-list), with
   `FunctionIdentityId`, `FunctionIdentityClass` and
   `FunctionIdentityCondition`, and
