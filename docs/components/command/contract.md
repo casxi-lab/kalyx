@@ -577,7 +577,8 @@ bound.
 
 `api/root-names.txt` lists the public names of the crate root, one per line
 in byte order: the public modules, the context and its limits, the errors
-and result states, `parse`, and `Request`, `Outcome` and `execute`. The test
+and result states, the shared result types, `parse`, and `Request`,
+`Outcome` and `execute`. The test
 `the_crate_root_has_exactly_the_listed_public_names` in
 `tests/root_names.rs` derives the public names of the crate root from the
 source of `src/lib.rs`, every top-level item with the visibility `pub` and
