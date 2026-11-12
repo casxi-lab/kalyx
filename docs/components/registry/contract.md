@@ -34,8 +34,9 @@ release. The registry fixes all its slots at once, an exception that the
   of the records for proof.
 - **Planned.** The checks of a call, the number of arguments before the
   domain and the degree of `rootn` by the class of its value, in the call
-  constructor of the term core; the readers of the slots and of the
-  identity list: the call constructor, the scoped rewriting `f-refine`,
+  constructor of the term core; the readers of the records and of the
+  identity list: the call table of the parser, the call constructor, the
+  builder of function values, the scoped rewriting `f-refine`,
   differentiation, the Taylor and Laurent series of function expressions
   and the assumption system; the regular-point method of `asin`, `acos` and
   `atan`, which the Taylor series of function expressions are to fill in

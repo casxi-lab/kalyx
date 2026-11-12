@@ -497,14 +497,16 @@ cut, its special values and symmetries, its derivative and its series, is a
 slot of its record, and what relates calls of several of them, or nested
 calls, is an entry of the identity list of the registry, as its
 [contract](components/registry/contract.md) states; the registry is
-implemented. Its readers are planned for release 0.2: the call constructor,
-the scoped rewriting `f-refine`, differentiation and the series of function
-expressions are to read the records and the entries, and none of them is to
-keep a table or a rule of a registered function of its own, so a function
-added later brings its knowledge as a record. The rules of the term core that a head
-name or a constant triggers are no knowledge of a registered function, as
-the rule on registered calls above states; the powers of roots read their
-identity, the entry `root_pow`, from the registry.
+implemented. Its readers are planned for release 0.2: the call table of the
+parser, the call constructor, the builder of function values, the scoped
+rewriting `f-refine`, differentiation, the series of function expressions
+and the assumption system are to read the records and the entries, and none
+of them is to keep a table or a rule of a registered function of its own,
+so a function added later brings its knowledge as a record. The rules of
+the term core that a head name or a constant triggers are no knowledge of a
+registered function, as the rule on registered calls above states; the
+powers of roots are to read their identity, the entry `root_pow`, from the
+registry.
 
 ### Conditions
 
