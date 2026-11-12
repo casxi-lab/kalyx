@@ -28,7 +28,9 @@ the [errors and result states](../errors/contract.md).
 **Status.** Implemented in `src/context.rs`, at tier A1 (tested with a written
 contract). Its first caller in the library is the exact numbers
 (`kalyx::number` and `kalyx::coefficient`), which check `max_integer_bits`
-and `max_exponent` and charge work. The term core (`kalyx::term`) checks
+and `max_exponent` and charge work; the integer kernel of `kalyx::number`
+also checks the cost of every value that it returns with `check_storage` at
+scope `Value`. The term core (`kalyx::term`) checks
 `max_depth`, `max_integer_bits` and `max_exponent`, checks the cost of every
 new term with `check_storage` at scope `Value`, and charges work and output.
 The parser (`kalyx::syntax`) checks `max_input_bytes` and `max_depth`, checks
@@ -210,7 +212,10 @@ charge point polls it and fails with `Cancelled`. A reservation is not a charge 
 - **Implemented here.** `Context::check(LimitField::IntegerBits, b)`. Its
   callers are the operations of `Rational` and the new elements of
   `Rationals`, which check a bound on the bits of their results, as the
-  [exact numbers](../numbers/contract.md#checks-and-charges) state.
+  [exact numbers](../numbers/contract.md#checks-and-charges) state, and the
+  operations of `Integer` and the functions of the integer kernel, which
+  check a bound on entry and the bounds of their steps, as the
+  [integer kernel](../numbers/contract.md#the-integer-kernel) states.
 - **Evidence.** Positive: `ctx_r07_an_integer_of_max_integer_bits_is_admitted`.
   Negative: `ctx_r07_one_bit_more_is_a_resource_limit`.
 
