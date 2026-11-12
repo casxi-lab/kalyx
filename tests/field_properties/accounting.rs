@@ -236,13 +236,23 @@ impl<T> Run<'_, T> {
 /// work; the check confirms only that the stops are monotone and
 /// reproducible and that the charges made before the run are kept. Doubled
 /// size limits do not change a run that no limit stopped. Under a deadline
-/// that has passed, a run that charges fails at its first charge with
-/// `DeadlineExceeded` and no work, and a run that charges nothing repeats
-/// its outcome.
+/// that has passed, a run that reaches a charge point fails at the first one
+/// with `DeadlineExceeded` and no work, after one poll of the probe, and a
+/// run that reaches none repeats its outcome. The polls of the measuring
+/// run count its charge points, and a charge of zero units is one too,
+/// since it reads the clock.
 pub fn work_accounting<T>(limits: &Limits, run: &Run<'_, T>) {
-    let (expected, work) = run.measure(limits, &CountingProbe::never());
+    let probe = CountingProbe::never();
+    let (expected, work) = run.measure(limits, &probe);
+    let polls = probe.polls();
     case(
-        Lazy(|f| write!(f, "work accounting of {}, work {work}", run.label)),
+        Lazy(|f| {
+            write!(
+                f,
+                "work accounting of {}, {polls} polls, work {work}",
+                run.label
+            )
+        }),
         || {
             if expected.kind() != Some(ErrorKind::ResourceLimit) {
                 let mut context = observed(raised(limits), &CountingProbe::never());
@@ -288,17 +298,27 @@ pub fn work_accounting<T>(limits: &Limits, run: &Run<'_, T>) {
             context.charge(EARLIER_WORK).unwrap();
             assert_eq!(run.on(&mut context), expected, "after earlier work");
             assert_eq!(context.work_used(), EARLIER_WORK + work);
-            let mut context = observed(limits.with_max_work(MEASURE_WORK), &CountingProbe::never())
-                .with_deadline(READING);
+            let probe = CountingProbe::never();
+            let mut context =
+                observed(limits.with_max_work(MEASURE_WORK), &probe).with_deadline(READING);
             let outcome = run.on(&mut context);
-            if work == 0 {
-                // Only a run that charges nothing misses the deadline; it
+            assert_eq!(context.work_used(), 0, "a passed deadline charges nothing");
+            if polls == 0 {
+                // Only a run with no charge point misses the deadline; it
                 // repeats its outcome, including an error raised before any
                 // charge.
-                assert_eq!(outcome, expected, "a deadline and no charge");
+                assert_eq!(outcome, expected, "a deadline and no charge point");
             } else {
-                assert_eq!(outcome.kind(), Some(ErrorKind::DeadlineExceeded));
-                assert_eq!(context.work_used(), 0, "a passed deadline charges nothing");
+                assert_eq!(
+                    outcome.kind(),
+                    Some(ErrorKind::DeadlineExceeded),
+                    "a passed deadline"
+                );
+                assert_eq!(
+                    probe.polls(),
+                    1,
+                    "a passed deadline at the first charge point"
+                );
             }
         },
     );
