@@ -562,6 +562,7 @@ pub fn associativity<A: Modelled>(adapter: &A, seed: u64) {
         let bd = ring.add(&b, &d, c);
         let right = ring.add(&a, &bd, c);
         assert!(ring.equal(&left, &right, c), "(a + b) + c = a + (b + c)");
+        assert_same(adapter, &left, &right, "(a + b) + c = a + (b + c)");
         let ab = ring.multiply(&a, &b, c);
         let left = ring.multiply(&ab, &d, c);
         let bd = ring.multiply(&b, &d, c);
