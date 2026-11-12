@@ -35,6 +35,7 @@ pub mod context;
 mod error;
 pub mod number;
 pub mod polynomial;
+mod registry;
 pub mod syntax;
 pub mod term;
 

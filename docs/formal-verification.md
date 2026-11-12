@@ -448,16 +448,18 @@ section a fenced block with the info string `paths`, whose lines are
 repository paths of a tracked `.rs` file or of a directory that holds one;
 a line that names no tracked `.rs` file is a problem. The list holds the
 term core, the coefficient-field trait, the polynomials, the errors and
-result states and the accounting core of the context, as the contracts of
-the [terms](components/terms/contract.md#extractability),
+result states, the accounting core of the context and the function registry,
+as the contracts of the
+[terms](components/terms/contract.md#extractability),
 [numbers](components/numbers/contract.md#extractability),
 [polynomials](components/polynomials/contract.md#extractability),
-[errors](components/errors/contract.md#extractability) and
-[context](components/context/contract.md#extractability) components state.
-Other files, the function modules, are neither checked by the `subset` step
-nor inventoried. The `module-list` rule of the [guard](#guard) lets an entry
-be removed or narrowed only with an approval; a new proof-target module adds
-its entry in the same change.
+[errors](components/errors/contract.md#extractability),
+[context](components/context/contract.md#extractability) and
+[function registry](components/registry/contract.md#extractability)
+components state. Files outside the list are neither checked by the
+`subset` step nor inventoried. The `module-list` rule of the
+[guard](#guard) lets an entry be removed or narrowed only with an approval;
+a new proof-target module adds its entry in the same change.
 
 `cargo xtask formal check` inventories the production functions of these
 files: from the targets of the root package, which `cargo metadata` gives,
