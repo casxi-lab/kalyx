@@ -507,16 +507,31 @@ the rule is stated under [decimal literals](#decimal-literals).
 2. **Bounds before charges.** For an addition, a multiplication and a power,
    a test whose bound exceeds `max_integer_bits` checks `ResourceLimit` with
    `LimitId::Field(LimitField::IntegerBits)` and an unchanged `work_used`.
-3. **Field properties.** `tests/coefficient.rs` states associativity,
-   commutativity, distributivity, inverses and canonical uniqueness once,
-   generically over `K: CoefficientField` and a model of the field written in
-   the test, and instantiates them with `Rationals`. Each family runs 1,000
-   cases from a fixed seed of a SplitMix64 generator written in the test,
-   compared with a model of $\mathbb{Q}$ as reduced `i128` fractions with their
-   own GCD, on operands of at most 16 bits so that the model never
-   overflows, and 50 cases with operands of about 256 bits, checked by the
-   identities of the trait alone. The generator samples zero, small and
-   larger integers, power-of-two denominators and general fractions.
+3. **Field properties.** `tests/coefficient.rs` runs the property-testing
+   tool of `tests/field_properties/` on `Rationals`. The checks of the tool
+   are generic over its ring layer and its field layer, which the parents of
+   the library enter through one wrapper whose operations are those of
+   `CoefficientRing` and `CoefficientField`; the ring axioms and the field
+   axioms are separate checks, and a ring runs only the former. The tool
+   checks the axioms, agreement with a model of $\mathbb{Q}$ as reduced
+   `i128` fractions with their own GCD on small operands, unique stored
+   forms, the zero test, the errors of zero divisors, characteristic zero,
+   the map from the integers, the laws of the polynomials over
+   $\mathbb{Q}$ and their agreement with that model coefficient by
+   coefficient, and, on fixed inputs, the work accounting and the
+   cancellation of the operations of both layers and of the arithmetic of
+   the polynomials: zero, one, the generator, constants, sums, differences,
+   products, powers, derivatives and negation. Five families state
+   associativity, commutativity and distributivity on the ring layer, and
+   inverses and canonical uniqueness on the field layer: each runs 1,000
+   cases from a fixed seed of the SplitMix64 sequence of
+   `tests/support/mod.rs`, compared with the model on operands of at most
+   16 bits so that the model never overflows, and 50 cases with operands of
+   about 256 bits, checked by identities alone. The generator samples zero,
+   small and larger integers, power-of-two denominators and general
+   fractions. The ring axioms fail on a parent of the tests that is not
+   commutative, the rational quaternions, at the commutativity of the
+   product (`the_tool_rejects_a_noncommutative_parent`).
 4. **No message text.** No test asserts the message of an error; tests
    compare the kind, the span and the exceeded limit.
 5. **Work.** Tests assert the amounts that this contract fixes, and that a
