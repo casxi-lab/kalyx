@@ -3,9 +3,11 @@
 //! The library is being built from its foundations. So far it holds the
 //! types of its errors and result states: [`Error`], with its [`ErrorKind`]
 //! and the [`LimitExceeded`] record of a request limit, and [`Settled`], which
-//! carries a value or a [`MathState`]; and the request [`Context`] with its
-//! [`Limits`], which charges work, observes the deadline and cancellation,
-//! bounds output and accounts for frames and temporaries. The rest of the
+//! carries a value or a [`MathState`]; the shared result types [`Evidence`],
+//! the evidence of a decision, and [`Truth`], a three-valued truth value;
+//! and the request [`Context`] with its [`Limits`], which charges work,
+//! observes the deadline and cancellation, bounds output and accounts for
+//! frames and temporaries. The rest of the
 //! context is in the [`context`] module. The [`number`] module holds the
 //! exact integers and rationals, the [`coefficient`] module the
 //! coefficient-field trait with the field of rationals, and the [`term`]
@@ -36,6 +38,7 @@ mod error;
 pub mod number;
 pub mod polynomial;
 mod registry;
+mod shared;
 pub mod syntax;
 pub mod term;
 
@@ -45,4 +48,5 @@ pub use error::{
     Error, ErrorClass, ErrorKind, FaultKind, LimitAmount, LimitExceeded, LimitField, LimitId,
     LimitScope, MathState, Result, Settled, Span,
 };
+pub use shared::{Evidence, Truth};
 pub use syntax::parse;

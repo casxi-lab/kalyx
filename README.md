@@ -263,10 +263,10 @@ domains, and natural-language input.
   verification tiers and first callers, and the design rules of the
   foundations: term representation, coefficient fields, the context and
   error kinds. Of the library components, only the errors and result
-  states, the context and limits, the exact numbers with the
-  coefficient-field trait, the term core, the parser, the univariate
-  polynomials, the function registry and the command entry are implemented
-  yet.
+  states, the shared result types `Evidence` and `Truth`, the context and
+  limits, the exact numbers with the coefficient-field trait, the term core,
+  the parser, the univariate polynomials, the function registry and the
+  command entry are implemented yet.
 - [Input syntax and semantics](docs/semantics.md): the one grammar of the
   library's input, its precedence and lexical rules, how an expression
   becomes a term, the output lines and the forms of the command-line
