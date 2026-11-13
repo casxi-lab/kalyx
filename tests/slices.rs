@@ -786,7 +786,7 @@ fn observed(outcome: &Outcome) -> String {
     }
 }
 
-/// A frozen answer split into the text of its value, its condition after
+/// An expected answer split into the text of its value, its condition after
 /// ` where ` and its scope after ` assuming `, as an answer line holds them
 /// in its fields TEXT, CONDITION and ASSUMPTIONS.
 #[derive(Debug, PartialEq, Eq)]
@@ -800,7 +800,7 @@ struct Expected<'a> {
     assumptions: Option<String>,
 }
 
-/// The frozen answer `answer` split into its parts: a trailing
+/// The expected answer `answer` split into its parts: a trailing
 /// ` assuming {…}` is its scope, and then the text before the first
 /// ` where ` is the text of its value and the rest its condition. The parts
 /// are split only; the replay compares the text, and the condition and the
@@ -1166,14 +1166,14 @@ fn an_observation_that_a_request_cannot_express_is_a_difference() {
     );
 }
 
-// The frozen requests and answers become the fields and roles of release
-// 0.2: a ring argument of a command-line case becomes the entries of the
-// roles `variables` and `monomial_order`, a scope argument the entry of the
-// role `scope`, and a case with more than one argument after them stays a
-// difference; a frozen answer splits into its text, its condition after
-// ` where ` and its scope after ` assuming `. The two slices of these cases
-// are pending, so the replay does not run them, and this test checks what
-// it builds.
+// The requests and expected answers of the full vectors become the fields
+// and roles of release 0.2: a ring argument of a command-line case becomes
+// the entries of the roles `variables` and `monomial_order`, a scope
+// argument the entry of the role `scope`, and a case with more than one
+// argument after them stays a difference; an expected answer splits into
+// its text, its condition after ` where ` and its scope after
+// ` assuming `. The two slices of these cases are pending, so the replay
+// does not run them, and this test checks what it builds.
 #[test]
 fn frozen_conditions_scopes_and_rings_become_fields_and_roles() {
     let vectors = vectors();

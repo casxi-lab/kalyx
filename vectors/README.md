@@ -597,7 +597,7 @@ rows of an enabled slice, each row that it runs as one request through
 The comparison is the one of `r02.tsv`: a row that is `ok` needs a value
 equal by canonical form to its answer, read with `parse`; a result state
 needs the same state; and an error needs the same kind and, for a
-`ResourceLimit` under `max_work=0`, the field `max_work`. A frozen answer
+`ResourceLimit` under `max_work=0`, the field `max_work`. An expected answer
 splits as an answer line holds it: a trailing ` assuming {…}` is its scope,
 written as the role `scope` is, and the text before the first ` where ` is
 the text of its value and the rest its condition. The replay reads and
