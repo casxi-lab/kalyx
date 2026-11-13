@@ -1357,11 +1357,13 @@ limits.
   $d$ nested frames of the longest frame name, under the default limits,
   checks that they have at most $B$ bytes, that this contract states the
   current values, that $d$ and $N$ are those of `src/command/dispatch.rs`,
-  that $K$ is the longest kind of the lines of every fault kind, which a
-  match without a wildcard lists, and of the three request failures, that
-  $Q$ is the longest limit of the fields of `LimitField::ALL`, and that the
-  message of a malformed variable has $M$ bytes, which review keeps the
-  longest message of the library; `a_deep_input_has_no_more_than_d_nested_frames`,
+  that $K$ is the longest of the kind names that it reads from the source
+  of the two matches of `src/command/line.rs` that write them, which have
+  no wildcard, and that the lines of the three request failures and of
+  every fault kind have those names, that $Q$ is the longest limit of the
+  fields of `LimitField::ALL`, and that the message of a malformed variable
+  has $M$ bytes, which review keeps the longest message of the library;
+  `a_deep_input_has_no_more_than_d_nested_frames`,
   with 1,000 levels of parentheses; `ten_thousand_random_requests_never_panic`,
   which writes the fallback line of every error; and review, which checks
   that no place of the library builds a `LimitId::Parameter` with a name
