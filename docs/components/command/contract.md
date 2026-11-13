@@ -1355,8 +1355,13 @@ limits.
   `a_fallback_line_with_d_nested_frames_fits_its_bound` in
   `src/command/tests.rs`, which writes the longest `error-at` lines, with
   $d$ nested frames of the longest frame name, under the default limits,
-  checks that they have at most $B$ bytes and that the current values of
-  this contract are those of the code; `a_deep_input_has_no_more_than_d_nested_frames`,
+  checks that they have at most $B$ bytes, that this contract states the
+  current values, that $d$ and $N$ are those of `src/command/dispatch.rs`,
+  that $K$ is the longest kind of the lines of every fault kind, which a
+  match without a wildcard lists, and of the three request failures, that
+  $Q$ is the longest limit of the fields of `LimitField::ALL`, and that the
+  message of a malformed variable has $M$ bytes, which review keeps the
+  longest message of the library; `a_deep_input_has_no_more_than_d_nested_frames`,
   with 1,000 levels of parentheses; `ten_thousand_random_requests_never_panic`,
   which writes the fallback line of every error; and review, which checks
   that no place of the library builds a `LimitId::Parameter` with a name
