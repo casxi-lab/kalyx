@@ -1170,15 +1170,23 @@ number other than 0, as the [constants](#constants) need.
 
 ## Requests and results
 
-**Status:** planned for release 0.2; not implemented, apart from the
-[cause frames](#locations-and-cause-frames) of an error, which the errors
-component holds and to which no layer adds a frame yet. In release 0.1 the
-grammar reads only values, a request has no operand table, and every value
-that an operation returns is a term. The rules below are those that the
-parser, the command entry and the operations of release 0.2 follow when
-they land; the [input syntax](semantics.md), the
+**Status:** the [operands of a request](#the-operands-of-a-request), its
+[order of checks](#the-order-of-the-checks), its
+[answers and output lines](#answers-and-output-lines), the
+[locations and cause frames](#locations-and-cause-frames) of its errors,
+the [fallback line](#the-fallback-line) and the
+[table of value kinds](#the-table-of-value-kinds) are implemented, as the
 [contract of the command entry](components/command/contract.md) and the
-contracts of the other components write them out then. The commands named
+[output lines](semantics.md#output-lines) state them: a request has an
+operand table, an answer is an `Answer`, and an error has its entry frame.
+The operations of this release read no role of the table, every answer is
+a term, and no operation adds a nested frame. The extension of the grammar,
+the start symbols by role, the roles of the planned operations and their
+nested categories are planned for release 0.2 and not implemented: the
+grammar of this release reads only values. The rules below are those that
+the parser, the command entry and the operations of release 0.2 follow; the
+[input syntax](semantics.md) and the contracts of the other components write
+out the planned parts when they land. The commands named
 here other than `eval`, `expand` and `diff` are planned commands of that
 release. An input that 0.1 accepts reads the same, and the kinds of lines
 that 0.1 writes keep their fields.
@@ -1677,9 +1685,9 @@ fresh flag without a deadline its writing reports neither `Cancelled` nor
 ### The table of value kinds
 
 Every value kind that an answer can have, and every shape of a term that has
-a display rule, is a row of one table in the documentation of kalyx, at a
-place that the implementation of the command entry fixes, and a test checks
-the table against the code:
+a display rule, is a row of one table, the
+[table of value kinds](semantics.md#value-kinds) of the input syntax and
+semantics, and a test checks the table against the code:
 
 - **Columns.** A row holds the name of the kind, which is the KIND of an
   `answer` line; whether it is an answer or a shape in a term; its
@@ -1983,7 +1991,8 @@ state to an `Error`, or back.
 `Error` has private fields and the accessors `kind()`, `span()`,
 `message()`, `frames()` and `exceeded()`; `exceeded()` is `Some` exactly when
 the kind is `ResourceLimit`, and `frames()` lists the
-[cause frames](#locations-and-cause-frames), which no layer adds yet.
+[cause frames](#locations-and-cause-frames), whose entry frame the command
+entry adds.
 
 - `ErrorKind` is `ResourceLimit`, `Cancelled`, `DeadlineExceeded` or
   `Fault(FaultKind)`. The first three are request failures, and only the

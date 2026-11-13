@@ -271,7 +271,7 @@ field or by a machine width that no field names.
 | Field | Bounds | Default |
 | --- | --- | --- |
 | `max_work` | work units charged by the request | 100000 |
-| `max_input_bytes` | bytes of the request's input | 65536 |
+| `max_input_bytes` | bytes of the request's input; with a nonempty operand table, of all its text operands together | 65536 |
 | `max_output_bytes` | bytes of all display and serialization of the request, cumulative | 65536 |
 | `max_depth` | nesting depth of syntax, terms and values | 128 |
 | `max_nodes` | nodes retained at one time: the costs of the open frames, the reserved temporaries and the value being admitted | 8192 |
@@ -279,6 +279,18 @@ field or by a machine width that no field names.
 | `max_integer_bits` | bits of one integer | 4096 |
 | `max_exponent` | absolute value of one integer exponent; also degrees and orders of derivatives | 4096 |
 | `max_frames` | frames open at one time | 32 |
+
+The bytes that `max_input_bytes` bounds are those of the input alone, which
+the parser checks before it reads it, when the operand table of the request
+is empty; with a nonempty table, they are the byte sum of every text
+operand, the input and each entry of the table, which the
+[command entry](../command/contract.md#the-request-and-its-order) adds with
+checked addition and reports as `Bound(u64::MAX)` when it does not fit in a
+`u64`. This measure does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+only the documentation of the command entry and of
+`LimitField::InputBytes` states it, and the amount of the error does not
+name it.
 
 - **The number of fields.** `LimitField` has one variant per field.
   Compile-time assertions in `src/context/limits.rs` fix that its list
