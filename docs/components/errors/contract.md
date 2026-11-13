@@ -124,7 +124,8 @@ request kind and never turns an error into the state of a cap.
 - **Evidence.** `settle_partitions_runs_into_values_states_and_errors`,
   `evaluation_stop_keeps_stops_and_errors_and_names_caps`,
   `each_math_state_settles_into_a_state` and
-  `a_math_state_is_never_an_error_and_a_value_never_a_state` in
+  `a_math_state_is_never_an_error_and_a_value_never_a_state`, and, for
+  errors with cause frames, `causal_frames_are_records_without_charges`, in
   `src/error.rs`.
 
 ### NUM-R10
