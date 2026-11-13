@@ -899,11 +899,12 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   variable, as `&self`. A `Polynomial<K>` stores neither, and its type is
   opaque: polynomials are produced only by methods of their ring, and these
   methods assume that their arguments belong to `self`. Whether two parents
-  match is checked only where a parent and an element are stored as a pair:
-  when converting between terms and polynomials, in the command entry where
-  it stores such a pair (in this release it stores none: it converts every
-  polynomial back to a term with the ring that built it), and later in
-  typed collection columns. Such a layer calls the crate-internal pair
+  match is checked only where a parent and an element are stored as a pair,
+  as later in the command entry where it stores such a pair and in typed
+  collection columns. In this release no layer stores one: the conversions
+  between terms and polynomials take the ring as their receiver, and the
+  command entry converts every polynomial back to a term with the ring that
+  built it. A layer that stores such a pair calls the crate-internal pair
   check `require_same_parent` of `src/coefficient.rs`, which compares the
   two parents with `same_parent` and fails with `VariableMismatch` when they
   differ. The fault kind was appended in 0.2 together with the prime
