@@ -1097,8 +1097,8 @@ fn prime_fields_measure_their_elements_by_the_storage_formula() {
     assert_eq!(c.work_used(), used);
 }
 
-/// The sources of the prime fields, searched for calls of the frames and
-/// temporaries of the context.
+/// The sources of the prime fields, searched for the names of the frames
+/// and temporaries of the context.
 const PRIME_SOURCES: [&str; 2] = [
     include_str!("../src/coefficient/prime.rs"),
     include_str!("../src/coefficient/prime/traits.rs"),
@@ -1136,15 +1136,15 @@ fn prime_fields_hold_no_frame_or_reservation() {
     let context = &mut Context::new(Limits::new().with_max_frames(0), CancelFlag::new());
     field.from_integer(&Integer::from(-7_i64), context).unwrap();
     assert_eq!(context.retained(), nothing);
-    for call in [
-        ".reserve(",
-        ".release(",
-        ".enter_frame(",
-        ".set_frame_cost(",
-        ".leave_frame(",
+    for name in [
+        "reserve",
+        "release",
+        "enter_frame",
+        "set_frame_cost",
+        "leave_frame",
     ] {
         for source in PRIME_SOURCES {
-            assert!(!source.contains(call), "the prime fields call {call}");
+            assert!(!source.contains(name), "the prime fields name {name}");
         }
     }
 }
