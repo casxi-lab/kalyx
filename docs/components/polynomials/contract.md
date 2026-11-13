@@ -508,8 +508,8 @@ and are named after what they state. FLD-R05, the compatibility of parents and
 value of the component stores a parent together with an element, as
 [the two types](#the-two-types-and-the-receiver-rule) state. Tests are in
 `tests/polynomials.rs` unless the entry names `src/polynomial/tests.rs`,
-`tests/polynomial_properties.rs` or a documentation test in
-`src/polynomial.rs`.
+`tests/polynomial_properties.rs`, `src/term/tests.rs`, `tests/command.rs`
+or a documentation test in `src/polynomial.rs`.
 
 ### FLD-R01
 

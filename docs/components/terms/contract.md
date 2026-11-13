@@ -724,10 +724,10 @@ The earlier implementation has no requirement identifiers for its terms, so
 the requirements of this component are named after the invariants that they
 state; the six canonical-form invariants come first. Tests are in
 `tests/terms.rs` unless the entry names `tests/term_properties.rs`,
-`src/term/tests.rs` or `src/term/exponent.rs`. Each canonical-form invariant
-also has a property test of 1,000 cases in `tests/term_properties.rs`, as
-[testing obligation 2](#testing-obligations) states, which its evidence
-names.
+`src/term/tests.rs`, `src/term/exponent.rs` or `tests/command.rs`. Each
+canonical-form invariant also has a property test of 1,000 cases in
+`tests/term_properties.rs`, as [testing obligation 2](#testing-obligations)
+states, which its evidence names.
 
 ### Uniqueness
 
