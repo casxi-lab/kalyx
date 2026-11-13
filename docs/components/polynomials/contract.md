@@ -41,10 +41,12 @@ library is the [command entry](../command/contract.md), with its operations
   derivative of a term.
 - **Excluded, with their owners.**
   - Multivariate rings, monomial orders, the coefficient rings and fields
-    other than $\mathbb{Q}$ and $\mathbb F_p$, the implementation of
-    `CoefficientRing` for `PolynomialRing<K>`, the comparison of parents
-    with `same_parent` and the fault
-    `VariableMismatch`: the coefficient fields of release 0.2.
+    other than $\mathbb{Q}$ and $\mathbb F_p$, and the implementation of
+    `CoefficientRing` for `PolynomialRing<K>`: the coefficient fields of
+    release 0.2.
+  - A value that stores a ring together with a polynomial, and the check of
+    such pairs, which fails with `VariableMismatch` when two rings differ:
+    with the first value that stores such a pair.
   - Division with remainder, GCD and factorization: the basic polynomial
     algorithms over $\mathbb{Q}$, release 0.2. Evaluation at a point and
     modular powers, the other shared algorithms of the architecture: with
@@ -122,8 +124,9 @@ for amounts bounded by a machine width or beyond `u64::MAX`.
   together with an element: the conversions take the ring as their receiver
   and a term or a polynomial as their argument, and the command entry
   converts every polynomial back to a term with the ring that built it.
-  `same_parent` is called, and a mismatch fails with
-  `VariableMismatch`, where such a pair is stored, from release 0.2 on.
+  A later layer that stores such a pair checks it there, and a mismatch
+  fails with `VariableMismatch`, the fault of the pair check of the
+  [coefficient fields](../numbers/contract.md#the-coefficient-field-trait).
 - **One public type.** `Polynomial<K>` is the type of the polynomials of
   every coefficient ring: the polynomials of $\mathbb{Q}[x]$ are
   `Polynomial<Rationals>`, which is `Polynomial` through the default
@@ -446,7 +449,8 @@ renumbered or reused. Each entry states the part of the requirement that
 applies to the polynomials, as kalyx implements it, and the tests that are its
 evidence. The other requirements of the component have no identifier there
 and are named after what they state. FLD-R05, the compatibility of parents and
-`VariableMismatch`, does not apply in this release, as
+`VariableMismatch`, does not apply to the polynomials in this release: no
+value of the component stores a parent together with an element, as
 [the two types](#the-two-types-and-the-receiver-rule) state. Tests are in
 `tests/polynomials.rs` unless the entry names `src/polynomial/tests.rs`,
 `tests/polynomial_properties.rs` or a documentation test in

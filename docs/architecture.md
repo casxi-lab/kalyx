@@ -899,16 +899,17 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   variable, as `&self`. A `Polynomial<K>` stores neither, and its type is
   opaque: polynomials are produced only by methods of their ring, and these
   methods assume that their arguments belong to `self`. Whether two parents
-  match is checked with `same_parent` only where a parent and an element are
-  stored as a pair: when converting between terms and polynomials, in the
-  command entry where it stores such a pair (in this release it stores none:
-  it converts every polynomial back to a term with the ring that built it),
-  and later in typed collection columns; a mismatch fails with
-  `VariableMismatch`, a fault kind that arrives in 0.2 together with the
-  first parents that can differ; in 0.1 the only parent is
-  `PolynomialRing<Rationals>`. So a parent parametrized at runtime, such as
-  $\mathbb F_p$, needs no change of signature, and polynomial operations do
-  not compare parents.
+  match is checked only where a parent and an element are stored as a pair:
+  when converting between terms and polynomials, in the command entry where
+  it stores such a pair (in this release it stores none: it converts every
+  polynomial back to a term with the ring that built it), and later in
+  typed collection columns. Such a layer calls the crate-internal pair
+  check `require_same_parent` of `src/coefficient.rs`, which compares the
+  two parents with `same_parent` and fails with `VariableMismatch` when they
+  differ. The fault kind was appended in 0.2 together with the prime
+  fields, the first parents that can differ, and no layer calls the check
+  yet. So a parent parametrized at runtime, such as $\mathbb F_p$, needs no
+  change of signature, and polynomial operations do not compare parents.
 - **The prime fields** have this shape: `PrimeField` holds its prime
   modulus $p \lt 2^{32}$, its constructor decides that the modulus is
   prime, and its elements, the residues $0 \le r \lt p$, do not repeat

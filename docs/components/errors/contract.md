@@ -22,8 +22,10 @@ failures, returns them from its charge points and checks. The exact numbers
 library that compute: they return the faults `DivisionByZero`, `Syntax` and
 `Internal` and the request failures of the context, and the integer kernel
 and the prime fields of the exact numbers return `OutsideDomain` as well.
-The first public method with result states comes with a later release. The
-crate-internal channel and its boundaries are exercised by the unit tests of
+The crate-internal pair check of the coefficient fields returns
+`VariableMismatch`; no layer of the library calls it yet. The first public
+method with result states comes with a later release. The crate-internal
+channel and its boundaries are exercised by the unit tests of
 `src/error.rs`.
 
 ## Interface

@@ -46,21 +46,28 @@ A3 upgrade.
   `CoefficientRing` and `CoefficientField`, the zero test answer
   `ZeroTest`, the field of rationals `Rationals`, and the prime fields
   `PrimeField` of the primes $p \lt 2^{32}$ with their elements
-  `PrimeResidue`, whose constructor decides that the modulus is prime.
+  `PrimeResidue`, whose constructor decides that the modulus is prime. The
+  crate-internal pair check of two parents, which fails with
+  `VariableMismatch` when they differ.
 - **Excluded, with their owners.**
   - The GCDs of the reduction of rationals: the reduction that num-rational
     does inside its own constructor is used, and is not an interface of
     kalyx; the integer kernel takes no part in it.
   - The ring $\mathbb{Z}$ as a coefficient ring, the residue rings
     $\mathbb{Z}/n$, $\mathbb{Q}(a)$, the result-state subtraits of rings that
-    are not fields, maps between structures, such as the reduction of
-    integers and rationals into a prime field, and the comparison of the
-    parents of two elements: the coefficient fields of release 0.2. The
+    are not fields, and maps between structures, such as the reduction of
+    integers and rationals into a prime field: the coefficient fields of
+    release 0.2. The
     operations on the polynomials over a prime field beyond those of the
     [polynomials](../polynomials/contract.md), such as division with
     remainder, and the Berlekamp factorization: the basic polynomial
     algorithms over $\mathbb{Q}$, release 0.2. Prime fields of larger primes
     and extension fields: release 0.4.
+  - The layers that store a parent together with an element and call the
+    pair check: with the first such layer; neither the
+    [polynomials](../polynomials/contract.md#the-two-types-and-the-receiver-rule)
+    nor the [command entry](../command/contract.md#parents-and-elements)
+    stores such a pair in this release.
   - `PolynomialRing` and `Polynomial`: the
     [polynomials](../polynomials/contract.md).
   - Expressions and symbols: the [term core](../terms/contract.md). Spans
@@ -116,6 +123,8 @@ conversion for the parser, whose errors carry spans shifted by `offset`;
 `Integer::magnitude_u64`, the absolute value of an integer as a `u64`, or
 `None` beyond 64 bits, with which the term core reads an integer exponent for
 the parser and `from_integer` of a prime field reads its remainder;
+`require_same_parent(left, right, context)` of `kalyx::coefficient`, the
+pair check of [the coefficient-field trait](#the-coefficient-field-trait);
 `Rational::binary(other, operation, span, context)`, the binary operations
 with the caller's span on the error; `words(bits)`, the machine words
 $\max(1, \lceil \mathit{bits} / 64 \rceil)$ by which the products, the
@@ -578,6 +587,19 @@ in which nothing else is retained.
 - **Receiver rule.** The methods assume that their elements belong to
   `self`; `same_parent` is checked only where a parent and an element are
   stored together.
+- **Pair check.** A layer that stores a parent together with an element
+  calls the crate-internal `require_same_parent(left, right, context)`
+  before it combines the elements of two such pairs. It returns `Ok(())`
+  when `left.same_parent(right, context)` is `true` and fails with
+  `Fault(VariableMismatch)`, without a span, when it is `false`; its checks
+  and charges are those of `same_parent`, and a request failure of
+  `same_parent` is returned as it is. For `Rationals` and `PrimeField` it
+  charges nothing, so the element 2 of $\mathbb F_5$ and the element 2 of
+  $\mathbb F_7$, which have the same residue, fail with `VariableMismatch`
+  under a work limit of 0
+  (`elements_of_different_prime_fields_fail_with_variable_mismatch` in
+  `src/coefficient/tests.rs`). No layer stores such a pair in this
+  release, so the check has no caller outside its unit test.
 - **Charging.** Each element operation checks the sizes of its result before
   it works and charges for itself, with an amount that depends only on its
   operands.
@@ -1194,6 +1216,14 @@ their own, those that are operands before the bound check of
 values among them. `from_integer` builds the integer of
 the modulus only after its own check. The arithmetic of the residues
 allocates nothing.
+
+The pair check `require_same_parent` in `src/coefficient.rs` follows the
+same subset: it is one `if` on the result of `same_parent`, called directly
+through the bound of its type parameter, with one `?` and no loop, closure
+or combinator, and it builds nothing but its error. It has no caller outside
+its unit test, so it carries `#[cfg_attr(not(test), expect(dead_code, ..))]`
+with its reason, which changes a lint and not the code: the function is the
+same in every build.
 
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that
