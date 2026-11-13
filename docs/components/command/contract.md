@@ -281,8 +281,10 @@ Both functions take the context last
 ([convention 1](../../conventions/public-api.md#1-request-context-last)), and
 neither creates one. The component uses public interfaces of the other
 components, `parse`, `PolynomialRing` over `Rationals`, the accessors and
-`display` of `Term`, `charge` and `charge_output` of the context, and the
-accessors of `Error` and `LimitExceeded`, and three crate-internal ones:
+`display` of `Term`, `charge` and `charge_output` of the context, the
+accessors `limits()` and `output_used()` of the context and `Limits::get`,
+which the estimate of the size of a line reads, and the accessors of
+`Error` and `LimitExceeded`, and three crate-internal ones:
 `CauseFrame::new` and `Error::with_outer_frame` of the errors, which build
 and add the entry frame of an error, and the check of the context for an
 amount that may not fit in a `u64`, which checks the byte sum of the
