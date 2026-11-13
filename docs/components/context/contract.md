@@ -38,9 +38,12 @@ the count of its syntax nodes with `check_storage` at scope `Value`, and
 charges work. The polynomials (`kalyx::polynomial`) check `max_depth` and
 `max_exponent`, check the cost of every polynomial with `check_storage` at
 scope `Value`, and charge work. The command entry (`kalyx::command`) runs
-these under the context of its request and charges every byte of the lines
-that it writes with `charge_output`; it creates no context. The command-line
-program creates one context for each request that it runs.
+these under the context of its request, charges one unit of work for each
+entry of the operand table and for each required role of a signature,
+checks the byte sum of a nonempty operand table against `max_input_bytes`
+and charges every byte of the lines that it writes with `charge_output`; it
+creates no context. The command-line program creates one context for each
+request that it runs.
 
 ## Interface
 

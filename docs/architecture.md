@@ -1736,7 +1736,7 @@ quantity.
 | Field | Bounds | Default |
 | --- | --- | --- |
 | `max_work` | work units charged by the request | 100000 |
-| `max_input_bytes` | bytes of the request's input | 65536 |
+| `max_input_bytes` | bytes of the request's input; with a nonempty operand table, of all its text operands together | 65536 |
 | `max_output_bytes` | bytes of all display and serialization of the request, cumulative | 65536 |
 | `max_depth` | nesting depth of syntax, terms and values | 128 |
 | `max_nodes` | nodes retained at one time: the costs of the open frames, the reserved temporaries and the value being admitted | 8192 |

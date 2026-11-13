@@ -24,7 +24,8 @@ use crate::LimitField;
 pub struct Limits {
     /// The work units that the request may charge. Default 100000.
     pub max_work: u64,
-    /// The bytes of the request's input. Default 65536.
+    /// The bytes of the request's input; with a nonempty operand table, of
+    /// all its text operands together. Default 65536.
     pub max_input_bytes: u64,
     /// The bytes of all display and serialization of the request,
     /// cumulative. Default 65536, no larger than the default `max_work`, so
