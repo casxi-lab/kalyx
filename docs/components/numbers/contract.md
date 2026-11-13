@@ -1079,11 +1079,16 @@ the rule is stated under [decimal literals](#decimal-literals).
    is zero exactly when $p$ divides $n$, $p \cdot 1 = 0$,
    $-1 \cdot 1 = (p - 1) \cdot 1$, and $(a + b)^p = a^p + b^p$ with powers
    by binary powering through the product of the field. The axioms take
-   every residue and every triple for $p \le 7$; the five families keep
-   their seeds and case counts, with small residues, and residues in
-   $[p - 50, p)$ as large operands; the polynomials over $\mathbb F_p$ have
-   residue coefficients, and every pair of the polynomials of degree at most
-   3 over $\mathbb F_2$ and at most 2 over $\mathbb F_3$ is checked
+   every residue and every triple for $p \le 7$. The five families keep
+   their seeds and case counts: their samples are 0, 1, $p - 1$, a residue
+   below $\min(p, 17)$ or any residue, and of the 50 cases checked by
+   identities alone, associativity, commutativity and distributivity take
+   residues in $[p - 50, p)$, every residue for $p \le 50$, while inverses
+   and canonical uniqueness take products of four quotients of 64-bit
+   integer images, negated half the time. The polynomials over
+   $\mathbb F_p$ have residue coefficients, and every pair of the
+   polynomials of degree at most 3 over $\mathbb F_2$ and at most 2 over
+   $\mathbb F_3$ is checked
    (`every_small_polynomial_pair_satisfies_the_laws`). A residue has no
    public constructor, so the adapter of a prime field builds its inputs
    through `from_integer`, which the checks of the integer images compare
