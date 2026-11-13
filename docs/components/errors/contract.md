@@ -41,7 +41,7 @@ The crate root re-exports every public item of the component:
 - `CauseFrame`, a `#[non_exhaustive]` record of the name of an operation, or
   of a fixed step of the library, and the index of an operand there, with
   the accessors `name()`, a `&str`, and `operand_index()`, a `u64`, and no
-  public constructor;
+  public constructor.
   `Error::frames()` returns the cause frames of an error as
   `&[CauseFrame]`, outer first. They do not follow
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
