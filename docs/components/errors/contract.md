@@ -23,18 +23,31 @@ library that compute: they return the faults `DivisionByZero`, `Syntax` and
 `Internal` and the request failures of the context, and the integer kernel
 and the prime fields of the exact numbers return `OutsideDomain` as well.
 The crate-internal pair check of the coefficient fields returns
-`VariableMismatch`; no layer of the library calls it yet. The first public
-method with result states comes with a later release. The crate-internal
-channel and its boundaries are exercised by the unit tests of
+`VariableMismatch`; no layer of the library calls it yet. An error carries
+the [cause frames](#cause-frames) that `Error::frames` lists; no layer of the
+library adds a frame yet, so every error has none. The first public method
+with result states comes with a later release. The crate-internal channel
+and its boundaries, and the cause frames, are exercised by the unit tests of
 `src/error.rs`.
 
 ## Interface
 
 The crate root re-exports every public item of the component:
 
-- `Error`, with the accessors `kind()`, `span()`, `message()` and
-  `exceeded()`, the constructor `Error::new(kind: FaultKind, span, message)`,
-  `Display` and `std::error::Error`;
+- `Error`, with the accessors `kind()`, `span()`, `message()`, `frames()`
+  and `exceeded()`, the constructor
+  `Error::new(kind: FaultKind, span, message)`, `Display` and
+  `std::error::Error`;
+- `CauseFrame`, a `#[non_exhaustive]` record of the name of an operation, or
+  of a fixed step of the library, and the index of an operand there, with
+  the accessors `name()` and `operand_index()` and no public constructor;
+  `Error::frames()` returns the cause frames of an error as
+  `&[CauseFrame]`, outer first. They do not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  only their documentation states that the index counts the operands from
+  0, with 0 the input of an operation, and that the outer frame comes first,
+  and neither the record nor `frames()` names the base of the index or the
+  order;
 - `ErrorKind` (`ResourceLimit`, `Cancelled`, `DeadlineExceeded`,
   `Fault(FaultKind)`), `FaultKind` and `ErrorClass`, with `class()` on both
   kind enums;
@@ -44,7 +57,12 @@ The crate root re-exports every public item of the component:
   when `end < start`. It does not follow
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
   only its documentation states that its offsets count bytes from 0 and that
-  `end` is excluded, and neither `start()` nor `end()` names the unit;
+  `end` is excluded, and neither `start()` nor `end()` names the unit. The
+  span of an error counts bytes of the text of the operand that its
+  innermost cause frame names, and with no frame, or with only an outer
+  frame of the operand index 0, of the text that the entry was given. This
+  origin does not follow convention 17 either: only the documentation of
+  `Error::span` states it, and the span does not name the operand;
 - `MathState` and `Settled<T>`, with the accessors `value()`, `into_value()`,
   `state()`, `is_value()` and `is_state()`;
 - `Result<T>`, which is `std::result::Result<T, Error>`.
@@ -60,6 +78,11 @@ states:
   nothing else: the [parser](../syntax/contract.md#spans) gives each error of
   the term core, which carries no span, the span of the syntax node whose
   term failed;
+- `CauseFrame::new(name, operand_index)`, whose name is a `&'static str`, and
+  `Error::with_outer_frame(frame)`, which puts `frame` before the cause
+  frames of an error and changes nothing else. No layer calls them yet: the
+  command entry is planned to add the first frame of an error, and the
+  operations that enter a fixed step of the library the frames after it;
 - the internal channel `Run<T>`, a `Result` whose error type `Halt` is either
   `Error(Error)` or `Stop(MathState, Cap)`, with `From<Error> for Halt`;
 - `Cap` and its diagnostic text `Cap::message`;
@@ -87,9 +110,9 @@ request kind and never turns an error into the state of a cap.
   carries a stop as `Halt::Stop(state, cap)`, `?` ends the computation at the
   first halt, and there is no conversion from `Halt` to `Error`. The
   boundaries `settle` and `evaluation_stop` turn a stop into a state and keep
-  every error with its kind, span, exceeded limit and message. Since
-  `Error::new` cannot build a request failure, an error of a request kind that
-  a classification sees always comes from the request context.
+  every error with its kind, span, cause frames, exceeded limit and message.
+  Since `Error::new` cannot build a request failure, an error of a request
+  kind that a classification sees always comes from the request context.
 - **Owned elsewhere.** The iterative methods with caps of their own, their
   inner caps and their classifications come with the numerical kernel and
   evaluation framework, planned for 0.3, and with the method families after
@@ -174,9 +197,9 @@ requirement.
 - The fields of `Error` are private. `exceeded()` is `Some` exactly when the
   kind is `ResourceLimit`; the representation keeps the record inside that
   case, so no error has one without the other.
-- Programs act on `kind()`, `span()` and `exceeded()`. The message is text for
-  people, so `Error` implements neither `PartialEq`, `Eq` nor `Hash`, and
-  tests compare those three parts, never the message.
+- Programs act on `kind()`, `span()`, `frames()` and `exceeded()`. The
+  message is text for people, so `Error` implements neither `PartialEq`,
+  `Eq` nor `Hash`, and tests compare those parts, never the message.
 
 ### Constructing errors
 
@@ -213,6 +236,36 @@ scope, the allowed value and the amount.
   separate field `Frames`.
 - The record derives `PartialEq` and `Eq`, so tests compare it whole.
 
+### Cause frames
+
+- An error carries a list of cause frames, which `frames()` returns outer
+  first. A frame records the name of an operation, or of a fixed step of the
+  library that an operation enters, and the index of the operand of that
+  operation or step in which the error arose, counted from 0; for an
+  operation, 0 is its input. The outermost frame is that of the operation of
+  the request, and each later frame is one that the frame before it
+  entered.
+- Frames are records only. Adding one charges nothing, opens no frame of
+  the request context with `enter_frame` and does not count against
+  `max_frames`.
+- A frame name is a name that the library defines, of the form
+  `[a-z][a-z0-9-]*`, never text of a request: `CauseFrame::new` takes it as
+  a `&'static str`. The constructor is crate-internal, so code outside the
+  library can neither build a frame nor add one to an error; the
+  `compile_fail,E0624` documentation test of `CauseFrame` holds such a call.
+  `Error::new` and the constructors of the request failures give an error
+  without frames.
+- The span of an error counts bytes of the text of the operand that the
+  innermost frame names; with no frame, or with only an outer frame of the
+  operand index 0, it counts bytes of the text that the entry was given.
+  Adding a frame does not change the span.
+- `CauseFrame` derives `PartialEq`, `Eq` and `Hash`, so tests compare frames
+  whole.
+- No layer of the library adds a frame yet, so every error has none. The
+  command entry is planned to add the first frame, for the operand in which
+  the error arose, and the operations that enter a fixed step of the library
+  the frames after it.
+
 ### Bounds set by a machine width
 
 A bound that a machine width imposes is reported as the field or parameter
@@ -241,9 +294,10 @@ not the value of the field, and the record does not name the width.
 - There is no conversion from `Halt` to `Error`. Each method decides at a
   boundary what a stop means for its result.
 - **Boundary rule.** At every boundary a stop becomes a state, never an
-  error, and every error stays the same error, with its kind, span, exceeded
-  limit and message, never a state. `settle` turns a value into
-  `Settled::Value` and a stop into `Settled::State` with the stop's state.
+  error, and every error stays the same error, with its kind, span, cause
+  frames, exceeded limit and message, never a state. `settle` turns a value
+  into `Settled::Value` and a stop into `Settled::State` with the stop's
+  state.
   `evaluation_stop(run, capped)` keeps the stop value that a method reached
   and turns a stop of one of its evaluations into the method's own stop value
   `capped`.
@@ -318,7 +372,8 @@ the mapping above is fixed, so each difference is accepted by its row.
 1. **Boundaries.** The unit tests in `src/error.rs` check that `settle` keeps
    values, turns a stop in each of the five states into that state and keeps
    every request failure, a domain error and an invalid input with its kind,
-   span and exceeded limit, and that no fault kind becomes a state;
+   span, cause frames and exceeded limit, and that no fault kind becomes a
+   state;
    that `evaluation_stop` keeps stops and errors and turns every stop into the
    given stop; the fixed text of the cap; the accessors of `Settled`; and
    that `with_default_span` fills only a missing span
@@ -343,6 +398,18 @@ the mapping above is fixed, so each difference is accepted by its row.
    standard error trait, the `Display` form (the message, then the span),
    spans, the names of the limit fields and `Settled`.
 6. **No message text.** No test asserts the message of an `Error`.
+7. **Cause frames.** `causal_frames_are_records_without_charges` in
+   `src/error.rs` checks that every constructor gives an error without
+   frames, that `with_outer_frame` puts its frame first and keeps the kind,
+   the span and the exceeded limit, that adding frames leaves the work, the
+   output, the open frames and the retained storage of the context as they
+   were, also beyond a `max_frames` of 0, and that clones, default spans and
+   both boundaries keep the frames, and it reads the accessors of
+   `CauseFrame`.
+   `error_new_builds_faults_and_never_request_failures` in `tests/errors.rs`
+   checks that an error that code outside the library builds has no frame,
+   and the `compile_fail,E0624` documentation test of `CauseFrame` that such
+   code cannot build one.
 
 ## Extractability
 
@@ -354,6 +421,19 @@ by value, and `From<Error> for Halt` is one constructor. None has a loop,
 closure, combinator, function value, borrow or `?`, and the only allocation is
 the owned string of `Cap::message`, built by `String::from`. They have not
 been extracted: no proof target is registered for them yet.
+
+The cause frames follow the subset as well. `CauseFrame::new`,
+`CauseFrame::name`, `CauseFrame::operand_index` and `Error::frames` each
+build or read fields, and `Error::with_outer_frame` takes the error by
+value, turns its frames into a `Vec`, inserts the frame at index 0 and
+stores them back as a boxed slice; none has a loop, closure, combinator,
+function value or `?`. The frames are a `Box<[CauseFrame]>` rather than a
+`Vec`, which keeps `Error` below the size at which Clippy's
+`result_large_err` lint, an error under `cargo xtask check`, rejects every
+function that returns it, and an error without frames allocates nothing for
+them. A proof of `with_outer_frame` will need models of `Vec` and `Box`, as
+the frame table of the [context](../context/contract.md#extractability)
+does. They have not been extracted either.
 
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that

@@ -504,7 +504,7 @@ fn compare(source: &str, list: &str) -> Result<(), String> {
 #[test]
 fn the_crate_root_has_exactly_the_listed_public_names() {
     compare(LIB, LIST).unwrap();
-    assert_eq!(root_names(LIB).unwrap().len(), 28);
+    assert_eq!(root_names(LIB).unwrap().len(), 29);
 }
 
 // A public name added to the crate root without the list changing fails the

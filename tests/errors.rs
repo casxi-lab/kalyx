@@ -2,7 +2,9 @@
 //! library sees it. Errors are compared by kind, span and exceeded limit,
 //! never by message.
 
-use kalyx::{Error, ErrorClass, ErrorKind, FaultKind, LimitField, MathState, Settled, Span};
+use kalyx::{
+    CauseFrame, Error, ErrorClass, ErrorKind, FaultKind, LimitField, MathState, Settled, Span,
+};
 
 const FAULTS: [FaultKind; 9] = [
     FaultKind::Syntax,
@@ -66,15 +68,17 @@ fn display_appends_the_span_to_the_message() {
     assert_eq!(ragged.to_string(), ragged.message());
 }
 
-// `Error::new` builds every fault kind, and none of them is a request
-// failure. Its compile-fail documentation test shows that it does not accept
-// a request kind.
+// `Error::new` builds every fault kind, without cause frames, and none of
+// them is a request failure. Its compile-fail documentation test shows that
+// it does not accept a request kind.
 #[test]
 fn error_new_builds_faults_and_never_request_failures() {
     for fault in FAULTS {
         let error = Error::new(fault, Span::new(1, 1), "fault");
         assert_eq!(error.kind(), ErrorKind::Fault(fault));
         assert_eq!(error.span(), Span::new(1, 1));
+        let frames: &[CauseFrame] = error.frames();
+        assert!(frames.is_empty());
         assert!(error.exceeded().is_none());
         assert_ne!(error.kind().class(), ErrorClass::Context);
         assert_ne!(error.kind(), ErrorKind::ResourceLimit);

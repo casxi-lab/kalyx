@@ -19,11 +19,11 @@ polynomials and the command entry, which follow these conventions, apart
 from the entries that
 [convention 17](#17-no-implicit-conventions) lists. They are the rules that
 each further component follows when it lands, and review holds every change
-to them. `Error`, `Settled<T>`, `LimitId`, `MathState`, `Evidence`, `Truth`,
-`Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`, `CoefficientRing`,
-`CoefficientField`, `Rationals`, `Term`, `TermKind`, `parse`,
-`PolynomialRing`, `Polynomial`, `Request`, `Settings`, `Outcome`, `execute`
-and `serialize` exist today;
+to them. `Error`, `CauseFrame`, `Settled<T>`, `LimitId`, `MathState`,
+`Evidence`, `Truth`, `Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`,
+`CoefficientRing`, `CoefficientField`, `Rationals`, `Term`, `TermKind`,
+`parse`, `PolynomialRing`, `Polynomial`, `Request`, `Settings`, `Outcome`,
+`execute` and `serialize` exist today;
 other names used here are the names that the code is planned to use. Their
 full rules are in [the architecture](../architecture.md). `cargo xtask check`
 already enforces the parts that it can check mechanically, as each convention
@@ -440,8 +440,10 @@ does not name it, and the contract of its component says so at its rule:
 - in the [context](../components/context/contract.md), the bits that are
   checked against `max_integer_bits`, and the deadline of `with_deadline`
   with the readings of `Clock`;
-- in the [errors](../components/errors/contract.md), `Span` and the
-  `allowed` value of a bound that a machine width sets;
+- in the [errors](../components/errors/contract.md), `Span`, the origin of
+  the span of an error with cause frames, `Error::frames` with
+  `CauseFrame`, for the base of the operand index and the order of the
+  frames, and the `allowed` value of a bound that a machine width sets;
 - in the [shared result types](../components/shared-results/contract.md#combinations),
   `Evidence::and` and `Truth::and`;
 - in the [term core](../components/terms/contract.md), `Term::power`,
