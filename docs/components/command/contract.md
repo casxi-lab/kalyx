@@ -107,9 +107,10 @@ interfaces as they are, a new row of the operation index aside:
   values of $K$, $Q$ and $M$ in this contract are reviewed as the change
   that they belong to and are not co-signed. The list of nested categories,
   with their names, and $d$ are fixed: a new nested category or another
-  $d$ changes the fallback step and is co-signed. A later operation of a
-  listed category adds its examples, as the fallback step states, and adds
-  no category.
+  $d$ changes the fallback step and is co-signed. The change that delivers
+  the operation of a listed category adds the examples of that category and
+  adds the operation to the generator of the random requests, as the
+  fallback step states, and adds no category.
 
 The constraints, in which the bytes of a line leave out the message field
 of an error line, since the wording of a message is not part of the
