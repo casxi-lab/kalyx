@@ -794,13 +794,15 @@ occurs only in a branch is carried by the condition of that branch.
 `ZeroTest` and `Rationals` are implemented in
 `src/coefficient.rs`, over the exact numbers of `src/number.rs`, and the
 prime fields $\mathbb F_p$, `PrimeField` and its elements `PrimeResidue`,
-in `src/coefficient/prime.rs`; their
+in `src/coefficient/prime.rs`, with the trait implementations in
+`src/coefficient/prime/traits.rs`; their
 [contract](components/numbers/contract.md) states the checks, the charges and
 the tests, those of the prime fields in its section
 [Prime fields](components/numbers/contract.md#prime-fields).
 `PolynomialRing` and `Polynomial` are implemented in `src/polynomial.rs`,
 generic over the coefficient ring, with the polynomials over $\mathbb{Q}$
-and over $\mathbb F_p$, and their operations are tested over both; their
+and over $\mathbb F_p$; the tests over $\mathbb F_p$ are those of the
+[prime fields](components/numbers/contract.md#prime-fields). Their
 [contract](components/polynomials/contract.md) states the operations, the
 limits, the storage cost, the expansion of terms and the tests, and that the
 operations exist for coefficient rings whose zero test always decides.

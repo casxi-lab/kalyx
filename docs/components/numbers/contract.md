@@ -699,8 +699,8 @@ residue.
 - **Zero tests and parents.** For a residue below $p$, `zero_test` reads
   the residue and always decides; a residue at or above $p$ fails with
   `Fault(OutsideDomain)`, as in every method that takes residues.
-  `same_parent` compares the moduli. Both take constant time, allocate
-  nothing and charge nothing
+  `same_parent` compares the moduli. Both take constant time and charge
+  nothing, and allocate nothing but the error of a residue at or above $p$
   (`prime_fields_decide_every_zero_test_without_a_charge`).
 - **Storage.** `measure` is one node and $\lvert r \rvert + 4$ bytes for
   the residue $r$, the cost $(1, \lvert r \rvert + 4)$ of the integer $r$
@@ -1187,11 +1187,11 @@ the loop over the bases is an index loop over a constant array. Design rules
 1 and 2 are met as adapted, as for the integer kernel: the domain tests and
 the bound of each step come before its charge and the operands are never
 written, and a charge is not undone. The integers of the test are allocated
-at run time: the operands of each power and squaring, and the residues 1
-and $p - 1$ that the test compares with, are built from the `u32` modulus
-and base, of at most 32 bits each, with no check of `max_integer_bits` of
-their own, the operands before the bound check of `modular_power`, which
-covers every integer that it computes. `from_integer` builds the integer of
+at run time: $p$, $p - 1$, $d$, the base, 2 and 1 are built from `u32`
+values, of at most 32 bits each, with no check of `max_integer_bits` of
+their own, those that are operands before the bound check of
+`modular_power`, which covers every integer that it computes, the squared
+values among them. `from_integer` builds the integer of
 the modulus only after its own check. The arithmetic of the residues
 allocates nothing.
 
