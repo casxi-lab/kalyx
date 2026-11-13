@@ -669,8 +669,8 @@ residue.
   nothing more. A failed check or charge of the test reports the limit or
   the request failure of `modular_power`. The test is part of the
   constructor and is not a public entry.
-- **Element operations.** Every method that takes residues first tests
-  that each is below $p$: a residue at or above $p$ can belong only to
+- **Element operations.** Every method that takes residues, `measure`
+  apart, first tests that each is below $p$: a residue at or above $p$ can belong only to
   another field, and fails with `Fault(OutsideDomain)` before any check or
   charge; a residue of another field below $p$ is taken as a residue of
   the receiver, as the receiver rule of
@@ -714,10 +714,11 @@ residue.
   `Integer::divide_with_remainder` of the integer kernel, which checks the
   same bound and passes it, charges the division and admits its result
   with `check_storage` at `LimitScope::Value`, and reads the remainder.
-- **Zero.** The inverse of zero and every quotient by zero fail with
-  `Fault(DivisionByZero)` before any check and any charge, so under every
-  limit, with no work left and when the request is cancelled, and nothing
-  is charged (`a_prime_field_inverts_zero_to_division_by_zero_without_a_charge`).
+- **Zero.** For residues below $p$, the inverse of zero and every quotient
+  by zero fail with `Fault(DivisionByZero)` before any limit check and any
+  charge, so under every limit, with no work left and when the request is
+  cancelled, and nothing is charged
+  (`a_prime_field_inverts_zero_to_division_by_zero_without_a_charge`).
 - **Zero tests and parents.** For a residue below $p$, `zero_test` reads
   the residue and always decides; a residue at or above $p$ fails with
   `Fault(OutsideDomain)`, as in every method that takes residues.
@@ -848,8 +849,8 @@ zero was an invariant failure; in kalyx it is `DivisionByZero` there too, as
   `prime_fields_have_inverses_and_zero_has_none` in `tests/coefficient.rs`.
   Negative: `division_by_zero_fails_before_any_charge`, with no work left and
   a bit limit of 0, and
-  `a_prime_field_inverts_zero_to_division_by_zero_without_a_charge`, under a
-  bit limit of 1 and a cancellation. Also
+  `a_prime_field_inverts_zero_to_division_by_zero_without_a_charge` in
+  `tests/coefficient.rs`, under a bit limit of 1 and a cancellation. Also
   `integer_halving_and_zero_divisors_keep_their_results_and_errors` in
   `src/number/dyadic_tests.rs` and
   `integer_paths_still_observe_work_cancellation_and_errors`.
