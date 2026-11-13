@@ -284,11 +284,14 @@ inputs:
 | `ask` | the same, then asked whether it is positive | `f-ask` with the property `positive` |
 | `expand` | the same, then expanded it | none in release 0.2: for the 8 inputs that denote a polynomial in $\mathbb{Q}[x]$ in the syntax of release 0.1, `(-x)^2`, `(x+x)^3`, `-x`, `-x^3`, `0`, `0^0`, `x` and `x+x-x`, the polynomial expansion `expand` of that release with the variable `x`; for the other inputs, a later release |
 
-A scope maps to a literal scope operand of the kalyx command. Its written form
-is fixed with the request form of these commands, in a later change; the file
-names a scope only by the word in its `scope` column. The earlier command-line
-program wrote the four scopes `{}`, `{x:real}`, `{x:positive}` and
-`{x:negative}`.
+A scope maps to the entry of the role `scope` in the operand table of the
+request of the kalyx command: `none` to no entry, and `real`, `pos` and `neg`
+to the texts `x: real`, `x: positive` and `x: negative`; the file names a
+scope only by the word in its `scope` column. The operands of the commands
+in the table above, the order 1 of `f-diff` and the property `positive` of
+`f-ask`, are entries of their roles `order` and `property`. The earlier
+command-line program wrote the four scopes `{}`, `{x:real}`, `{x:positive}`
+and `{x:negative}`.
 
 For each input, scope and operation, the driver first ran the request with
 `max_work=1000000` and read the work $n$ that it used; then once with each
@@ -566,36 +569,49 @@ rows of an enabled slice, each row that it runs as one request through
 
 - A command-line case takes the input of the request from its arguments,
   the variable from `--var NAME`, or `x` without it, and runs under the
-  default limits, with `max_work=0` for `--work 0`. Its expectation is its
-  `kind` and, for `ok`, its standard output without the final line feed. A
-  case with the kind `usage` is not compared, since the library entry has no
-  usage error, and neither is a case with `--work N` for an `N` other than
-  0.
+  default limits, with `max_work=0` for `--work 0`. A scope argument of the
+  earlier program, such as `{x:positive}`, becomes the entry of the role
+  `scope` with the text `x: positive`, and the empty scope `{}` no entry; a
+  ring argument such as `Q[x,y]:lex` becomes the entries of the roles
+  `variables`, `x, y`, and `monomial_order`, `lex`. A case with more than
+  one argument after these is a difference, since the arguments of each
+  command map to its roles by its signature, which the change that delivers
+  the command states. Its expectation is its `kind` and, for `ok`, its
+  standard output without the final line feed. A case with the kind `usage`
+  is not compared, since the library entry has no usage error, and neither
+  is a case with `--work N` for an `N` other than 0.
 - A library observation runs the kalyx command of its operation on its
   input, with the variable `x`: the budget 1000000 under the default limits,
   the budget 0 under `max_work=0`, and the cancelled request under the
   default limits with its flag cancelled before the request starts. The
   rows under the other budgets, which depend on how the earlier
-  implementation counted work, are not compared. A row that needs an
-  operand which no request has yet is reported as a difference without
-  running: a row in a scope other than `none`, which needs a scope operand,
-  and a row of `diff` or `ask`, whose command also takes the order 1 or the
-  property `positive`. The polynomial expansion takes no scope operand,
-  since a scope assumes a property of `x`, which does not change a
-  polynomial, so its rows in all four scopes are the same request.
+  implementation counted work, are not compared. A row in a scope other
+  than `none` has the entry of its scope in the role `scope`, and a row of
+  `diff` or `ask` the entry of the order 1 or of the property `positive`.
+  The polynomial expansion reads no scope, since a scope assumes a property
+  of `x`, which does not change a polynomial, so its rows in all four scopes
+  are the same request, without an entry.
 - No request has the form of a root call yet, so a root call of an enabled
   slice is reported as a difference.
 
 The comparison is the one of `r02.tsv`: a row that is `ok` needs a value
 equal by canonical form to its answer, read with `parse`; a result state
 needs the same state; and an error needs the same kind and, for a
-`ResourceLimit` under `max_work=0`, the field `max_work`. Display text and
-work are never compared, and a row whose outcome kalyx does not define is a
+`ResourceLimit` under `max_work=0`, the field `max_work`. A frozen answer
+splits as an answer line holds it: a trailing ` assuming {…}` is its scope,
+written as the role `scope` is, and the text before the first ` where ` is
+the text of its value and the rest its condition. The replay reads and
+compares the text; the condition and the scope are split only, and are
+compared once a kind of value with a condition or a scope exists. An answer
+of a kind that has no comparison yet is a difference. Display text and work
+are never compared, and a row whose outcome kalyx does not define is a
 difference. A negative test corrupts, each in a copy of its file, the answer
 of a library observation, the kind of a command-line case and the outcome of
 a cancelled request, and shows that each gives exactly one difference, at
-its row; another shows that a row that needs a scope, a property or an order
-is a difference.
+its row; another checks the requests that a scope, a property and an order
+give, and the difference of each while its command is pending; and another
+checks the requests of a ring and of a scope argument, a case that stays a
+difference, and the split of a condition and of a scope.
 
 | Slice | Commands | Root-call requests | Library operations | Rows: cases, observations, root calls | State |
 | --- | --- | --- | --- | --- | --- |
