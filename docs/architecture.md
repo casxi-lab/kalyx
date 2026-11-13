@@ -2085,10 +2085,10 @@ new variant of `Answer` or of `MathState`, and a new `FaultKind` of the
 class `Input` or `Internal`, fall into an existing class and leave Table 1
 as it is; Table 1 changes only for a new request failure (a new kind of
 the class `Context`), a new variant of `Settled`, a new fault kind of
-another class or a new terminal state for an existing class. An answer whose completeness is unsolved, such as an
-incomplete list of roots, is a value, and its job completes: the terminal
-state says whether the request finished, not whether its answer is
-complete.
+another class or a new terminal state for an existing class. An answer whose
+completeness is unsolved, such as an incomplete list of roots, is a value,
+and its job completes: the terminal state says whether the request finished,
+not whether its answer is complete.
 
 In 0.1, function-call syntax, the reserved names `pi`, `i` and `undefined`,
 an unknown operation and a non-default setting fail with `Unsupported`, and
