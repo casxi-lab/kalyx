@@ -432,9 +432,11 @@ states, and neither the outcome nor its line names the convention.
   text: a program chooses its exit code from the outcome, and text comes
   only from `serialize`.
 - `ErrorKind` is that of release 0.1: `ResourceLimit`, `Cancelled`,
-  `DeadlineExceeded` and `Fault(FaultKind)`. A fault kind that a later
-  release adds is a new variant of `FaultKind`, within `Fault(_)`, whose
-  `class()` is `Input`.
+  `DeadlineExceeded` and `Fault(FaultKind)`. A fault kind that release 0.2
+  adds, such as `OutsideDomain`, is a new variant of `FaultKind`, within
+  `Fault(_)`, whose `class()` is `Input`; the `class()` of every new
+  `FaultKind` is `Input` or `Internal`, as
+  [Table 1](#table-1-outcomes-and-the-terminal-states-of-a-job) states.
 - `Error` keeps `kind()`, `message()` and `exceeded()`, and `frames()`
   returns its [cause frames](../errors/contract.md#cause-frames) as
   `&[CauseFrame]`, outer first, each the name of an operation or of a
