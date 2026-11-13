@@ -1,0 +1,32 @@
+# The public enums of kalyx: every `pub enum` in a Rust file under src/,
+# with the file that declares it.
+#
+# One enum per line, as its name and its file separated by a space, in byte
+# order of the name and then of the file; blank lines and lines that start
+# with `#` are skipped. An enum counts in the file that declares it, also
+# when a private module declares it and another module re-exports it, as
+# kalyx::number re-exports `ExactQuotient`. Every listed enum is
+# `#[non_exhaustive]`, unless its line ends in ` exhaustive`: such an enum
+# is a closed case analysis that convention 3 of the public API conventions
+# lists with its reason, and `ZeroTest` is the only one. tests/root_names.rs
+# scans every Rust file under src/ and fails when its public enums differ
+# from this list or do not carry the attribute that the list requires, so
+# an enum added, removed, renamed or moved changes this file in the same
+# change.
+
+CrtResult src/number/integer.rs
+ErrorClass src/error.rs
+ErrorKind src/error.rs
+Evidence src/shared.rs
+ExactQuotient src/number/integer.rs
+FaultKind src/error.rs
+LimitAmount src/error.rs
+LimitField src/error.rs
+LimitId src/error.rs
+LimitScope src/error.rs
+MathState src/error.rs
+ModularInverse src/number/integer.rs
+Settled src/error.rs
+TermKind src/term.rs
+Truth src/shared.rs
+ZeroTest src/coefficient.rs exhaustive

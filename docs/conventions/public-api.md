@@ -113,8 +113,14 @@ conclusion, which needs another method.
 Every public enum is `#[non_exhaustive]` unless it is a closed case analysis
 listed here with its reason. The one listed exception is `ZeroTest` (zero,
 nonzero or undecided) of the coefficient-field trait, whose three cases are
-mathematically complete. Every public record with public fields is
-`#[non_exhaustive]`; other structs keep their fields private.
+mathematically complete. The tracked file `api/public-enums.txt` lists every
+public enum with the file that declares it and marks the exception, and the
+test `every_public_enum_is_listed_and_non_exhaustive_but_the_exceptions` in
+`tests/root_names.rs` fails when a `pub enum` in a file under `src/` is not
+listed, a listed enum is not declared, or an enum lacks
+`#[non_exhaustive]` without being the listed exception. Every public record
+with public fields is `#[non_exhaustive]`; other structs keep their fields
+private.
 
 The crate root re-exports only request-level items: the context and its
 limits, errors and result states, the shared result types, the request and
