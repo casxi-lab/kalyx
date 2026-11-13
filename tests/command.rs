@@ -951,7 +951,9 @@ fn representative_lines_pass_at_their_exact_limits_and_fail_one_below() {
         );
         match outcome.result() {
             Ok(_) => assert_eq!(c.output_used(), length),
-            Err(_) => {
+            Err(error) => {
+                let index = if request.operands.is_empty() { 0 } else { 1 };
+                assert_eq!(frames(error), [(request.operation.as_str(), index)]);
                 assert_eq!(work, length, "an error line charges its bytes");
                 let fields = if text.starts_with("error-at") { 12 } else { 11 };
                 assert_eq!(points, fields + 1);
