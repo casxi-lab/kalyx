@@ -6,11 +6,11 @@
 //!
 //! The requests fall into four categories with fixed counts: 4,000 general
 //! requests, with random operations, variables, inputs and limits, some of
-//! them with an entry of the operand table; 2,000
-//! with exponents near $2^{32}$, near $2^{63}$ and near the `u64` bound;
-//! 2,000 under limits with fields at their largest value, `u64::MAX`, all
-//! of them or one at a time; and 2,000 with deeply nested inputs, up to
-//! 20,000 levels, under the default `max_depth` and under raised ones.
+//! them with an entry of the operand table; 2,000 with exponents near
+//! $2^{32}$, near $2^{63}$ and near the `u64` bound; 2,000 under limits with
+//! fields at their largest value, `u64::MAX`, all of them or one at a time;
+//! and 2,000 with deeply nested inputs, up to 20,000 levels, under the
+//! default `max_depth` and under raised ones.
 //! Request `i` is generated from the seed `SEED + i` alone, so a failing
 //! request is reproduced from the index and the seed that the failure
 //! prints.
@@ -515,13 +515,12 @@ fn check(request: &Request, limits: Limits) -> Result<String, String> {
 // and every outcome and every line is listed; every error is written under a
 // fresh context with the default limits and has at most $d = 1$ nested
 // frame, and some general requests have an operand table. A failing or
-// panicking
-// request is reported with its category, its index and the seed, from
-// which `request` generates it again. Each category reaches values and the
-// errors of its boundaries: exponents and depths beyond their limits fail
-// with `ResourceLimit` naming `max_exponent`, `max_integer_bits` or
-// `max_depth`, and the same inputs under raised limits give values; at
-// least 100 deep inputs nested beyond the default `max_depth` give values.
+// panicking request is reported with its category, its index and the seed,
+// from which `request` generates it again. Each category reaches values and
+// the errors of its boundaries: exponents and depths beyond their limits
+// fail with `ResourceLimit` naming `max_exponent`, `max_integer_bits` or
+// `max_depth`, and the same inputs under raised limits give values; at least
+// 100 deep inputs nested beyond the default `max_depth` give values.
 #[test]
 fn ten_thousand_random_requests_never_panic() {
     assert_eq!(
