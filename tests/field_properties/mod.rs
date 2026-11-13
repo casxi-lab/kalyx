@@ -18,7 +18,10 @@
 //! form of zero. An adapter with an independent [`Model`] of the parent,
 //! [`Modelled`], also reads the value of a small element in the model and
 //! its display text, and builds inputs, the element of a model value and
-//! large elements, not through the layers under test.
+//! large elements, not through the layers under test where the parent has
+//! another public way to build its elements; the elements of a prime field
+//! have none, and its adapter builds them through `from_integer`, which
+//! the checks of the integer images compare with the model.
 //! Every check judges results by independent evidence: ring identities,
 //! values known by construction, or the model, whose arithmetic does not use
 //! the code under test.
@@ -26,11 +29,13 @@
 //! The checks of elements and maps are in `elements`, those of polynomials
 //! in `univariate` and those of work accounting and cancellation in
 //! `accounting`; the adapter of $\mathbb{Q}$ with its model and its inputs is
-//! in `rationals`. This module holds the layers, the adapter and model
-//! traits, the integer model, and the helpers and generators of the checks.
+//! in `rationals`, and that of the prime fields $\mathbb F_p$ in `primes`.
+//! This module holds the layers, the adapter and model traits, the integer
+//! model, and the helpers and generators of the checks.
 
 pub mod accounting;
 pub mod elements;
+pub mod primes;
 pub mod rationals;
 pub mod univariate;
 
@@ -237,7 +242,7 @@ pub trait Modelled: Inspect {
     /// The value in the model of a small element, read from its stored form.
     fn value(&self, a: &Element<Self>) -> Value<Self>;
     /// The element of `value`, built by the adapter, not through the layers
-    /// under test.
+    /// under test where the parent allows it.
     fn element(&self, value: &Value<Self>) -> Element<Self>;
     /// Whether `a` is `value`, judged by the model.
     fn agrees(&self, a: &Element<Self>, value: &Value<Self>) -> bool;
@@ -246,7 +251,7 @@ pub trait Modelled: Inspect {
     /// A small value, sometimes zero, one or an integer.
     fn sample(&self, random: &mut Sequence) -> Value<Self>;
     /// A large element, built by the adapter, not through the layers under
-    /// test.
+    /// test where the parent allows it.
     fn large(&self, random: &mut Sequence) -> Element<Self>;
 }
 
