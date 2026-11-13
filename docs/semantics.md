@@ -8,7 +8,8 @@ term of the [term core](components/terms/contract.md). The parser,
 with their measures, its charges, its spans and errors, and its tests. The
 section [output lines](#output-lines) states the bytes of the one output
 format of the library, the line that the command entry writes for the
-outcome of a request, and the last section,
+outcome of a request, the section [value kinds](#value-kinds) the table of
+the kinds of values that a line writes, and the last section,
 [the command-line program](#the-command-line-program), the forms of the
 program `kalyx`, its line format and its exit statuses.
 
@@ -259,13 +260,25 @@ the kind fixes the number of fields:
 | `value` | 5: `value`, the three versions and the text of the value |
 | `state` | 5: `state`, the three versions and the name of the state |
 | `error` | 11: `error`, the three versions, the kind, the span, the limit, the scope, the allowed value, the amount and the message |
+| `answer` | 8: `answer`, the three versions, the kind of the value, its text, its condition and its assumptions |
+| `error-at` | 12: `error-at`, then fields 2 to 11 as an `error` line has them, and the location |
+
+A value of an `Answer::Term`, the only answer of this release, has a `value`
+line; a value of every later kind of the [table of value kinds](#value-kinds)
+has an `answer` line. An error without a location, or whose location is the
+input with no nested frame, has an `error` line, and every other error an
+`error-at` line. The fields of the kinds `value`, `state` and `error` and
+the bytes of each field are those of release 0.1; new information comes as
+a new kind of line or as a new field at the end of a line, never as a
+change of a field that a released kind has.
 
 Fields 2, 3 and 4 are the input version, the context version and the
 settings version of the request, which the outcome echoes. A version, a
-span offset, an allowed value and an amount are `u64` numbers, written in
-decimal ASCII digits without a sign, separators or leading zeros, so zero is
-`0`. The display text of a value is not such a number: it follows the term
-core and may hold signs, fractions and integers of any size, such as `-2/3`.
+span offset, an allowed value, an amount and an operand index are `u64`
+numbers, written in decimal ASCII digits without a sign, separators or
+leading zeros, so zero is `0`. The display text of a value is not such a
+number: it follows the term core and may hold signs, fractions and integers
+of any size, such as `-2/3`.
 
 **Value lines.** The fifth field is the display text of the term of the
 result, as the [term core](components/terms/contract.md#display) writes it:
@@ -278,36 +291,83 @@ canonical terms, never by this text.
 `NotConverged`, `Unevaluated`, `NotApplicable`, `Undecided` or
 `IterationLimit`. No operation of this release ends in a state.
 
-**Error lines.** The fields after the versions:
+**Answer lines.** No answer of this release has an answer line; a kind of
+value that a later release adds is written with one. The fields after the
+versions:
+
+| Field | Bytes |
+| --- | --- |
+| Kind | the name of the kind of the value in the [table of value kinds](#value-kinds): lowercase ASCII letters and `-`, never renamed and never reused |
+| Text | the display text of the value, which the input grammar or the display grammar that the table names for the kind reads |
+| Condition | the condition of the value, written as a condition is written, so that it reads back as a condition; `true` for a function value whose condition is true, and `-` only for a kind without a condition part |
+| Assumptions | the scope of assumptions of the value, written as the role `scope` of a request is written, such as `x: positive`, so that it reads back as a scope; `-` for a kind without a scope part and for a scope without facts |
+
+The three fields are printable ASCII, so none is escaped.
+
+**Error lines.** The fields after the versions, the same in an `error` line
+and in fields 5 to 11 of an `error-at` line:
 
 | Field | Bytes |
 | --- | --- |
 | Kind | `ResourceLimit`, `Cancelled` or `DeadlineExceeded` for a request failure; for a fault, the name of its kind: `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal`, `OutsideDomain` or `VariableMismatch` |
-| Span | `start..end`, the half-open range of byte offsets into the input of the request; `-` when the error has no span |
+| Span | `start..end`, the half-open range of byte offsets into the text of the operand that the innermost cause frame of the error names, which is the input of the request for an error without a location; `-` when the error has no span |
 | Limit | for `ResourceLimit`, `Field(name)` with the name of a field of `Limits`, such as `Field(max_work)`, or `Parameter(name)` with the escaped name of a parameter of the request; otherwise `-` |
 | Scope | for `ResourceLimit` on `max_nodes` or `max_storage_bytes`, where the limit was reached: `Value`, `Frame` or `Temporary`; otherwise `-` |
 | Allowed | for `ResourceLimit`, the value of the limit in force; otherwise `-` |
 | Amount | for `ResourceLimit`, `Used(n)`, `Required(n)` or `Bound(n)`: the total at the check, the amount needed, or an upper bound of it; otherwise `-` |
 | Message | the English message of the error, escaped |
+| Location | only in an `error-at` line: where the error arose, written from its cause frames as the grammar below states |
 
 - **Kinds.** The kinds are the names of the `result` column of the
   [answer vectors](../vectors/README.md#result-kinds). A kind that a later
   release adds is written by its name.
-- **Spans.** A span counts bytes of the input text of the request, never of
-  the operation or the variable. The errors of the parser, including the
-  errors of the terms that it builds, have the spans that its
-  [contract](components/syntax/contract.md#spans) states. An error that has
-  no single range of the input has the span `-`: settings other than the
-  default, an unknown operation, a variable that is not a symbol name, and
-  every error of the work on a term after it is read, such as
-  `UnknownSymbol`, `NotPolynomial` and the request failures of its charges,
-  since a term has no span.
+- **Spans.** A span counts bytes of the text of one operand, never of the
+  operation or the variable. With no location, or with the location of the
+  input, the operand 0, that text is the input of the request; otherwise it
+  is the text of the operand that the innermost frame of the location names.
+  The errors of the parser, including the errors of the terms that it
+  builds, have the spans that its [contract](components/syntax/contract.md#spans)
+  states. An error that has no single range of an operand has the span `-`:
+  settings other than the default, an unknown operation, an entry of the
+  operand table with an unknown role, a second entry of a role that is not
+  repeatable, a missing required role, a variable that is not a symbol
+  name or is reserved, a byte sum of a nonempty operand table over
+  `max_input_bytes`, the request failures of the charges of the entries of
+  the table, of the required roles and of the variable, and every error of
+  the work on a term after it is read, such as `UnknownSymbol`,
+  `NotPolynomial` and the request failures of its charges, since a term has
+  no span. The
+  [order of a request](components/command/contract.md#the-request-and-its-order)
+  states where each of these errors arises.
 - **Limits.** The limit, the scope, the allowed value and the amount are
   those of the `LimitExceeded` record of the error.
 - **Messages.** The message is text for people. Its bytes depend only on the
   error, so they are the same in every run, but its wording is not part of
   the interface and may change in a later release; programs read the other
   fields.
+
+**Locations.** The location of an `error-at` line names the operand in which
+the error arose, by the [cause frames](components/errors/contract.md#cause-frames)
+of the error, outer first:
+
+```text
+location = operand , { ">" , frame } ;
+operand  = decimal ;                (* the operand index of frames()[0]; 0 is input *)
+frame    = name , "#" , decimal ;   (* frames()[1..]: a nested operation or step, its operand index *)
+name     = ? [a-z][a-z0-9-]* : an operation of the dispatch table
+             or a name of the fixed list of nested categories ? ;
+decimal  = ? ASCII digits without a sign, separators or leading zeros,
+             written as the versions are ? ;
+```
+
+The first part is the operand index of the entry frame, whose operation is
+the operation of the request and is not written: 0 is the input, and an
+index $k \ge 1$ is the entry `operands[k-1]` of the operand table of the
+request. Each nested frame follows as `>`, its name, `#` and the index of
+the operand of its operation or step. A location holds only decimal
+numbers, `>`, `#` and names that the library defines, so it is not
+escaped. An error whose location would be `0`, the input without a nested
+frame, is written as an `error` line, with the fields of release 0.1.
 
 **Escaping.** In a message and in the name of a parameter, a backslash is
 written `\\`, a tab `\t`, a line feed `\n`, a carriage return `\r`, and every
@@ -329,6 +389,7 @@ error⇥3⇥2⇥1⇥ResourceLimit⇥2..5⇥Field(max_exponent)⇥-⇥256⇥Requi
 error⇥0⇥0⇥0⇥ResourceLimit⇥-⇥Field(max_nodes)⇥Value⇥12⇥Required(17)⇥resource limit exceeded: max_nodes
 error⇥0⇥0⇥0⇥UnknownSymbol⇥-⇥-⇥-⇥-⇥-⇥eval needs a number, and the input holds a symbol, which has no value
 error⇥0⇥0⇥0⇥Unsupported⇥-⇥-⇥-⇥-⇥-⇥unknown operation: the operations of this release are eval, expand and diff
+error-at⇥0⇥0⇥0⇥Unsupported⇥-⇥-⇥-⇥-⇥-⇥unknown role: the operation reads no operand of this role⇥1
 ```
 
 They are the lines of `eval` of `1/3 + 1/6`; `expand` of `(x+1)^5` in `x`
@@ -336,9 +397,59 @@ with the input version 7; a state, which no operation of this release
 reaches; `eval` of the empty input, whose operand is missing; `eval` of
 `0*(1/0)`; `expand` of `x^257` under `max_exponent = 256`, with the input,
 context and settings versions 3, 2 and 1; `expand` of `(x+1)^5` under
-`max_nodes = 12`, whose power $(x + 1)^3$ needs 17 nodes; `eval` of `x`; and
-the operation `simplify`, which this release does not have. The messages are
-those of this release.
+`max_nodes = 12`, whose power $(x + 1)^3$ needs 17 nodes; `eval` of `x`;
+the operation `simplify`, which this release does not have; and `eval` of
+`1` with the operand table entry of the role `scope` and the text
+`x: real`, a role that `eval` does not read. The messages are those of this
+release.
+
+The lines of the kinds and operations of later releases look like these.
+They only illustrate the fields: the kind `function-value`, its text and its
+condition are those that a later operation may give, and `<message>` stands
+for the message:
+
+```text
+answer⇥0⇥0⇥0⇥function-value⇥log(x)⇥x != 0⇥-
+answer⇥0⇥0⇥0⇥function-value⇥log(x)⇥x != 0⇥x: positive
+error-at⇥0⇥0⇥0⇥Syntax⇥0..3⇥-⇥-⇥-⇥-⇥<message>⇥1
+error-at⇥0⇥0⇥0⇥Unsupported⇥-⇥-⇥-⇥-⇥-⇥<message>⇥2
+error-at⇥0⇥0⇥0⇥OutsideDomain⇥3..5⇥-⇥-⇥-⇥-⇥<message>⇥0>ineq#0
+```
+
+They are, in order: a function value, the term `log(x)` under the condition
+$x \ne 0$, without a scope; the same function value built under the scope
+`x: positive`, which its condition does not read; an error at the bytes
+`0..3` of the first entry of the operand table; an error of the second
+entry without a span, such as an unknown role; and a nested error, a
+relation of `rel-and` at the index 0 whose step `ineq` failed in its
+operand 0.
+
+## Value kinds
+
+Every kind of value that an answer can have, and every shape of a term that
+has a display rule, is a row of this table. The kind is the name that the
+kind field of an [answer line](#output-lines) writes; the level says whether
+it is the kind of an answer, a variant of `kalyx::command::Answer`, or a
+shape inside a term. The display rule of each kind is stated in the
+contract of its component, and the table links to it. The change that adds
+a kind adds its row, every variant of `Answer` has exactly one row, and the
+test `the_table_of_value_kinds_has_a_row_for_every_answer_variant_and_term_shape`
+in `src/command/tests.rs` checks that, and that each test that a row names
+is a function of the test file that it names. The display text of every
+kind is read back by the input grammar, with the round-trip tests that the
+row names, or by a display grammar that the row names with its parse test.
+The value model of the library and the encoding of its values are planned
+for release 0.3. The reserved call of the term core has no constructor in
+this release and no row.
+
+| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Value model and encoding |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `term` | the answer `Answer::Term` | [term core](components/terms/contract.md) | `value` | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::constructions_comparisons_and_displays_charge_fixed_amounts`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text`, `tests/command.rs::the_display_of_a_value_is_charged_to_the_context_of_the_line` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
+| `number` | a shape in a term, `TermKind::Number` | [term core](components/terms/contract.md) | `value`, in its answer | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
+| `symbol` | a shape in a term, `TermKind::Symbol` | [term core](components/terms/contract.md) | `value`, in its answer | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
+| `power` | a shape in a term, `TermKind::Power` | [term core](components/terms/contract.md) | `value`, in its answer | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
+| `product` | a shape in a term, `TermKind::Product` | [term core](components/terms/contract.md) | `value`, in its answer | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
+| `sum` | a shape in a term, `TermKind::Sum` | [term core](components/terms/contract.md) | `value`, in its answer | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
 
 ## The command-line program
 

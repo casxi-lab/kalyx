@@ -22,8 +22,8 @@ each further component follows when it lands, and review holds every change
 to them. `Error`, `CauseFrame`, `Settled<T>`, `LimitId`, `MathState`,
 `Evidence`, `Truth`, `Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`,
 `CoefficientRing`, `CoefficientField`, `Rationals`, `Term`, `TermKind`,
-`parse`, `PolynomialRing`, `Polynomial`, `Request`, `Settings`, `Outcome`,
-`execute` and `serialize` exist today;
+`parse`, `PolynomialRing`, `Polynomial`, `Request`, `Operand`, `Settings`,
+`Outcome`, `Answer`, `execute` and `serialize` exist today;
 other names used here are the names that the code is planned to use. Their
 full rules are in [the architecture](../architecture.md). `cargo xtask check`
 already enforces the parts that it can check mechanically, as each convention
@@ -365,7 +365,7 @@ compared by a method that takes the context. Values are normalized before
 they are encoded or hashed, and equality and ordering never use pointer
 identity. `Error` does not derive equality either, since it carries message
 text: tests compare its kind, span, cause frames and exceeded limit, never
-the message.
+the wording of the message.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/numerical/interval.rs:6-12`.
@@ -449,20 +449,25 @@ does not name it, and the contract of its component says so at its rule:
   with the readings of `Clock`;
 - in the [errors](../components/errors/contract.md), `Span`, the origin of
   the span of an error with cause frames, `Error::frames` with
-  `CauseFrame`, for the base of the operand index and the order of the
-  frames, and the `allowed` value of a bound that a machine width sets;
+  `CauseFrame`, for the base and the numbering of the operand index and the
+  order of the frames, and the `allowed` value of a bound that a machine
+  width sets;
 - in the [shared result types](../components/shared-results/contract.md#combinations),
   `Evidence::and` and `Truth::and`;
 - in the [term core](../components/terms/contract.md), `Term::power`,
-  `compare` with `TermKind::rank`, `equals`, `size`, `depth` and the content
-  of sums;
+  `compare` with `TermKind::rank`, `equals`, `size`, `depth`, the content
+  of sums, and `Term::display`, for the bits of a number that it checks
+  against `max_integer_bits`;
 - in the [polynomials](../components/polynomials/contract.md#operations),
   `PolynomialRing::power`;
 - in the [parser](../components/syntax/contract.md), `parse`, for its
   grammar, for powers with the exponent 0 and for its measures of depth and
   nodes;
 - in the [command entry](../components/command/contract.md#the-dispatch-table),
-  `execute`, for powers with the exponent 0.
+  `execute`, for powers with the exponent 0, and, as the
+  [context](../components/context/contract.md#limits) states, for the bytes
+  that `max_input_bytes` bounds when a request has a nonempty operand
+  table.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/environment/numerical.rs:79`.

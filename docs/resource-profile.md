@@ -43,7 +43,7 @@ the outcome under that context, and for an error whose line does not fit,
 the line under a fresh context. The heap peak is the largest number of live
 bytes above the level before the run, and the blocks are those that the run
 allocates. The allocation check measures the same peaks in its 5,800 runs
-and reports the largest, 901,176 bytes.
+of these cases and reports the largest, 901,176 bytes.
 
 **Stack.** The stack is measured without `unsafe` code in the package or in
 the check. The program runs the request again in a child process, on a
@@ -59,22 +59,22 @@ that it displaces, compared with a thread that runs nothing, times 304
 bytes. The figure is within one frame, 304 bytes, of what one run
 measures, and includes the frames of the check that run the request and those of the
 system allocator. A thread that asks for 1 MiB and runs nothing holds
-3,485 padding frames, 1,059,440 bytes: the thread has somewhat more usable
+3,484 padding frames, 1,059,136 bytes: the thread has somewhat more usable
 stack than it asks for, so the figures use only differences in padding
 frames, never the size of the thread.
 
 ## How to read it
 
-- **The stack does not grow with depth.** Every case uses about 3,300 to
-  9,700 bytes of stack, the most for `dense_rational_64` and
+- **The stack does not grow with depth.** Every case uses about 4,300 to
+  10,000 bytes of stack, the most for `dense_rational_64` and
   `dense_rational_128`. Inputs of 127 to 65,535 levels of parentheses use
-  the same 3,952 bytes, and right-nested sums of 63 to 32,767 levels the same
-  5,168 bytes to evaluate and 6,080 bytes to differentiate: the
-  parser, the term core and the expansion walk their inputs with stacks on
-  the heap and never recurse natively
+  the same 5,776 bytes, and right-nested sums of 63 to 32,767 levels the
+  same 7,296 bytes to evaluate and, within one frame, 7,600 bytes to
+  differentiate: the parser, the term core and the expansion walk their
+  inputs with stacks on the heap and never recurse natively
   ([traversal and drop](architecture.md#traversal-and-drop)). So the native
   stack does not depend on `max_depth`: on this host, the requests measured
-  here need at most 9,728 bytes beyond the stack that a thread takes by
+  here need at most 10,032 bytes beyond the stack that a thread takes by
   itself.
 - **The heap grows with depth and size.** The heap peak of a deep input
   grows linearly with its levels: 72 bytes per level of parentheses, and
@@ -85,7 +85,7 @@ frames, never the size of the thread.
   sum of 2,048 numbers; every other case stays below 625,000 bytes, and 48
   of the 58 below 30,000 bytes.
 - **Errors are cheap.** The nine error cases peak below 10,000 bytes of
-  heap and use at most 5,776 bytes of stack; a request that exceeds a limit
+  heap and use at most 7,296 bytes of stack; a request that exceeds a limit
   stops before it builds what the limit forbids.
 - **A power is computed before its size is stored.** `max_integer_bits`
   bounds a power of numbers before it is computed, and its work is charged
@@ -116,64 +116,64 @@ of the vector; blocks are the allocations of one run.
 
 | Case | Result | Heap peak (bytes) | Blocks | Stack (bytes) |
 | --- | --- | ---: | ---: | ---: |
-| `rational_sum` | ok | 2544 | 39 | 6688 |
-| `exact_decimal` | ok | 1016 | 26 | 6688 |
-| `wide_integer` | ok | 912 | 25 | 4560 |
-| `negative_power` | ok | 1368 | 30 | 6080 |
-| `precedence` | ok | 2336 | 32 | 5168 |
-| `binomial` | ok | 4339 | 179 | 6992 |
-| `factor_product` | ok | 3500 | 155 | 6384 |
-| `rational_coefficients` | ok | 2979 | 160 | 8512 |
-| `derivative` | ok | 4163 | 159 | 7600 |
-| `named_variable` | ok | 3211 | 124 | 7600 |
-| `cancellation` | ok | 3884 | 130 | 6992 |
-| `integer_product_32` | ok | 1016 | 23 | 5168 |
-| `rational_sum_32` | ok | 2544 | 44 | 6688 |
-| `integer_product_64` | ok | 1032 | 26 | 5168 |
-| `rational_sum_64` | ok | 2544 | 49 | 6688 |
-| `integer_product_128` | ok | 1088 | 29 | 5168 |
-| `rational_sum_128` | ok | 2608 | 77 | 6688 |
-| `integer_product_256` | ok | 1216 | 34 | 5168 |
-| `rational_sum_256` | ok | 2800 | 87 | 6688 |
-| `integer_product_512` | ok | 1352 | 34 | 5168 |
-| `rational_sum_512` | ok | 2944 | 94 | 6688 |
-| `integer_product_1024` | ok | 4227 | 72 | 5168 |
-| `rational_sum_1024` | ok | 5784 | 174 | 6688 |
-| `flat_sum_32` | ok | 14136 | 59 | 5168 |
-| `balanced_sum_32` | ok | 10480 | 208 | 5168 |
-| `flat_sum_256` | ok | 112696 | 290 | 5168 |
-| `balanced_sum_256` | ok | 78576 | 1556 | 5168 |
-| `flat_sum_2048` | ok | 901176 | 2088 | 5168 |
-| `balanced_sum_2048` | ok | 624112 | 12312 | 5168 |
-| `right_nested_16` | ok | 11312 | 119 | 5168 |
-| `right_nested_63` | ok | 29784 | 404 | 5168 |
-| `dense_rational_8` | ok | 6067 | 303 | 8512 |
-| `derivative_8` | ok | 6347 | 239 | 7600 |
-| `coefficient_cancellation_8` | ok | 3691 | 76 | 5472 |
-| `dense_rational_32` | ok | 21235 | 1047 | 8512 |
-| `derivative_32` | ok | 24107 | 899 | 7600 |
-| `coefficient_cancellation_32` | ok | 3691 | 76 | 5472 |
-| `dense_rational_64` | ok | 44891 | 9203 | 9728 |
-| `derivative_64` | ok | 48555 | 1904 | 7600 |
-| `coefficient_cancellation_64` | ok | 3691 | 76 | 5472 |
-| `dense_rational_128` | ok | 101283 | 99164 | 9728 |
-| `derivative_128` | ok | 104027 | 12527 | 7600 |
-| `coefficient_cancellation_128` | ok | 3691 | 76 | 5472 |
-| `dense_product_8` | ok | 14170 | 674 | 6992 |
-| `dense_product_32` | ok | 55858 | 2752 | 6992 |
-| `dense_product_64` | ok | 111442 | 5711 | 6992 |
-| `sparse_product_8` | ok | 3267 | 137 | 6384 |
-| `sparse_product_32` | ok | 3267 | 145 | 6384 |
-| `sparse_product_128` | ok | 3267 | 153 | 6384 |
-| `zero_division_1` | DivisionByZero | 1488 | 26 | 3952 |
-| `fractional_power_1` | NonIntegerExponent | 1520 | 29 | 5168 |
-| `unknown_symbol_1` | UnknownSymbol | 1771 | 43 | 5776 |
-| `rational_function_1` | NotPolynomial | 3187 | 83 | 5776 |
-| `degree_limit_1` | ResourceLimit | 789 | 31 | 3952 |
-| `bit_limit_1` | ResourceLimit | 787 | 29 | 4256 |
-| `depth_limit_1` | ResourceLimit | 9264 | 30 | 3344 |
-| `right_depth_limit_1` | ResourceLimit | 3920 | 47 | 3648 |
-| `invalid_syntax_1` | Syntax | 300 | 16 | 3648 |
+| `rational_sum` | ok | 2544 | 39 | 8512 |
+| `exact_decimal` | ok | 1016 | 25 | 8512 |
+| `wide_integer` | ok | 912 | 24 | 6384 |
+| `negative_power` | ok | 1368 | 29 | 7904 |
+| `precedence` | ok | 2336 | 32 | 7296 |
+| `binomial` | ok | 4339 | 178 | 7600 |
+| `factor_product` | ok | 3500 | 154 | 7296 |
+| `rational_coefficients` | ok | 2979 | 159 | 9120 |
+| `derivative` | ok | 4163 | 158 | 7904 |
+| `named_variable` | ok | 3211 | 123 | 8816 |
+| `cancellation` | ok | 3884 | 130 | 7600 |
+| `integer_product_32` | ok | 1016 | 23 | 7296 |
+| `rational_sum_32` | ok | 2544 | 43 | 8512 |
+| `integer_product_64` | ok | 1032 | 25 | 7296 |
+| `rational_sum_64` | ok | 2544 | 48 | 8512 |
+| `integer_product_128` | ok | 1088 | 28 | 7296 |
+| `rational_sum_128` | ok | 2608 | 76 | 8512 |
+| `integer_product_256` | ok | 1216 | 33 | 7296 |
+| `rational_sum_256` | ok | 2800 | 86 | 8816 |
+| `integer_product_512` | ok | 1616 | 33 | 7296 |
+| `rational_sum_512` | ok | 2992 | 93 | 9120 |
+| `integer_product_1024` | ok | 4224 | 71 | 7296 |
+| `rational_sum_1024` | ok | 5781 | 173 | 8512 |
+| `flat_sum_32` | ok | 14136 | 59 | 7296 |
+| `balanced_sum_32` | ok | 10480 | 208 | 7296 |
+| `flat_sum_256` | ok | 112696 | 289 | 7296 |
+| `balanced_sum_256` | ok | 78576 | 1555 | 7296 |
+| `flat_sum_2048` | ok | 901176 | 2087 | 7296 |
+| `balanced_sum_2048` | ok | 624112 | 12311 | 7296 |
+| `right_nested_16` | ok | 11312 | 119 | 7296 |
+| `right_nested_63` | ok | 29784 | 404 | 7296 |
+| `dense_rational_8` | ok | 6067 | 302 | 9120 |
+| `derivative_8` | ok | 6347 | 238 | 7904 |
+| `coefficient_cancellation_8` | ok | 3691 | 76 | 7600 |
+| `dense_rational_32` | ok | 21235 | 1046 | 9120 |
+| `derivative_32` | ok | 24107 | 898 | 7904 |
+| `coefficient_cancellation_32` | ok | 3691 | 76 | 7600 |
+| `dense_rational_64` | ok | 44891 | 9202 | 10032 |
+| `derivative_64` | ok | 48555 | 1903 | 7904 |
+| `coefficient_cancellation_64` | ok | 3691 | 76 | 7600 |
+| `dense_rational_128` | ok | 101283 | 99163 | 10032 |
+| `derivative_128` | ok | 104027 | 12526 | 8208 |
+| `coefficient_cancellation_128` | ok | 3691 | 76 | 7600 |
+| `dense_product_8` | ok | 14170 | 673 | 7904 |
+| `dense_product_32` | ok | 55858 | 2751 | 7904 |
+| `dense_product_64` | ok | 111442 | 5710 | 7904 |
+| `sparse_product_8` | ok | 3267 | 136 | 7296 |
+| `sparse_product_32` | ok | 3267 | 144 | 7296 |
+| `sparse_product_128` | ok | 3267 | 152 | 7296 |
+| `zero_division_1` | DivisionByZero | 1488 | 31 | 5776 |
+| `fractional_power_1` | NonIntegerExponent | 1520 | 33 | 7296 |
+| `unknown_symbol_1` | UnknownSymbol | 1771 | 47 | 7296 |
+| `rational_function_1` | NotPolynomial | 3187 | 87 | 7296 |
+| `degree_limit_1` | ResourceLimit | 789 | 32 | 5776 |
+| `bit_limit_1` | ResourceLimit | 787 | 30 | 6080 |
+| `depth_limit_1` | ResourceLimit | 9264 | 31 | 4256 |
+| `right_depth_limit_1` | ResourceLimit | 3920 | 48 | 4560 |
+| `invalid_syntax_1` | Syntax | 253 | 20 | 4256 |
 
 ## Deep inputs
 
@@ -186,15 +186,15 @@ $x+(x+(\ldots(x)\ldots))$.
 
 | Input | `max_depth` | Levels | Result | Heap peak (bytes) | Stack (bytes) |
 | --- | ---: | ---: | --- | ---: | ---: |
-| parentheses | 128 | 127 | ok | 9264 | 3952 |
-| parentheses | 1024 | 1023 | ok | 73776 | 3952 |
-| parentheses | 8192 | 8191 | ok | 589872 | 3952 |
-| parentheses | 65536 | 65535 | ok | 4718640 | 3952 |
-| right-sums | 128 | 63 | ok | 29784 | 5168 |
-| right-sums | 1024 | 511 | ok | 237656 | 5168 |
-| right-sums | 8192 | 4095 | ok | 1900632 | 5168 |
-| right-sums | 65536 | 32767 | ok | 15204440 | 5168 |
-| right-sums-of-x | 128 | 63 | ok | 30289 | 6080 |
-| right-sums-of-x | 1024 | 511 | ok | 238609 | 6080 |
-| right-sums-of-x | 8192 | 4095 | ok | 1905169 | 6080 |
-| right-sums-of-x | 65536 | 32767 | ok | 15237649 | 6080 |
+| parentheses | 128 | 127 | ok | 9264 | 5776 |
+| parentheses | 1024 | 1023 | ok | 73776 | 5776 |
+| parentheses | 8192 | 8191 | ok | 589872 | 5776 |
+| parentheses | 65536 | 65535 | ok | 4718640 | 5776 |
+| right-sums | 128 | 63 | ok | 29784 | 7296 |
+| right-sums | 1024 | 511 | ok | 237656 | 7296 |
+| right-sums | 8192 | 4095 | ok | 1900632 | 7296 |
+| right-sums | 65536 | 32767 | ok | 15204440 | 7296 |
+| right-sums-of-x | 128 | 63 | ok | 30289 | 7600 |
+| right-sums-of-x | 1024 | 511 | ok | 238609 | 7600 |
+| right-sums-of-x | 8192 | 4095 | ok | 1905169 | 7600 |
+| right-sums-of-x | 65536 | 32767 | ok | 15237649 | 7904 |

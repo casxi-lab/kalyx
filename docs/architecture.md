@@ -1170,15 +1170,23 @@ number other than 0, as the [constants](#constants) need.
 
 ## Requests and results
 
-**Status:** planned for release 0.2; not implemented, apart from the
-[cause frames](#locations-and-cause-frames) of an error, which the errors
-component holds and to which no layer adds a frame yet. In release 0.1 the
-grammar reads only values, a request has no operand table, and every value
-that an operation returns is a term. The rules below are those that the
-parser, the command entry and the operations of release 0.2 follow when
-they land; the [input syntax](semantics.md), the
+**Status:** the [operands of a request](#the-operands-of-a-request), its
+[order of checks](#the-order-of-the-checks), its
+[answers and output lines](#answers-and-output-lines), the
+[locations and cause frames](#locations-and-cause-frames) of its errors,
+the [fallback line](#the-fallback-line) and the
+[table of value kinds](#the-table-of-value-kinds) are implemented, as the
 [contract of the command entry](components/command/contract.md) and the
-contracts of the other components write them out then. The commands named
+[output lines](semantics.md#output-lines) state them: a request has an
+operand table, an answer is an `Answer`, and an error has its entry frame.
+The operations of this release read no role of the table, every answer is
+a term, and no operation adds a nested frame. The extension of the grammar,
+the start symbols by role, the roles of the planned operations and their
+nested categories are planned for release 0.2 and not implemented: the
+grammar of this release reads only values. The rules below are those that
+the parser, the command entry and the operations of release 0.2 follow; the
+[input syntax](semantics.md) and the contracts of the other components write
+out the planned parts when they land. The commands named
 here other than `eval`, `expand` and `diff` are planned commands of that
 release. An input that 0.1 accepts reads the same, and the kinds of lines
 that 0.1 writes keep their fields.
@@ -1607,7 +1615,8 @@ it; the name differs from that of `kalyx::context::Frame`, the token that
   to read, or an error of the operation that belongs to one operand. An
   error that concerns no operand, of the settings, the operation name, a
   missing role, the sum of the bytes or the variable, has no frame, and
-  neither has an error of a library function that is called directly.
+  neither has a request failure of the charge of a required role or of the
+  variable, or an error of a library function that is called directly.
 - **Nested frames.** The other frames are nested frames: each records an
   operation, or a fixed step of the library, that an operation enters, and
   the index of the operand there. The left relation of `rel-and` that fails
@@ -1677,9 +1686,9 @@ fresh flag without a deadline its writing reports neither `Cancelled` nor
 ### The table of value kinds
 
 Every value kind that an answer can have, and every shape of a term that has
-a display rule, is a row of one table in the documentation of kalyx, at a
-place that the implementation of the command entry fixes, and a test checks
-the table against the code:
+a display rule, is a row of one table, the
+[table of value kinds](semantics.md#value-kinds) of the input syntax and
+semantics, and a test checks the table against the code:
 
 - **Columns.** A row holds the name of the kind, which is the KIND of an
   `answer` line; whether it is an answer or a shape in a term; its
@@ -1728,7 +1737,7 @@ quantity.
 | Field | Bounds | Default |
 | --- | --- | --- |
 | `max_work` | work units charged by the request | 100000 |
-| `max_input_bytes` | bytes of the request's input | 65536 |
+| `max_input_bytes` | bytes of the request's input; with a nonempty operand table, of all its text operands together | 65536 |
 | `max_output_bytes` | bytes of all display and serialization of the request, cumulative | 65536 |
 | `max_depth` | nesting depth of syntax, terms and values | 128 |
 | `max_nodes` | nodes retained at one time: the costs of the open frames, the reserved temporaries and the value being admitted | 8192 |
@@ -1983,7 +1992,8 @@ state to an `Error`, or back.
 `Error` has private fields and the accessors `kind()`, `span()`,
 `message()`, `frames()` and `exceeded()`; `exceeded()` is `Some` exactly when
 the kind is `ResourceLimit`, and `frames()` lists the
-[cause frames](#locations-and-cause-frames), which no layer adds yet.
+[cause frames](#locations-and-cause-frames), whose entry frame the command
+entry adds.
 
 - `ErrorKind` is `ResourceLimit`, `Cancelled`, `DeadlineExceeded` or
   `Fault(FaultKind)`. The first three are request failures, and only the
@@ -2006,7 +2016,7 @@ the kind is `ResourceLimit`, and `frames()` lists the
   documentation test with the expected error code checks this.
 - `Error` does not derive `PartialEq`, `Eq` or `Hash`, because it carries
   message text. Tests compare `kind()`, `span()`, `frames()` and
-  `exceeded()`, never the message.
+  `exceeded()`, never the wording of the message.
 
 ### Limit identifiers
 
@@ -2068,24 +2078,25 @@ the contract of the command entry defines together with krepi: its
 maps them to `cancelled` and `resource_exhausted`, and the contract states
 the terminal state of a job of several requests.
 
-The classes take in what later releases add (planned). A value of any
-variant of `Answer` has a `value` line for a term and an
+A value of any variant of `Answer` has a `value` line for a term and an
 [`answer` line](#answers-and-output-lines) otherwise, and an error has an
-`error` or `error-at` line. A new variant of `Answer` or of `MathState`,
-and a new `FaultKind` of the class `Input` or `Internal`, fall into an
-existing class and leave Table 1 as it is; Table 1 changes only for a new
-request failure (a new kind of the class `Context`), a new variant of
-`Settled`, a new fault kind of another class or a new terminal state for an
-existing class. An answer whose completeness is unsolved, such as an
-incomplete list of roots, is a value, and its job completes: the terminal
-state says whether the request finished, not whether its answer is
-complete.
+`error` or `error-at` line; these lines are implemented, and every answer
+of this release is a term. The classes take in what later releases add: a
+new variant of `Answer` or of `MathState`, and a new `FaultKind` of the
+class `Input` or `Internal`, fall into an existing class and leave Table 1
+as it is; Table 1 changes only for a new request failure (a new kind of
+the class `Context`), a new variant of `Settled`, a new fault kind of
+another class or a new terminal state for an existing class. An answer whose
+completeness is unsolved, such as an incomplete list of roots, is a value,
+and its job completes: the terminal state says whether the request finished,
+not whether its answer is complete.
 
 In 0.1, function-call syntax, the reserved names `pi`, `i` and `undefined`,
 an unknown operation and a non-default setting fail with `Unsupported`, and
-a missing operand fails with `Syntax`. In 0.2 (planned), calls and the
-constants have a meaning; an unknown head of a call, a wrong number of
-arguments, a second entry of a role that is not repeatable and a missing
-operand, a missing required role included, fail with `Syntax`, and an
-unknown role fails with `Unsupported`, as an unknown operation and a
-non-default setting still do.
+a missing operand fails with `Syntax`. The checks of the operand table are
+implemented: an unknown role fails with `Unsupported`, as an unknown
+operation and a non-default setting still do, and a second entry of a role
+that is not repeatable and a missing required role fail with `Syntax`. In
+0.2 (planned), calls and the constants have a meaning, and an unknown head
+of a call and a wrong number of arguments fail with `Syntax`, as a missing
+operand does.

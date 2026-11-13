@@ -1,25 +1,41 @@
 //! Unit tests of the command entry for what code outside the library cannot
-//! build: the dispatch table, the rejection of settings other than the
-//! default, and the lines of a state, of a request parameter and of
-//! messages that need escaping. Errors are compared by kind, span and
-//! exceeded limit, never by message.
+//! build: the dispatch table and its index in the contract, the rejection
+//! of settings other than the default, the operand table under signatures
+//! with roles, which no operation of this release has, the lines of a
+//! state, of an answer, of a request parameter, of messages that need
+//! escaping and of errors with cause frames, the representative lines of
+//! the serialization at their limits and under cancellation, the bound of
+//! the fallback line and the table of value kinds. Errors are compared by
+//! kind, span, cause frames and exceeded limit, never by the wording of a
+//! message, but for the three rules that the message of a missing role ends
+//! with its role, that the message of an unknown operation lists the
+//! operations of the dispatch table and that the longest message, that of a
+//! malformed variable, has the bytes that the bound of the fallback line
+//! counts.
 
-use crate::context::CancelFlag;
-use crate::term::Term;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::context::{CancelFlag, CancelProbe, Clock};
+use crate::term::{Term, TermKind};
 use crate::{
-    Context, Error, ErrorKind, FaultKind, LimitAmount, LimitExceeded, LimitField, LimitId,
-    LimitScope, Limits, MathState, Result, Settled, Span,
+    CauseFrame, Context, Error, ErrorKind, FaultKind, LimitAmount, LimitExceeded, LimitField,
+    LimitId, LimitScope, Limits, MathState, Result, Settled, Span,
 };
 
-use super::dispatch::{CommandOperation, OPERATIONS, lookup};
-use super::{Outcome, check_default, serialize};
+use super::dispatch::{
+    CATEGORY_NAMES, CommandOperation, NESTED_FRAMES, OPERATIONS, lookup, signature,
+};
+use super::line::answer_line;
+use super::operands::{self, Operands, Presence, Role, Signature};
+use super::{Answer, Outcome, Request, check_default, execute, serialize};
 
 fn context(limits: Limits) -> Context {
     Context::new(limits, CancelFlag::new())
 }
 
 /// An outcome with the versions 1, 2 and 3 and the result `result`.
-fn outcome(result: Result<Settled<Term>>) -> Outcome {
+fn outcome(result: Result<Settled<Answer>>) -> Outcome {
     Outcome {
         input_version: 1,
         context_version: 2,
@@ -41,8 +57,39 @@ fn line(outcome: &Outcome) -> (String, u64) {
     (String::from_utf8(bytes).unwrap(), c.output_used())
 }
 
+/// The contract of the command entry.
+const CONTRACT: &str = include_str!("../../docs/components/command/contract.md");
+
+/// The input syntax and semantics, with the output lines and the table of
+/// value kinds.
+const SEMANTICS: &str = include_str!("../../docs/semantics.md");
+
+/// The rows of the Markdown table under the header line `header` in
+/// `text`, which may be indented, each as its cells without their
+/// surrounding spaces.
+fn table_rows<'a>(text: &'a str, header: &str) -> Vec<Vec<&'a str>> {
+    let mut lines = text
+        .lines()
+        .map(str::trim_start)
+        .skip_while(|line| *line != header);
+    assert_eq!(lines.next(), Some(header), "no table {header:?}");
+    assert!(
+        lines.next().is_some_and(|rule| rule.starts_with("| ---")),
+        "{header:?}"
+    );
+    lines
+        .take_while(|line| line.starts_with('|'))
+        .map(|line| line.trim_matches('|').split(" | ").map(str::trim).collect())
+        .collect()
+}
+
 // The dispatch table holds the three operations of this release, each once,
-// and a lookup finds each by its name, byte for byte, and nothing else.
+// and a lookup finds each by its name, byte for byte, and nothing else. The
+// operation index of the contract names the same operations in the same
+// order: the table is the one place that registers an operation, by name.
+// The message of an unknown operation lists the operations of the table, in
+// its order, and no other name after the first of them, so it changes with
+// the table.
 #[test]
 fn the_dispatch_table_holds_eval_expand_and_diff() {
     assert_eq!(
@@ -54,7 +101,7 @@ fn the_dispatch_table_holds_eval_expand_and_diff() {
         ]
     );
     for (name, operation) in OPERATIONS {
-        assert_eq!(lookup(name).unwrap(), operation);
+        assert_eq!(lookup(name).unwrap(), (name, operation));
     }
     for name in ["", "Eval", "eval ", " eval", "evaluate", "simplify", "dif"] {
         let error = lookup(name).unwrap_err();
@@ -64,7 +111,40 @@ fn the_dispatch_table_holds_eval_expand_and_diff() {
             "{name:?}"
         );
         assert_eq!(error.span(), None);
+        assert!(error.frames().is_empty());
     }
+    let index = table_rows(
+        CONTRACT,
+        "| Operation | Contract | Signature | Result | Since |",
+    );
+    let names: Vec<String> = index.iter().map(|row| row[0].replace('`', "")).collect();
+    let registered: Vec<&str> = OPERATIONS.iter().map(|(name, _)| *name).collect();
+    assert_eq!(names, registered);
+    for row in &index {
+        assert_eq!(row.len(), 5, "{row:?}");
+        assert_eq!(row[3], "`Answer::Term`", "{row:?}");
+        assert_eq!(row[4], "`v0.1.0`", "{row:?}");
+    }
+    let unknown = lookup("simplify").unwrap_err();
+    let message = unknown.message();
+    let words: Vec<&str> = message
+        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '-'))
+        .filter(|word| !word.is_empty())
+        .collect();
+    let first = words
+        .iter()
+        .position(|word| *word == registered[0])
+        .unwrap_or_else(|| panic!("{message:?}"));
+    assert!(
+        words[..first].iter().all(|word| !registered.contains(word)),
+        "{message:?}"
+    );
+    let listed: Vec<&str> = words[first..]
+        .iter()
+        .copied()
+        .filter(|word| *word != "and")
+        .collect();
+    assert_eq!(listed, registered, "the message lists the table");
 }
 
 /// A settings record with one setting, standing in for a later release: its
@@ -86,6 +166,7 @@ fn a_settings_record_other_than_its_default_is_unsupported() {
     assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Unsupported));
     assert_eq!(error.span(), None);
     assert!(error.exceeded().is_none());
+    assert!(error.frames().is_empty());
 }
 
 // A state is written as a state line with the name of the state, after the
@@ -266,5 +347,1527 @@ fn every_limit_field_scope_and_amount_has_its_text() {
             ],
             "{text:?}"
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The operand table, under signatures that only these tests build
+
+/// The operation of the signatures of these tests, which the dispatch table
+/// does not hold.
+const PROBE: &str = "probe";
+
+/// A signature with one required role of the table.
+const ONE_REQUIRED: Signature = Signature {
+    roles: &[Role {
+        name: "left",
+        presence: Presence::Required,
+    }],
+};
+
+/// A signature with a required, a repeatable, an optional and a second
+/// required role, in this order.
+const MIXED: Signature = Signature {
+    roles: &[
+        Role {
+            name: "left",
+            presence: Presence::Required,
+        },
+        Role {
+            name: "items",
+            presence: Presence::Repeatable,
+        },
+        Role {
+            name: "order",
+            presence: Presence::Optional,
+        },
+        Role {
+            name: "right",
+            presence: Presence::Required,
+        },
+    ],
+};
+
+/// Steps 3, 4, 6 and 7 of the order of a request of `PROBE` with
+/// `signature`: the steps of the operand table of an operation that does
+/// not read the variable, as the dispatch table runs them.
+fn probe(signature: &Signature, request: &Request, context: &mut Context) -> Result<Operands> {
+    let table = operands::check_table(PROBE, signature, &request.operands, context)?;
+    operands::read(PROBE, &table, request, context)
+}
+
+/// The cause frames of `error`, each as its name and operand index.
+fn frames(error: &Error) -> Vec<(&str, u64)> {
+    error
+        .frames()
+        .iter()
+        .map(|frame| (frame.name(), frame.operand_index()))
+        .collect()
+}
+
+/// The display texts of `terms`, under the default limits.
+fn texts(terms: &[Term]) -> Vec<String> {
+    let c = &mut context(Limits::new());
+    terms.iter().map(|term| term.display(c).unwrap()).collect()
+}
+
+/// A context whose flag is cancelled.
+fn cancelled() -> Context {
+    let flag = CancelFlag::new();
+    flag.cancel();
+    Context::new(Limits::new(), flag)
+}
+
+/// The fields of a line, without its line feed.
+fn fields_of(text: &str) -> Vec<&str> {
+    text.strip_suffix('\n')
+        .expect("a line ends with a line feed")
+        .split('\t')
+        .collect()
+}
+
+// A required role that the table does not hold is a missing operand: step 4
+// charges one unit for the role, then fails with `Syntax`, without a span,
+// without a frame and so without a location, and its message names the
+// role of the signature, a name of the library. Under a cancelled flag the
+// charge fails first, with `Cancelled`. The operations of this release read
+// no role of the table, so a signature of this test stands in for one.
+#[test]
+fn a_missing_required_role_is_a_syntax_error_without_a_location() {
+    let request = Request::new(PROBE, "", "1");
+    let c = &mut context(Limits::new());
+    let error = probe(&ONE_REQUIRED, &request, c).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Syntax));
+    assert_eq!(error.span(), None);
+    assert!(error.frames().is_empty());
+    assert_eq!(c.work_used(), 1, "one unit for the required role");
+    assert!(error.message().ends_with(" left"), "{}", error.message());
+    let (text, _) = line(&outcome(Err(error)));
+    let found = fields_of(&text);
+    assert_eq!(found.len(), 11, "{text:?}");
+    assert_eq!(
+        found[..10],
+        ["error", "1", "2", "3", "Syntax", "-", "-", "-", "-", "-"]
+    );
+    let c = &mut cancelled();
+    let error = probe(&ONE_REQUIRED, &request, c).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Cancelled);
+    assert_eq!(c.work_used(), 0);
+}
+
+// A second entry of a role that is not repeatable fails at its own index:
+// step 3 charges one unit for the entry, then fails with `Syntax`, without a
+// span, with the frame of the entry, so its line is an `error-at` line whose
+// location is the index of the second entry. An optional role cannot repeat
+// either, and a repeatable role can.
+#[test]
+fn a_role_that_cannot_repeat_is_a_syntax_error_at_its_second_index() {
+    let request = Request::new(PROBE, "", "1")
+        .with_operand("left", "2")
+        .with_operand("left", "3");
+    let c = &mut context(Limits::new());
+    let error = probe(&ONE_REQUIRED, &request, c).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Syntax));
+    assert_eq!(error.span(), None);
+    assert_eq!(frames(&error), [(PROBE, 2)]);
+    assert_eq!(c.work_used(), 2, "one unit for each entry up to the second");
+    let (text, _) = line(&outcome(Err(error)));
+    let found = fields_of(&text);
+    assert_eq!(found.len(), 12, "{text:?}");
+    assert_eq!(
+        (found[0], found[4], found[5], found[11]),
+        ("error-at", "Syntax", "-", "2")
+    );
+    let request = Request::new(PROBE, "", "1")
+        .with_operand("order", "1")
+        .with_operand("left", "2")
+        .with_operand("order", "3");
+    let error = probe(&MIXED, &request, &mut context(Limits::new())).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Syntax));
+    assert_eq!(frames(&error), [(PROBE, 3)]);
+    let request = Request::new(PROBE, "", "1")
+        .with_operand("items", "1")
+        .with_operand("left", "2")
+        .with_operand("items", "3")
+        .with_operand("right", "4")
+        .with_operand("items", "5");
+    let read = probe(&MIXED, &request, &mut context(Limits::new())).unwrap();
+    assert_eq!(texts(&read.roles[1]), ["1", "3", "5"]);
+}
+
+// With a nonempty table, the entry checks the byte sum of every text
+// operand, the input and each entry, against `max_input_bytes`: the sum at
+// the limit passes, and one byte more fails with `ResourceLimit` naming
+// `max_input_bytes`, `Required` of the sum, without a span and without a
+// frame. The check is not a charge point: it charges and polls nothing, so
+// a cancelled flag does not change it. With an empty table the parser
+// checks the input alone before it reads it, as in release 0.1, with the
+// span of the whole input.
+#[test]
+fn the_byte_sum_of_the_operands_is_checked_against_max_input_bytes() {
+    let request = Request::new(PROBE, "", "1")
+        .with_operand("left", "22")
+        .with_operand("right", "333");
+    let c = &mut context(Limits::new().with_max_input_bytes(6));
+    probe(&MIXED, &request, c).unwrap();
+    let c = &mut context(Limits::new().with_max_input_bytes(5));
+    let error = probe(&MIXED, &request, c).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    assert_eq!(error.span(), None);
+    assert!(error.frames().is_empty());
+    let exceeded = error.exceeded().unwrap();
+    assert_eq!(exceeded.id(), &LimitId::Field(LimitField::InputBytes));
+    assert_eq!(exceeded.scope(), None);
+    assert_eq!(exceeded.allowed(), 5);
+    assert_eq!(exceeded.amount(), LimitAmount::Required(6));
+    for (limit, passes) in [(6, true), (5, false)] {
+        let flag = CancelFlag::new();
+        flag.cancel();
+        let c = Context::new(Limits::new().with_max_input_bytes(limit), flag).with_timeout(0);
+        match operands::check_input_bytes(&request, &c) {
+            Ok(()) => assert!(passes),
+            Err(error) => {
+                assert!(!passes);
+                assert_eq!(error.kind(), ErrorKind::ResourceLimit, "not a charge point");
+            }
+        }
+        assert_eq!((c.work_used(), c.output_used()), (0, 0));
+    }
+    let request = Request::new("eval", "x", "1234567");
+    let limited = context(Limits::new().with_max_input_bytes(6));
+    operands::check_input_bytes(&request, &limited).unwrap();
+    let mut limited = limited;
+    let outcome = execute(&request, &mut limited);
+    let error = outcome.result().as_ref().unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    assert_eq!(error.span(), Span::new(0, 7));
+    let exceeded = error.exceeded().unwrap();
+    assert_eq!(exceeded.id(), &LimitId::Field(LimitField::InputBytes));
+    assert_eq!(exceeded.amount(), LimitAmount::Required(7));
+    assert_eq!(frames(error), [("eval", 0)]);
+}
+
+// The byte sum is added with checked addition: a sum that does not fit in a
+// `u64` is reported as `Bound(u64::MAX)` and fails under every value of
+// `max_input_bytes`, `u64::MAX` included, while a sum of exactly `u64::MAX`
+// passes under that limit.
+#[test]
+fn an_overflowing_byte_sum_is_reported_as_the_u64_bound() {
+    for limit in [0, 1, 1 << 40, u64::MAX] {
+        let c = &context(Limits::new().with_max_input_bytes(limit));
+        for lengths in [
+            &[u64::MAX, 1][..],
+            &[1, u64::MAX - 1, 1],
+            &[u64::MAX, u64::MAX],
+        ] {
+            let error = operands::check_byte_sum(lengths, c).unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+            assert_eq!(error.span(), None);
+            let exceeded = error.exceeded().unwrap();
+            assert_eq!(exceeded.id(), &LimitId::Field(LimitField::InputBytes));
+            assert_eq!(exceeded.allowed(), limit);
+            assert_eq!(exceeded.amount(), LimitAmount::Bound(u64::MAX));
+        }
+    }
+    let c = &context(Limits::new().with_max_input_bytes(u64::MAX));
+    operands::check_byte_sum(&[u64::MAX - 1, 1], c).unwrap();
+    operands::check_byte_sum(&[], c).unwrap();
+}
+
+// The operands are read in the order of the signature: the input first,
+// then each role, the entries of a repeatable role in the order of the
+// table, and an optional role that the table does not hold gives no term,
+// so that its operation applies its default. An error of an operand has the
+// frame of its index and its span into the text of that operand, and the
+// first error in the order of the signature is the one reported, not the
+// first of the table. The steps come in their order: the entries, the
+// required roles, the byte sum, then the reading.
+#[test]
+fn operands_are_read_in_the_order_of_the_signature() {
+    let request = Request::new(PROBE, "", "0")
+        .with_operand("items", "2")
+        .with_operand("right", "4")
+        .with_operand("items", "3")
+        .with_operand("left", "1");
+    let c = &mut context(Limits::new());
+    let read = probe(&MIXED, &request, c).unwrap();
+    assert_eq!(texts(&[read.input]), ["0"]);
+    let roles: Vec<Vec<String>> = read.roles.iter().map(|terms| texts(terms)).collect();
+    assert_eq!(roles, [vec!["1"], vec!["2", "3"], vec![], vec!["4"]]);
+    let request = request.with_operand("order", "5");
+    let read = probe(&MIXED, &request, &mut context(Limits::new())).unwrap();
+    assert_eq!(texts(&read.roles[2]), ["5"]);
+
+    let span_of = |text: &str| {
+        crate::parse(text, &mut context(Limits::new()))
+            .unwrap_err()
+            .span()
+    };
+    let request = Request::new(PROBE, "", "0")
+        .with_operand("items", "2 +")
+        .with_operand("right", "4")
+        .with_operand("left", "(1");
+    let error = probe(&MIXED, &request, &mut context(Limits::new())).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Syntax));
+    assert_eq!(frames(&error), [(PROBE, 3)], "left comes before items");
+    assert_eq!(error.span(), span_of("(1"));
+    let request = Request::new(PROBE, "", "0")
+        .with_operand("items", "2 +")
+        .with_operand("right", "4")
+        .with_operand("left", "1");
+    let error = probe(&MIXED, &request, &mut context(Limits::new())).unwrap_err();
+    assert_eq!(frames(&error), [(PROBE, 1)]);
+    assert_eq!(error.span(), span_of("2 +"));
+    let request = Request::new(PROBE, "", "1/0")
+        .with_operand("left", "(1")
+        .with_operand("right", "4");
+    let error = probe(&MIXED, &request, &mut context(Limits::new())).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::DivisionByZero));
+    assert_eq!(frames(&error), [(PROBE, 0)], "the input comes first");
+
+    // An unknown role comes before a missing role, which comes before the
+    // byte sum, which comes before the reading.
+    let request = Request::new(PROBE, "", "(").with_operand("other", "1");
+    let error = probe(&MIXED, &request, &mut context(Limits::new())).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Unsupported));
+    assert_eq!(frames(&error), [(PROBE, 1)]);
+    let request = Request::new(PROBE, "", "(").with_operand("left", "1");
+    let limits = Limits::new().with_max_input_bytes(1);
+    let error = probe(&MIXED, &request, &mut context(limits)).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Fault(FaultKind::Syntax));
+    assert!(error.frames().is_empty(), "the missing role `right`");
+    let request = request.with_operand("right", "1");
+    let error = probe(&MIXED, &request, &mut context(limits)).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    // One unit for each entry and for each required role, then the parser.
+    let request = Request::new(PROBE, "", "")
+        .with_operand("left", "")
+        .with_operand("right", "");
+    let c = &mut context(Limits::new());
+    let error = probe(&MIXED, &request, c).unwrap_err();
+    assert_eq!(frames(&error), [(PROBE, 0)]);
+    let parsed = &mut context(Limits::new());
+    crate::parse("", parsed).unwrap_err();
+    assert_eq!(c.work_used(), 2 + 2 + parsed.work_used());
+}
+
+// Errors outside the operands have no cause frame: settings other than the
+// default, an unknown operation, a missing role and the byte sum, and a
+// request failure at the charge of a required role, whose line is then an
+// `error` line, also as the fallback line under a fresh context.
+#[test]
+fn errors_outside_the_operands_have_no_frame() {
+    let settings = check_default(&LaterSettings { precision: 53 }).unwrap_err();
+    let operation = lookup("simplify").unwrap_err();
+    let missing = probe(
+        &ONE_REQUIRED,
+        &Request::new(PROBE, "", "1"),
+        &mut context(Limits::new()),
+    )
+    .unwrap_err();
+    let request = Request::new(PROBE, "", "1").with_operand("left", "2");
+    let limits = Limits::new().with_max_input_bytes(1);
+    let bytes = probe(&ONE_REQUIRED, &request, &mut context(limits)).unwrap_err();
+    for error in [&settings, &operation, &missing, &bytes] {
+        assert!(error.frames().is_empty(), "{error}");
+    }
+    let c = &mut cancelled();
+    let error = probe(&ONE_REQUIRED, &Request::new(PROBE, "", "1"), c).unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::Cancelled);
+    assert!(error.frames().is_empty());
+    let failed = outcome(Err(error));
+    assert_eq!(
+        serialize(&failed, c).unwrap_err().kind(),
+        ErrorKind::Cancelled
+    );
+    let fresh = &mut Context::new(Limits::new(), CancelFlag::new());
+    let text = String::from_utf8(serialize(&failed, fresh).unwrap()).unwrap();
+    assert_eq!(fields_of(&text)[..5], ["error", "1", "2", "3", "Cancelled"]);
+}
+
+// ---------------------------------------------------------------------------
+// The lines of answers and of errors with cause frames
+
+/// An outcome with the versions 0 and the result `result`.
+fn plain(result: Result<Settled<Answer>>) -> Outcome {
+    Outcome {
+        input_version: 0,
+        context_version: 0,
+        settings_version: 0,
+        result,
+    }
+}
+
+/// `error` with the frames `frames`, outer first.
+fn framed(error: Error, frames: &[(&'static str, u64)]) -> Error {
+    let mut error = error;
+    for (name, index) in frames.iter().rev() {
+        error = error.with_outer_frame(CauseFrame::new(name, *index));
+    }
+    error
+}
+
+// An answer line has eight fields: `answer`, the three versions, the kind,
+// the text, the condition and the assumptions, `-` for a part that the
+// value does not have. Each field with its tab is charged and written, so
+// the output charged is the length of the line, and the three texts are
+// printable ASCII. No answer of this release is written as an answer line,
+// so the line is written here from its parts.
+#[test]
+fn an_answer_line_has_its_eight_fields() {
+    let versions = outcome(Ok(Settled::State(MathState::Undecided)));
+    for (condition, assumptions, expected) in [
+        (
+            Some(&b"x != 0"[..]),
+            None,
+            "answer\t1\t2\t3\tfunction-value\tlog(x)\tx != 0\t-\n",
+        ),
+        (
+            Some(b"x != 0"),
+            Some(&b"x: positive"[..]),
+            "answer\t1\t2\t3\tfunction-value\tlog(x)\tx != 0\tx: positive\n",
+        ),
+        (
+            None,
+            None,
+            "answer\t1\t2\t3\tfunction-value\tlog(x)\t-\t-\n",
+        ),
+    ] {
+        let probe = CountingProbe::never();
+        let c = &mut observed(Limits::new(), &probe);
+        let bytes = answer_line(
+            &versions,
+            b"function-value",
+            b"log(x)",
+            condition,
+            assumptions,
+            c,
+        )
+        .unwrap();
+        let text = String::from_utf8(bytes).unwrap();
+        assert_eq!(text, expected);
+        assert_eq!(c.output_used(), text.len() as u64);
+        assert_eq!(probe.polls(), 9, "one charge per field and the line feed");
+        let found = fields_of(&text);
+        assert_eq!(found.len(), 8);
+        for field in &found[5..8] {
+            assert!(
+                field.bytes().all(|byte| (0x20..0x7f).contains(&byte)),
+                "{field:?}"
+            );
+        }
+    }
+}
+
+// An `error-at` line has twelve fields: its fields 2 to 11 are byte for
+// byte those of the `error` line of the same error without frames, and the
+// twelfth is the location. An error whose only frame is the entry frame of
+// the input, the operand 0, is written as an `error` line.
+#[test]
+fn an_error_at_line_has_its_twelve_fields() {
+    let c = &mut context(Limits::new().with_max_work(3));
+    let limit = c.charge(4).unwrap_err().with_default_span(Span::new(1, 2));
+    for error in [
+        Error::new(
+            FaultKind::Syntax,
+            Span::new(0, 3),
+            "an operand that ends early",
+        ),
+        Error::new(FaultKind::Unsupported, None, "unknown role"),
+        limit,
+    ] {
+        let (plain_line, _) = line(&outcome(Err(error.clone())));
+        let (at_input, _) = line(&outcome(Err(framed(error.clone(), &[("eval", 0)]))));
+        assert_eq!(at_input, plain_line, "the entry frame of the input");
+        for (frames, location) in [
+            (&[("eval", 1)][..], "1"),
+            (&[("eval", 2)], "2"),
+            (&[("rel-and", 0), ("ineq", 0)], "0>ineq#0"),
+            (
+                &[("eval", 18_446_744_073_709_551_615)],
+                "18446744073709551615",
+            ),
+        ] {
+            let (text, output) = line(&outcome(Err(framed(error.clone(), frames))));
+            let found = fields_of(&text);
+            let plain_fields = fields_of(&plain_line);
+            assert_eq!(found.len(), 12, "{text:?}");
+            assert_eq!(found[0], "error-at");
+            assert_eq!(found[1..11], plain_fields[1..11], "{text:?}");
+            assert_eq!(found[11], location);
+            assert_eq!(output, text.len() as u64);
+        }
+    }
+}
+
+// The output lines of the examples in `docs/semantics.md` that no request
+// of this release writes: the state line, the two answer lines and the
+// three `error-at` lines, each built here from its parts, with every field
+// but the message, which the examples leave out.
+#[test]
+fn the_examples_of_answers_and_locations_hold() {
+    let examples: Vec<&str> = SEMANTICS
+        .lines()
+        .filter(|line| {
+            ["value⇥", "state⇥", "error⇥", "error-at⇥", "answer⇥"]
+                .iter()
+                .any(|kind| line.starts_with(kind))
+        })
+        .collect();
+    let example = |prefix: &str| -> String {
+        let found: Vec<&&str> = examples
+            .iter()
+            .filter(|line| line.starts_with(prefix))
+            .collect();
+        assert_eq!(found.len(), 1, "{prefix:?} in {examples:?}");
+        found[0].replace('⇥', "\t")
+    };
+    let state = String::from_utf8(
+        serialize(
+            &plain(Ok(Settled::State(MathState::IterationLimit))),
+            &mut context(Limits::new()),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(state, format!("{}\n", example("state⇥")));
+    for (assumptions, prefix) in [
+        (None, "answer⇥0⇥0⇥0⇥function-value⇥log(x)⇥x != 0⇥-"),
+        (
+            Some(&b"x: positive"[..]),
+            "answer⇥0⇥0⇥0⇥function-value⇥log(x)⇥x != 0⇥x: positive",
+        ),
+    ] {
+        let line = answer_line(
+            &plain(Ok(Settled::State(MathState::Undecided))),
+            b"function-value",
+            b"log(x)",
+            Some(b"x != 0"),
+            assumptions,
+            &mut context(Limits::new()),
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(line).unwrap(),
+            format!("{}\n", example(prefix))
+        );
+    }
+    for (error, frames, prefix) in [
+        (
+            Error::new(
+                FaultKind::Syntax,
+                Span::new(0, 3),
+                "an operand that ends early",
+            ),
+            &[("eval", 1)][..],
+            "error-at⇥0⇥0⇥0⇥Syntax⇥0..3⇥",
+        ),
+        (
+            Error::new(FaultKind::Unsupported, None, "unknown role"),
+            &[("eval", 2)],
+            "error-at⇥0⇥0⇥0⇥Unsupported⇥-⇥-⇥-⇥-⇥-⇥<message>⇥2",
+        ),
+        (
+            Error::new(
+                FaultKind::OutsideDomain,
+                Span::new(3, 5),
+                "outside the domain",
+            ),
+            &[("rel-and", 0), ("ineq", 0)],
+            "error-at⇥0⇥0⇥0⇥OutsideDomain⇥3..5⇥",
+        ),
+    ] {
+        let line = serialize(
+            &plain(Err(framed(error, frames))),
+            &mut context(Limits::new()),
+        )
+        .unwrap();
+        let text = String::from_utf8(line).unwrap();
+        let found = fields_of(&text);
+        let expected = example(prefix);
+        let expected: Vec<&str> = expected.split('\t').collect();
+        assert_eq!(found.len(), 12);
+        assert_eq!(found[..10], expected[..10], "{text:?}");
+        assert_eq!(found[11], expected[11], "{text:?}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Cancellation at every charge point
+
+/// A probe that counts its polls and reports cancellation from the poll
+/// after the first `cancel_after` polls on.
+#[derive(Clone)]
+struct CountingProbe {
+    polls: Arc<AtomicU64>,
+    cancel_after: u64,
+}
+
+impl CountingProbe {
+    fn after(cancel_after: u64) -> Self {
+        Self {
+            polls: Arc::new(AtomicU64::new(0)),
+            cancel_after,
+        }
+    }
+
+    fn never() -> Self {
+        Self::after(u64::MAX)
+    }
+
+    fn polls(&self) -> u64 {
+        self.polls.load(Ordering::SeqCst)
+    }
+}
+
+impl CancelProbe for CountingProbe {
+    fn is_cancelled(&mut self) -> bool {
+        let poll = self.polls.fetch_add(1, Ordering::SeqCst) + 1;
+        poll > self.cancel_after
+    }
+
+    fn fork(&self) -> Box<dyn CancelProbe> {
+        Box::new(self.clone())
+    }
+}
+
+/// A clock that stays at 0.
+#[derive(Clone, Copy)]
+struct StoppedClock;
+
+impl Clock for StoppedClock {
+    fn now(&mut self) -> u64 {
+        0
+    }
+
+    fn fork(&self) -> Box<dyn Clock> {
+        Box::new(*self)
+    }
+}
+
+/// A context under `limits` on a stopped clock, with a deadline that never
+/// passes, polling `probe`.
+fn observed(limits: Limits, probe: &CountingProbe) -> Context {
+    Context::with_observers(limits, Box::new(StoppedClock), Box::new(probe.clone()))
+        .with_deadline(u64::MAX)
+}
+
+/// A writer of a line under a context.
+type Writer<'a> = &'a dyn Fn(&mut Context) -> Result<Vec<u8>>;
+
+/// The charge points of `write`: the polls of its probe when it writes its
+/// line, with that line.
+fn charge_points(write: Writer<'_>) -> (u64, Vec<u8>) {
+    let probe = CountingProbe::never();
+    let line = write(&mut observed(Limits::new(), &probe)).unwrap();
+    (probe.polls(), line)
+}
+
+/// Asserts that a cancellation at each charge point of `write`, from the
+/// first to the last, fails with `Cancelled` at that point and returns no
+/// bytes, leaving the retained storage of the context as it was, and that a
+/// cancellation after the last leaves the whole line. Returns the number of
+/// charge points.
+fn assert_whole_line_or_nothing(write: Writer<'_>) -> u64 {
+    let (points, whole) = charge_points(write);
+    for k in 0..points {
+        let probe = CountingProbe::after(k);
+        let c = &mut observed(Limits::new(), &probe);
+        let before = c.retained();
+        let error = write(c).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Cancelled, "charge point {}", k + 1);
+        assert_eq!(probe.polls(), k + 1, "observed at its charge point");
+        assert!(c.output_used() < whole.len() as u64);
+        assert_eq!(c.retained(), before);
+    }
+    let probe = CountingProbe::after(points);
+    assert_eq!(write(&mut observed(Limits::new(), &probe)).unwrap(), whole);
+    points
+}
+
+// With an injected probe on a stopped clock, a cancellation injected at each
+// charge point of a value, state, error, `error-at` and answer line, from
+// the first to the last, gives `Cancelled` and no bytes, and after the last
+// the whole line. Each field with its tab is one charge point and the line
+// feed the last; the display of a value adds its own.
+#[test]
+fn a_cancellation_at_any_charge_point_writes_a_whole_line_or_nothing() {
+    let value = execute(
+        &Request::new("diff", "x", "(x+1)^3 - x"),
+        &mut context(Limits::new()),
+    );
+    let state = outcome(Ok(Settled::State(MathState::NotConverged)));
+    let fault = Error::new(
+        FaultKind::DivisionByZero,
+        Span::new(3, 6),
+        "division by zero",
+    );
+    let error = outcome(Err(fault.clone()));
+    let located = outcome(Err(framed(fault, &[("eval", 1)])));
+    let answer = |c: &mut Context| {
+        answer_line(
+            &state,
+            b"function-value",
+            b"log(x)",
+            Some(b"x != 0"),
+            None,
+            c,
+        )
+    };
+    let points = assert_whole_line_or_nothing(&|c| serialize(&value, c));
+    assert!(
+        points > 7,
+        "a poll at every field and in the display: {points}"
+    );
+    for (write, expected) in [
+        (&(|c: &mut Context| serialize(&state, c)) as Writer<'_>, 6),
+        (&|c: &mut Context| serialize(&error, c), 12),
+        (&|c: &mut Context| serialize(&located, c), 13),
+        (&answer, 9),
+    ] {
+        assert_eq!(assert_whole_line_or_nothing(write), expected);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The representative lines of the serialization
+
+/// Asserts the two sides of the line of `write` and its cancellation: under
+/// `max_output_bytes` and `max_work` at exactly what it needs, the line is
+/// written; one less fails with `ResourceLimit` naming that field and gives
+/// no bytes; and a cancellation at each of its charge points gives
+/// `Cancelled`; each leaves the retained storage of the context as it was.
+/// Returns the charge points, the work and the length of the line.
+fn assert_representative(write: Writer<'_>) -> (u64, u64, u64) {
+    let c = &mut context(Limits::new());
+    let line = write(c).unwrap();
+    let (work, length) = (c.work_used(), line.len() as u64);
+    assert_eq!(c.output_used(), length);
+    for (limits, field) in [
+        (
+            Limits::new().with_max_output_bytes(length),
+            LimitField::OutputBytes,
+        ),
+        (Limits::new().with_max_work(work), LimitField::Work),
+    ] {
+        let c = &mut context(limits);
+        assert_eq!(write(c).unwrap(), line);
+        let less = match field {
+            LimitField::OutputBytes => Limits::new().with_max_output_bytes(length - 1),
+            _ => Limits::new().with_max_work(work - 1),
+        };
+        let c = &mut context(less);
+        let before = c.retained();
+        let error = write(c).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+        assert_eq!(error.exceeded().unwrap().id(), &LimitId::Field(field));
+        assert_eq!(c.retained(), before);
+    }
+    (assert_whole_line_or_nothing(write), work, length)
+}
+
+// The representative lines that no request of this release writes, at
+// their limits and under cancellation: an `error-at` line with a nested
+// frame, an answer line, a state line and the longest `error-at` line of
+// the fallback step. Each needs one work unit per byte, and its charge
+// points are its fields and its line feed.
+#[test]
+fn representative_lines_pass_at_their_exact_limits_and_fail_one_below() {
+    let nested = plain(Err(framed(
+        Error::new(
+            FaultKind::OutsideDomain,
+            Span::new(3, 5),
+            "outside the domain",
+        ),
+        &[("rel-and", 0), ("ineq", 0)],
+    )));
+    let state = plain(Ok(Settled::State(MathState::IterationLimit)));
+    let longest = longest_fallback_lines().swap_remove(0);
+    let (points, work, length) = assert_representative(&|c| serialize(&nested, c));
+    assert_eq!((points, work), (13, length));
+    assert!(
+        String::from_utf8(serialize(&nested, &mut context(Limits::new())).unwrap())
+            .unwrap()
+            .ends_with("\t0>ineq#0\n")
+    );
+    let (points, work, length) = assert_representative(&|c| {
+        answer_line(
+            &state,
+            b"function-value",
+            b"log(x)",
+            Some(b"x != 0"),
+            None,
+            c,
+        )
+    });
+    assert_eq!((points, work), (9, length));
+    let (points, work, length) = assert_representative(&|c| serialize(&state, c));
+    assert_eq!((points, work), (6, length));
+    let (points, work, length) = assert_representative(&|c| serialize(&longest, c));
+    assert_eq!((points, work), (13, length));
+}
+
+// Every representative line that no request writes, cancelled at each of
+// its charge points, leaves no half line and the retained storage as it
+// was; the same holds of the requests in `tests/command.rs`.
+#[test]
+fn representative_lines_cancelled_at_every_charge_point_leave_nothing() {
+    let nested = plain(Err(framed(
+        Error::new(
+            FaultKind::OutsideDomain,
+            Span::new(3, 5),
+            "outside the domain",
+        ),
+        &[("rel-and", 0), ("ineq", 0)],
+    )));
+    let state = plain(Ok(Settled::State(MathState::IterationLimit)));
+    let longest = longest_fallback_lines().swap_remove(0);
+    let answer = |c: &mut Context| {
+        answer_line(
+            &state,
+            b"function-value",
+            b"log(x)",
+            Some(b"x != 0"),
+            None,
+            c,
+        )
+    };
+    for (write, points) in [
+        (&(|c: &mut Context| serialize(&nested, c)) as Writer<'_>, 13),
+        (&answer, 9),
+        (&|c: &mut Context| serialize(&state, c), 6),
+        (&|c: &mut Context| serialize(&longest, c), 13),
+    ] {
+        assert_eq!(assert_whole_line_or_nothing(write), points);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Nested categories and the bound of the fallback line
+
+// Each nested category writes its frame in the location: an error with the
+// entry frame of its operation and one nested frame, built here since the
+// operations of the categories come with later releases, lists its frames
+// outer first, writes the index of the entry frame, then `>`, the name of
+// the nested frame, `#` and its index, and keeps its span, which counts
+// bytes of the operand that the innermost frame names. A nested frame takes
+// the name of an operation, as `ineq`, or of a category, and no category
+// name is the name of an operation of the table.
+#[test]
+fn every_nested_category_writes_its_frame_in_the_location() {
+    assert_eq!(
+        CATEGORY_NAMES,
+        ["algebraic-evaluation", "complex-embedding", "membership"]
+    );
+    for name in CATEGORY_NAMES.iter().chain(&["ineq"]) {
+        let mut bytes = name.bytes();
+        assert!(
+            bytes.next().is_some_and(|first| first.is_ascii_lowercase()),
+            "{name}"
+        );
+        assert!(
+            bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'),
+            "{name}"
+        );
+        assert!(
+            OPERATIONS.iter().all(|(operation, _)| operation != name),
+            "{name}"
+        );
+    }
+    assert!(!CATEGORY_NAMES.contains(&"ineq"), "ineq is an operation");
+    for (entry, nested, location) in [
+        (("rel-and", 0), ("ineq", 0), "0>ineq#0"),
+        (
+            ("alg-at", 1),
+            (CATEGORY_NAMES[0], 2),
+            "1>algebraic-evaluation#2",
+        ),
+        (
+            ("field-value", 0),
+            (CATEGORY_NAMES[1], 1),
+            "0>complex-embedding#1",
+        ),
+        (("contains", 2), (CATEGORY_NAMES[2], 0), "2>membership#0"),
+    ] {
+        let error = framed(
+            Error::new(
+                FaultKind::OutsideDomain,
+                Span::new(3, 5),
+                "outside the domain",
+            ),
+            &[entry, nested],
+        );
+        assert_eq!(frames(&error), [entry, nested]);
+        assert_eq!(error.span(), Span::new(3, 5));
+        assert!(error.frames().len() - 1 <= NESTED_FRAMES);
+        let (text, _) = line(&outcome(Err(error)));
+        let found = fields_of(&text);
+        assert_eq!(
+            (found[0], found[5], found[11]),
+            ("error-at", "3..5", location)
+        );
+    }
+}
+
+/// The current values of the bound of the fallback line: the longest kind
+/// name $K$, the longest limit $Q$, the longest escaped message $M$, the
+/// nested frames $d$ and the longest frame name $N$, as the contract of the
+/// command entry states them, and the bound
+/// $B = 181 + K + Q + M + 20 + d \cdot (N + 22)$.
+const K: u64 = 18;
+const Q: u64 = 24;
+const M: u64 = 86;
+const N: u64 = 20;
+const B: u64 = 181 + K + Q + M + 20 + (NESTED_FRAMES as u64) * (N + 22);
+
+/// The longest `error-at` lines that the fallback step can write: every
+/// version, the span and the indices at `u64::MAX`, with one nested frame
+/// of the longest frame name; the first a `ResourceLimit` with its longest
+/// limit, scope, allowed value and amount, the second a fault with the
+/// longest message of the library, that of a malformed variable.
+fn longest_fallback_lines() -> Vec<Outcome> {
+    let frames = [("expand", u64::MAX), (CATEGORY_NAMES[0], u64::MAX)];
+    let exceeded = LimitExceeded::new(
+        LimitId::Field(LimitField::StorageBytes),
+        Some(LimitScope::Temporary),
+        u64::MAX,
+        LimitAmount::Required(u64::MAX),
+    );
+    let limit = Error::resource_limit(exceeded, Span::new(usize::MAX, usize::MAX));
+    let variable = execute(
+        &Request::new("expand", "1x", "x"),
+        &mut context(Limits::new()),
+    )
+    .into_result()
+    .unwrap_err()
+    .with_default_span(Span::new(usize::MAX, usize::MAX));
+    assert_eq!(variable.message().len() as u64, M, "the longest message");
+    [limit, variable]
+        .into_iter()
+        .map(|error| Outcome {
+            input_version: u64::MAX,
+            context_version: u64::MAX,
+            settings_version: u64::MAX,
+            result: Err(framed(error, &frames)),
+        })
+        .collect()
+}
+
+/// The source of the lines, whose functions `kind_name` and `fault_name`
+/// write the name of every request failure and every fault kind.
+const LINE: &str = include_str!("line.rs");
+
+/// The byte strings that the arms of the function `function` of
+/// `src/command/line.rs` return; its match has no wildcard arm.
+fn arm_names(function: &str) -> Vec<&'static str> {
+    let start = LINE
+        .find(&format!("\nfn {function}("))
+        .unwrap_or_else(|| panic!("no function {function}"));
+    let body = &LINE[start..];
+    let body = &body[..body.find("\n}\n").unwrap()];
+    assert!(!body.contains("_ =>"), "{function} has a wildcard");
+    let names = body
+        .split("=> b\"")
+        .skip(1)
+        .map(|arm| arm.split_once('"').unwrap().0)
+        .collect::<Vec<_>>();
+    assert!(!names.is_empty(), "{function} has no names");
+    names
+}
+
+/// A token of Rust source for the scan of the messages: an identifier or a
+/// number, a punctuation character, or the value of a string literal, plain,
+/// byte or raw. Comments, character literals and lifetimes are left out.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Token {
+    Word(String),
+    Punct(char),
+    Text(String),
+}
+
+/// The value of the string literal that starts at `index` of `chars` and the
+/// index after it, or `None` when no string literal starts there.
+fn string_literal(chars: &[char], index: usize) -> Option<(String, usize)> {
+    let mut at = index;
+    if chars.get(at) == Some(&'b') {
+        at += 1;
+    }
+    let raw = chars.get(at) == Some(&'r');
+    let mut hashes = 0;
+    if raw {
+        at += 1;
+        while chars.get(at) == Some(&'#') {
+            hashes += 1;
+            at += 1;
+        }
+    }
+    if chars.get(at) != Some(&'"') {
+        return None;
+    }
+    at += 1;
+    let mut text = String::new();
+    loop {
+        let character = chars[at];
+        if character == '"' && (0..hashes).all(|k| chars.get(at + 1 + k) == Some(&'#')) {
+            return Some((text, at + 1 + hashes));
+        }
+        if raw || character != '\\' {
+            text.push(character);
+            at += 1;
+            continue;
+        }
+        let escaped = chars[at + 1];
+        at += 2;
+        match escaped {
+            'n' => text.push('\n'),
+            't' => text.push('\t'),
+            'r' => text.push('\r'),
+            '0' => text.push('\0'),
+            'x' => {
+                let digits: String = chars[at..at + 2].iter().collect();
+                text.push(char::from(u8::from_str_radix(&digits, 16).unwrap()));
+                at += 2;
+            }
+            'u' => {
+                let end = at + chars[at..].iter().position(|c| *c == '}').unwrap();
+                let digits: String = chars[at + 1..end].iter().collect();
+                text.push(char::from_u32(u32::from_str_radix(&digits, 16).unwrap()).unwrap());
+                at = end + 1;
+            }
+            '\n' => {
+                while chars[at].is_whitespace() {
+                    at += 1;
+                }
+            }
+            other => text.push(other),
+        }
+    }
+}
+
+/// The index after the character literal or the lifetime that starts with
+/// the quote at `index` of `chars`.
+fn quote_end(chars: &[char], index: usize) -> usize {
+    if chars.get(index + 1) == Some(&'\\') {
+        let mut at = index + 3;
+        while chars[at] != '\'' {
+            at += 1;
+        }
+        at + 1
+    } else if chars.get(index + 2) == Some(&'\'') {
+        index + 3
+    } else {
+        let mut at = index + 1;
+        while chars[at] == '_' || chars[at].is_alphanumeric() {
+            at += 1;
+        }
+        at
+    }
+}
+
+/// The tokens of the Rust source `source`.
+fn rust_tokens(source: &str) -> Vec<Token> {
+    let chars: Vec<char> = source.chars().collect();
+    let mut tokens = Vec::new();
+    let mut index = 0;
+    while index < chars.len() {
+        let character = chars[index];
+        let next = chars.get(index + 1).copied();
+        if character.is_whitespace() {
+            index += 1;
+        } else if character == '/' && next == Some('/') {
+            while index < chars.len() && chars[index] != '\n' {
+                index += 1;
+            }
+        } else if character == '/' && next == Some('*') {
+            let mut depth = 0;
+            loop {
+                if chars[index] == '/' && chars[index + 1] == '*' {
+                    depth += 1;
+                    index += 2;
+                } else if chars[index] == '*' && chars[index + 1] == '/' {
+                    depth -= 1;
+                    index += 2;
+                    if depth == 0 {
+                        break;
+                    }
+                } else {
+                    index += 1;
+                }
+            }
+        } else if let Some((text, end)) = string_literal(&chars, index) {
+            tokens.push(Token::Text(text));
+            index = end;
+        } else if character == '\'' {
+            index = quote_end(&chars, index);
+        } else if character == '_' || character.is_alphanumeric() {
+            let start = index;
+            while index < chars.len() && (chars[index] == '_' || chars[index].is_alphanumeric()) {
+                index += 1;
+            }
+            tokens.push(Token::Word(chars[start..index].iter().collect()));
+        } else {
+            tokens.push(Token::Punct(character));
+            index += 1;
+        }
+    }
+    tokens
+}
+
+/// The index after the group of brackets that opens at `open` of `tokens`.
+fn group_end(tokens: &[Token], open: usize) -> usize {
+    let mut depth = 0;
+    let mut index = open;
+    loop {
+        match tokens[index] {
+            Token::Punct('(' | '[' | '{') => depth += 1,
+            Token::Punct(')' | ']' | '}') => depth -= 1,
+            _ => {}
+        }
+        index += 1;
+        if depth == 0 {
+            return index;
+        }
+    }
+}
+
+/// The index after the item that starts at `start` of `tokens`: after its
+/// `;` or after the block that ends it.
+fn item_end(tokens: &[Token], start: usize) -> usize {
+    let mut index = start;
+    loop {
+        match tokens[index] {
+            Token::Punct(';') => return index + 1,
+            Token::Punct('{') => return group_end(tokens, index),
+            Token::Punct('(' | '[') => index = group_end(tokens, index),
+            _ => index += 1,
+        }
+    }
+}
+
+/// What the scan of a Rust file finds outside its attributes: the string
+/// literals of the code outside the items marked `#[cfg(test)]`, the
+/// modules that this code declares as `mod name;`, and the modules that
+/// test code declares in the same way.
+#[derive(Default)]
+struct Scan {
+    literals: Vec<String>,
+    modules: Vec<String>,
+    test_modules: Vec<String>,
+}
+
+/// The scan of the Rust source `source`.
+fn scan(source: &str) -> Scan {
+    let tokens = rust_tokens(source);
+    let mut found = Scan::default();
+    let mut index = 0;
+    while index < tokens.len() {
+        match &tokens[index] {
+            Token::Punct('#') => {
+                let mut open = index + 1;
+                if tokens.get(open) == Some(&Token::Punct('!')) {
+                    open += 1;
+                }
+                if tokens.get(open) != Some(&Token::Punct('[')) {
+                    index += 1;
+                    continue;
+                }
+                let end = group_end(&tokens, open);
+                let cfg_test = [
+                    Token::Word("cfg".to_owned()),
+                    Token::Punct('('),
+                    Token::Word("test".to_owned()),
+                    Token::Punct(')'),
+                ];
+                if tokens[open + 1..end - 1] == cfg_test {
+                    index = item_end(&tokens, end);
+                    if let [Token::Word(word), Token::Word(name), Token::Punct(';')] =
+                        &tokens[index - 3..index]
+                        && word == "mod"
+                    {
+                        found.test_modules.push(name.clone());
+                    }
+                } else {
+                    index = end;
+                }
+            }
+            Token::Text(text) => {
+                found.literals.push(text.clone());
+                index += 1;
+            }
+            Token::Word(word) if word == "mod" => {
+                if let (Some(Token::Word(name)), Some(Token::Punct(';'))) =
+                    (tokens.get(index + 1), tokens.get(index + 2))
+                {
+                    found.modules.push(name.clone());
+                }
+                index += 1;
+            }
+            _ => index += 1,
+        }
+    }
+    found
+}
+
+/// The file of the module `name` that the file `parent` declares.
+fn module_file(parent: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let directory = match parent.file_name().and_then(|file| file.to_str()) {
+        Some("lib.rs" | "mod.rs" | "main.rs") => parent.parent().unwrap().to_path_buf(),
+        _ => parent.with_extension(""),
+    };
+    let file = directory.join(format!("{name}.rs"));
+    if file.exists() {
+        file
+    } else {
+        directory.join(name).join("mod.rs")
+    }
+}
+
+/// The string literals of the code of the library outside its tests and
+/// attributes: of every file that `src/lib.rs` reaches through its `mod
+/// name;` declarations outside test code. Every other Rust file under `src/`
+/// is the program `src/main.rs` or the file of a module that test code
+/// declares, so no file of the library is left out.
+fn library_literals() -> Vec<String> {
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut pending = vec![src.join("lib.rs")];
+    let mut reached = Vec::new();
+    let mut tests = Vec::new();
+    let mut literals = Vec::new();
+    while let Some(file) = pending.pop() {
+        let found = scan(&std::fs::read_to_string(&file).unwrap());
+        for name in &found.modules {
+            pending.push(module_file(&file, name));
+        }
+        for name in &found.test_modules {
+            tests.push(module_file(&file, name));
+        }
+        literals.extend(found.literals);
+        reached.push(file);
+    }
+    let mut directories = vec![src.clone()];
+    while let Some(directory) = directories.pop() {
+        for entry in std::fs::read_dir(&directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                directories.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                assert!(
+                    reached.contains(&path) || tests.contains(&path) || path == src.join("main.rs"),
+                    "{} is neither reached nor a test file",
+                    path.display()
+                );
+            }
+        }
+    }
+    assert!(reached.contains(&src.join("command/dispatch.rs")));
+    literals
+}
+
+/// The bytes of the longest escaped message that an error of the library can
+/// have, read from its sources. Every message is a string literal of the
+/// code of the library, or adds a name of the library to one: the message
+/// of a limit adds the name of its field, and that of a missing role the
+/// name of a required role of a signature of the dispatch table. Literals
+/// that are no message, such as names and pieces of display text, are
+/// counted too, so no message is longer.
+fn longest_message() -> u64 {
+    let escaped = |message: &str| {
+        let error = Error::new(FaultKind::Syntax, None, message);
+        let (text, _) = line(&outcome(Err(error)));
+        fields_of(&text)[10].len() as u64
+    };
+    let literals = library_literals();
+    let mut longest = literals
+        .iter()
+        .map(|literal| escaped(literal))
+        .max()
+        .unwrap();
+    for field in LimitField::ALL {
+        let exceeded = LimitExceeded::new(LimitId::Field(*field), None, 0, LimitAmount::Used(1));
+        longest = longest.max(escaped(Error::resource_limit(exceeded, None).message()));
+    }
+    let request = Request::new(PROBE, "", "1");
+    let missing = probe(&ONE_REQUIRED, &request, &mut context(Limits::new())).unwrap_err();
+    let prefix = escaped(missing.message()) - ONE_REQUIRED.roles[0].name.len() as u64;
+    let role = OPERATIONS
+        .iter()
+        .flat_map(|(_, operation)| signature(*operation).roles)
+        .filter(|role| role.presence == Presence::Required)
+        .map(|role| role.name.len() as u64)
+        .max()
+        .unwrap_or(0);
+    longest.max(prefix + role)
+}
+
+// The longest `error-at` lines, with $d$ nested frames of the longest frame
+// name, are written under `Context::new(Limits::new(), CancelFlag::new())`
+// and are at most $B$ bytes, which is at most 65,536, the default
+// `max_output_bytes`. $K$ is the longest name of the matches without a
+// wildcard that write the kind of every request failure and fault kind,
+// which the lines of the kinds have, $Q$ the longest limit of every field,
+// $N$ the longest frame name and $M$ the longest escaped message that the
+// sources of the library give, the bytes of the message of a malformed
+// variable; the contract states these values and $B$.
+#[test]
+fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
+    assert_eq!(B, 371);
+    const { assert!(B <= 65_536) };
+    assert_eq!(longest_message(), M, "the longest message of the sources");
+    assert!(CONTRACT.contains("$B = 371$"), "the contract states B");
+    let d = NESTED_FRAMES as u64;
+    for (quantity, value) in [("K", K), ("Q", Q), ("M", M), ("d", d), ("N", N)] {
+        let stated = format!("${quantity} = {value}$");
+        assert!(CONTRACT.contains(&stated), "the contract states {stated}");
+    }
+    assert_eq!(NESTED_FRAMES, 1);
+    // Every statement of $d$ in the contract, which the integration tests
+    // read, is the constant of the library.
+    let stated: Vec<&str> = CONTRACT
+        .split("$d = ")
+        .skip(1)
+        .map(|rest| rest.split_once('$').unwrap().0)
+        .collect();
+    assert!(
+        stated.iter().all(|value| *value == d.to_string()),
+        "{stated:?}"
+    );
+    // The frame names of the list of nested categories in the contract are
+    // the name of an operation, such as `ineq`, or the category names of
+    // `src/command/dispatch.rs`; $N$ is the longest of them and of the
+    // operations of the table.
+    let listed = table_rows(CONTRACT, "| Nested category | Entered from | Frame name |");
+    let frame_name = |row: &Vec<&'static str>| row[2].split('`').nth(1).unwrap();
+    let categories: Vec<&str> = listed
+        .iter()
+        .filter(|row| !row[2].ends_with("the name of the operation"))
+        .map(frame_name)
+        .collect();
+    assert_eq!(categories, CATEGORY_NAMES);
+    let frame_names: Vec<&str> = listed.iter().map(frame_name).collect();
+    assert!(frame_names.contains(&"ineq"), "{frame_names:?}");
+    let longest_name = frame_names
+        .into_iter()
+        .chain(CATEGORY_NAMES)
+        .chain(OPERATIONS.iter().map(|(name, _)| *name))
+        .map(|name| name.len() as u64)
+        .max();
+    assert_eq!(longest_name, Some(N));
+    // The names come from the source of the two matches that write them,
+    // which have no wildcard, so a kind is counted once the library
+    // compiles with it; the lines of the kinds below must have exactly those
+    // names, so the list below holds every kind.
+    let mut names = arm_names("kind_name");
+    names.extend(arm_names("fault_name"));
+    let mut written = [
+        FaultKind::Syntax,
+        FaultKind::UnknownSymbol,
+        FaultKind::DivisionByZero,
+        FaultKind::NonIntegerExponent,
+        FaultKind::NotPolynomial,
+        FaultKind::Unsupported,
+        FaultKind::Internal,
+        FaultKind::OutsideDomain,
+        FaultKind::VariableMismatch,
+    ]
+    .into_iter()
+    .map(|fault| Error::new(fault, None, "fault"))
+    .chain([
+        context(Limits::new()).charge(u64::MAX).unwrap_err(),
+        cancelled().charge(1).unwrap_err(),
+        context(Limits::new())
+            .with_timeout(0)
+            .charge(1)
+            .unwrap_err(),
+    ])
+    .map(|error| fields_of(&line(&outcome(Err(error))).0)[4].to_owned())
+    .collect::<Vec<_>>();
+    written.sort_unstable();
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    assert_eq!(written, sorted, "the lines have the names of the matches");
+    let longest_kind = names.iter().map(|name| name.len() as u64).max();
+    assert_eq!(longest_kind, Some(K));
+    let longest_limit = LimitField::ALL
+        .iter()
+        .map(|field| {
+            let exceeded =
+                LimitExceeded::new(LimitId::Field(*field), None, 0, LimitAmount::Used(1));
+            let (text, _) = line(&outcome(Err(Error::resource_limit(exceeded, None))));
+            fields_of(&text)[6].len() as u64
+        })
+        .max();
+    assert_eq!(longest_limit, Some(Q));
+    for outcome in longest_fallback_lines() {
+        let fresh = &mut Context::new(Limits::new(), CancelFlag::new());
+        let bytes = serialize(&outcome, fresh).unwrap();
+        assert!(bytes.len() as u64 <= B, "{} bytes", bytes.len());
+        let text = String::from_utf8(bytes).unwrap();
+        let found = fields_of(&text);
+        assert_eq!(
+            found[11],
+            "18446744073709551615>algebraic-evaluation#18446744073709551615"
+        );
+        let nested = outcome.result().as_ref().unwrap_err().frames().len() - 1;
+        assert!(nested <= NESTED_FRAMES);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The table of value kinds
+
+/// The kind of an answer, as the table of value kinds names it: one name
+/// for each variant of `Answer`, which this match lists.
+fn answer_kind(answer: &Answer) -> &'static str {
+    match answer {
+        Answer::Term(_) => "term",
+    }
+}
+
+/// The kind of a shape of a term with a display rule, as the table of value
+/// kinds names it; the reserved call has no row.
+fn shape_kind(kind: TermKind) -> Option<&'static str> {
+    match kind {
+        TermKind::Number => Some("number"),
+        TermKind::Symbol => Some("symbol"),
+        TermKind::Power => Some("power"),
+        TermKind::Product => Some("product"),
+        TermKind::Sum => Some("sum"),
+        TermKind::Call => None,
+    }
+}
+
+/// The source of the command entry, which declares `Answer`.
+const COMMAND: &str = include_str!("../command.rs");
+
+/// The source of the term core, which declares `TermKind`.
+const TERM: &str = include_str!("../term.rs");
+
+/// The variants of the public enum `name` of `source`, in their order: the
+/// names that start the lines of its body at the indentation of a variant,
+/// after their documentation and attributes.
+fn variants(source: &'static str, name: &str) -> Vec<&'static str> {
+    let header = format!("\npub enum {name} {{\n");
+    let start = source
+        .find(&header)
+        .unwrap_or_else(|| panic!("no enum {name}"))
+        + header.len();
+    let body = &source[start..];
+    let body = &body[..body.find("\n}\n").unwrap()];
+    let names: Vec<&str> = body
+        .lines()
+        .filter_map(|line| line.strip_prefix("    "))
+        .filter(|line| line.starts_with(|first: char| first.is_ascii_uppercase()))
+        .map(|line| {
+            line.split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+                .next()
+                .unwrap()
+        })
+        .collect();
+    assert!(!names.is_empty(), "{name} has no variants");
+    names
+}
+
+/// The name of the variant of a value from its `Debug` text.
+fn variant_name(debug: &str) -> String {
+    debug
+        .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+        .next()
+        .unwrap()
+        .to_owned()
+}
+
+/// The test files that the table of value kinds names.
+const TEST_FILES: [(&str, &str); 4] = [
+    ("tests/terms.rs", include_str!("../../tests/terms.rs")),
+    ("tests/command.rs", include_str!("../../tests/command.rs")),
+    (
+        "tests/syntax_properties.rs",
+        include_str!("../../tests/syntax_properties.rs"),
+    ),
+    ("tests/syntax.rs", include_str!("../../tests/syntax.rs")),
+];
+
+/// Asserts that the cell `cell` names at least one test, as
+/// `` `file::name` ``, and that each is a function of its file.
+fn assert_tests_exist(cell: &str) {
+    let named: Vec<&str> = cell.split('`').skip(1).step_by(2).collect();
+    assert!(!named.is_empty(), "{cell:?}");
+    for test in named {
+        let (file, name) = test.split_once("::").unwrap_or_else(|| panic!("{test:?}"));
+        let (_, source) = TEST_FILES
+            .iter()
+            .find(|(path, _)| *path == file)
+            .unwrap_or_else(|| panic!("no test file {file}"));
+        assert!(source.contains(&format!("fn {name}(")), "{test}");
+    }
+}
+
+// The table of value kinds in `docs/semantics.md` has one row for every
+// variant of `Answer` and one for each shape of a term with a display rule,
+// and every row names its display tests and its round-trip tests, each a
+// function of the test file that the row names, and the release of its
+// value model and encoding. The variants are read from the source of the
+// two enums: a value of each variant is listed below, so a new variant
+// fails until it is listed, and the matches above, which have no wildcard,
+// give it its row; only the reserved call has none.
+#[test]
+fn the_table_of_value_kinds_has_a_row_for_every_answer_variant_and_term_shape() {
+    let rows = table_rows(
+        SEMANTICS,
+        "| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Value model and encoding |",
+    );
+    let kinds: Vec<String> = rows.iter().map(|row| row[0].replace('`', "")).collect();
+    let answers = [Answer::Term(
+        Term::symbol("x", &mut context(Limits::new())).unwrap(),
+    )];
+    let listed: Vec<String> = answers
+        .iter()
+        .map(|answer| variant_name(&format!("{answer:?}")))
+        .collect();
+    assert_eq!(
+        listed,
+        variants(COMMAND, "Answer"),
+        "every variant of Answer"
+    );
+    let shapes = [
+        TermKind::Number,
+        TermKind::Symbol,
+        TermKind::Call,
+        TermKind::Power,
+        TermKind::Product,
+        TermKind::Sum,
+    ];
+    let listed: Vec<String> = shapes.iter().map(|shape| format!("{shape:?}")).collect();
+    assert_eq!(
+        listed,
+        variants(TERM, "TermKind"),
+        "every variant of TermKind"
+    );
+    let without_row: Vec<TermKind> = shapes
+        .into_iter()
+        .filter(|shape| shape_kind(*shape).is_none())
+        .collect();
+    assert_eq!(
+        without_row,
+        [TermKind::Call],
+        "only the reserved call has no row"
+    );
+    let mut expected: Vec<&str> = answers.iter().map(answer_kind).collect();
+    expected.extend(shapes.into_iter().filter_map(shape_kind));
+    assert_eq!(kinds, expected);
+    for row in &rows {
+        assert_eq!(row.len(), 11, "{row:?}");
+        let level = if row[0] == "`term`" {
+            "the answer `Answer::Term`".to_owned()
+        } else {
+            let kind = row[0].replace('`', "");
+            let variant = kind[..1].to_uppercase() + &kind[1..];
+            format!("a shape in a term, `TermKind::{variant}`")
+        };
+        assert_eq!(row[1], level, "{row:?}");
+        assert_eq!(row[8], "the input grammar reads it back", "{row:?}");
+        assert_eq!(row[10], "release 0.3, planned", "{row:?}");
+        assert_tests_exist(row[7]);
+        assert_tests_exist(row[9]);
     }
 }

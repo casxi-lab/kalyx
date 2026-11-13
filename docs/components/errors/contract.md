@@ -24,11 +24,14 @@ library that compute: they return the faults `DivisionByZero`, `Syntax` and
 and the prime fields of the exact numbers return `OutsideDomain` as well.
 The crate-internal pair check of the coefficient fields returns
 `VariableMismatch`; no layer of the library calls it yet. An error carries
-the [cause frames](#cause-frames) that `Error::frames` lists; no layer of the
-library adds a frame yet, so every error has none. The first public method
-with result states comes with a later release. The crate-internal channel
-and its boundaries, and the cause frames, are exercised by the unit tests of
-`src/error.rs`.
+the [cause frames](#cause-frames) that `Error::frames` lists: the command
+entry adds the entry frame to the errors of the entries of the operand
+table, of the reading of the operands and of the operation itself, and an
+error that concerns no operand has none; no operation of this release adds
+a nested frame, which the unit tests of the command entry build. The first
+public method with result states comes with a later release. The
+crate-internal channel and its boundaries, and the cause frames, are
+exercised by the unit tests of `src/error.rs`.
 
 ## Interface
 
@@ -46,9 +49,17 @@ The crate root re-exports every public item of the component:
   `&[CauseFrame]`, outer first. They do not follow
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
   only their documentation states that the index counts the operands from
-  0, with 0 the input of an operation, and that the outer frame comes first,
-  and neither the record nor `frames()` names the base of the index or the
-  order;
+  0, with 0 the input of an operation, that an index $k \ge 1$ is the entry
+  `operands[k-1]` of the operand table of the request for the entry frame,
+  that the index of a nested frame is the operand $k$ of the signature of
+  its operation, or, for a fixed step of the library, of the operands of
+  that step, which the contract of the component that delivers the step
+  numbers from 0, and that the outer frame comes first, and neither the
+  record nor `frames()` names the base of the index, its numbering or the
+  order. The location of an `error-at` line, which the
+  [output lines](../../semantics.md#output-lines) state, writes the index
+  of the entry frame and then `>name#index` for each nested frame, and does
+  not name them either;
 - `ErrorKind` (`ResourceLimit`, `Cancelled`, `DeadlineExceeded`,
   `Fault(FaultKind)`), `FaultKind` and `ErrorClass`, with `class()` on both
   kind enums;
@@ -84,9 +95,10 @@ add cause frames and for methods with states:
 - `CauseFrame::new(name, operand_index)`, which takes the name as a
   `&'static str` and stores it as an owned string, and
   `Error::with_outer_frame(frame)`, which puts `frame` before the cause
-  frames of an error and changes nothing else. No layer calls them yet: the
-  command entry is planned to add the first frame of an error, and the
-  operations that enter a fixed step of the library the frames after it;
+  frames of an error and changes nothing else. The command entry calls them
+  to add the entry frame of an error, and an operation that enters a fixed
+  step of the library is to add the frames after it; no operation of this
+  release does;
 - the internal channel `Run<T>`, a `Result` whose error type `Halt` is either
   `Error(Error)` or `Stop(MathState, Cap)`, with `From<Error> for Halt`;
 - `Cap` and its diagnostic text `Cap::message`;
@@ -204,7 +216,8 @@ requirement.
   case, so no error has one without the other.
 - Programs act on `kind()`, `span()`, `frames()` and `exceeded()`. The
   message is text for people, so `Error` implements neither `PartialEq`,
-  `Eq` nor `Hash`, and tests compare those parts, never the message.
+  `Eq` nor `Hash`, and tests compare those parts, never the wording of the
+  message.
 
 ### Constructing errors
 
@@ -247,9 +260,13 @@ scope, the allowed value and the amount.
   first. A frame records the name of an operation, or of a fixed step of the
   library that an operation enters, and the index of the operand of that
   operation or step in which the error arose, counted from 0; for an
-  operation, 0 is its input. The outermost frame is that of the operation of
-  the request, and each later frame is one that the frame before it
-  entered.
+  operation, 0 is its input. The outermost frame, the entry frame, is that
+  of the operation of the request, whose index $k \ge 1$ is the entry
+  `operands[k-1]` of the operand table of the request, and each later frame,
+  a nested frame, is one that the frame before it entered, whose index
+  counts the operands of the signature of its operation, or, for a fixed
+  step, the operands of that step, which the contract of the component that
+  delivers the step numbers from 0.
 - Frames are records only. Adding one charges nothing, opens no frame of
   the request context with `enter_frame` and does not count against
   `max_frames`.
@@ -270,10 +287,15 @@ scope, the allowed value and the amount.
   called directly. Adding a frame does not change the span.
 - `CauseFrame` derives `PartialEq`, `Eq` and `Hash`, so tests compare frames
   whole.
-- No layer of the library adds a frame yet, so every error has none. The
-  command entry is planned to add the first frame, for the operand in which
-  the error arose, and the operations that enter a fixed step of the library
-  the frames after it.
+- The [command entry](../command/contract.md#the-outcome) adds the entry
+  frame, for the operand in which the error arose, to the errors of the
+  entries of the operand table, of the reading of the operands and of the
+  operation itself; an error that concerns no operand has none. An
+  operation that enters a fixed step of the library is to add the frames
+  after it, by the list of nested categories of the
+  [fallback line](../command/contract.md#the-fallback-line); no operation of
+  this release does. An error of a library function that is called directly
+  has no frame.
 
 ### Bounds set by a machine width
 
@@ -406,7 +428,8 @@ the mapping above is fixed, so each difference is accepted by its row.
    outside the library sees it: errors that such code constructs, the
    standard error trait, the `Display` form (the message, then the span),
    spans, the names of the limit fields and `Settled`.
-6. **No message text.** No test asserts the message of an `Error`.
+6. **No message text.** No test asserts the wording of a message of an
+   `Error`.
 7. **Cause frames.** `causal_frames_are_records_without_charges` in
    `src/error.rs` checks that every constructor gives an error without
    frames, that `with_outer_frame` puts its frame first and keeps the kind,

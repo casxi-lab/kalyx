@@ -1,14 +1,16 @@
 //! 10,000 random requests from a fixed seed, each run through `execute` and
-//! written with `serialize`: none panics, and every outcome is a value, a
-//! state or an error of a kind that a request without a deadline or a
-//! cancellation may end with.
+//! written with `serialize`: none panics, every outcome is a value, a state
+//! or an error of a kind that a request without a deadline or a cancellation
+//! may end with, and every error has its fallback line, with at most the
+//! nested frames that the contract bounds.
 //!
 //! The requests fall into four categories with fixed counts: 4,000 general
-//! requests, with random operations, variables, inputs and limits; 2,000
-//! with exponents near $2^{32}$, near $2^{63}$ and near the `u64` bound;
-//! 2,000 under limits with fields at their largest value, `u64::MAX`, all
-//! of them or one at a time; and 2,000 with deeply nested inputs, up to
-//! 20,000 levels, under the default `max_depth` and under raised ones.
+//! requests, with random operations, variables, inputs and limits, some of
+//! them with an entry of the operand table; 2,000 with exponents near
+//! $2^{32}$, near $2^{63}$ and near the `u64` bound; 2,000 under limits with
+//! fields at their largest value, `u64::MAX`, all of them or one at a time;
+//! and 2,000 with deeply nested inputs, up to 20,000 levels, under the
+//! default `max_depth` and under raised ones.
 //! Request `i` is generated from the seed `SEED + i` alone, so a failing
 //! request is reproduced from the index and the seed that the failure
 //! prints.
@@ -56,6 +58,28 @@ const CATEGORIES: [(Category, u64); 4] = [
 
 /// The deepest nesting of the deep category.
 const DEEPEST: u64 = 20_000;
+
+/// The contract of the command entry, which states the bound $d$ of the
+/// nested frames of an error.
+const CONTRACT: &str = include_str!("../docs/components/command/contract.md");
+
+/// The most nested frames of an error, the bound $d$ as the contract of the
+/// command entry states it, `$d = <n>$`, the same wherever it does; a unit
+/// test of the command entry checks that this is the constant of the
+/// library.
+fn nested_frames() -> usize {
+    let stated: Vec<usize> = CONTRACT
+        .split("$d = ")
+        .skip(1)
+        .map(|rest| rest.split_once('$').unwrap().0.parse().unwrap())
+        .collect();
+    assert!(!stated.is_empty(), "the contract states d");
+    assert!(
+        stated.windows(2).all(|pair| pair[0] == pair[1]),
+        "{stated:?}"
+    );
+    stated[0]
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Category {
@@ -199,7 +223,17 @@ fn general(random: &mut SplitMix64) -> (Request, Limits) {
         .with_input_version(random.next())
         .with_context_version(random.below(10))
         .with_settings_version(random.next());
-    (request, general_limits(random))
+    let limits = general_limits(random);
+    // Drawn after the rest, so the other fields stay those of a request
+    // without a table.
+    let request = match random.below(10) {
+        0 => {
+            let role = random.pick(&["scope", "order", "input", "", "x"]);
+            request.with_operand(role, &expression(random, 2))
+        }
+        _ => request,
+    };
+    (request, limits)
 }
 
 /// An exponent near $2^{32}$, $2^{63}$ or the `u64` bound, written as a
@@ -441,8 +475,10 @@ fn is_listed(kind: ErrorKind) -> bool {
 /// Runs one request and its line, and returns the name of its result:
 /// `value`, `state` or the kind of its error, with the limit for a
 /// `ResourceLimit`. Fails when the outcome or the error of `serialize` is
-/// not listed, or a line is not one whole line.
-fn check(request: &Request, limits: Limits) -> Result<String, String> {
+/// not listed, a line is not one whole line, or an error has more nested
+/// frames than the bound or no fallback line under
+/// `Context::new(Limits::new(), CancelFlag::new())`.
+fn check(request: &Request, limits: Limits, nested: usize) -> Result<String, String> {
     let mut own = Context::new(limits, CancelFlag::new());
     let outcome = execute(request, &mut own);
     let name = match outcome.result() {
@@ -458,6 +494,17 @@ fn check(request: &Request, limits: Limits) -> Result<String, String> {
             None => format!("{:?}", error.kind()),
         },
     };
+    if let Err(error) = outcome.result() {
+        if error.frames().len().saturating_sub(1) > nested {
+            return Err(format!("more nested frames than the bound: {error:?}"));
+        }
+        let fresh = &mut Context::new(Limits::new(), CancelFlag::new());
+        match serialize(&outcome, fresh) {
+            Ok(line) if line.last() == Some(&b'\n') => {}
+            Ok(line) => return Err(format!("not one whole fallback line: {line:?}")),
+            Err(error) => return Err(format!("the fallback line failed: {error:?}")),
+        }
+    }
     let line = match serialize(&outcome, &mut own) {
         Ok(line) => Some(line),
         Err(error) if error.kind() != ErrorKind::ResourceLimit => {
@@ -483,13 +530,15 @@ fn check(request: &Request, limits: Limits) -> Result<String, String> {
 
 // 10,000 requests from the fixed seed `SEED`, in four categories of exactly
 // 4,000, 2,000, 2,000 and 2,000 requests, counted as they run, never panic,
-// and every outcome and every line is listed. A failing or panicking
-// request is reported with its category, its index and the seed, from
-// which `request` generates it again. Each category reaches values and the
-// errors of its boundaries: exponents and depths beyond their limits fail
-// with `ResourceLimit` naming `max_exponent`, `max_integer_bits` or
-// `max_depth`, and the same inputs under raised limits give values; at
-// least 100 deep inputs nested beyond the default `max_depth` give values.
+// and every outcome and every line is listed; every error is written under a
+// fresh context with the default limits and has at most $d = 1$ nested
+// frame, and some general requests have an operand table. A failing or
+// panicking request is reported with its category, its index and the seed,
+// from which `request` generates it again. Each category reaches values and
+// the errors of its boundaries: exponents and depths beyond their limits
+// fail with `ResourceLimit` naming `max_exponent`, `max_integer_bits` or
+// `max_depth`, and the same inputs under raised limits give values; at least
+// 100 deep inputs nested beyond the default `max_depth` give values.
 #[test]
 fn ten_thousand_random_requests_never_panic() {
     assert_eq!(
@@ -504,10 +553,12 @@ fn ten_thousand_random_requests_never_panic() {
     let mut seen: BTreeMap<Category, BTreeMap<String, u64>> = BTreeMap::new();
     let mut ran = 0;
     let mut deep_values_beyond_default = 0;
+    let mut tables = 0;
+    let nested = nested_frames();
     for (category, index) in schedule() {
         assert_eq!(index, ran, "the requests run in the order of their indices");
         let (request, limits) = request(category, index);
-        let found = catch_unwind(AssertUnwindSafe(|| check(&request, limits)));
+        let found = catch_unwind(AssertUnwindSafe(|| check(&request, limits, nested)));
         let reproduce = || {
             format!(
                 "request {index} of {category:?}, seed {SEED:#x} + {index}: {request:?} under {limits:?}"
@@ -518,6 +569,9 @@ fn ten_thousand_random_requests_never_panic() {
             Ok(Err(message)) => panic!("{}: {message}", reproduce()),
             Err(_) => panic!("{}: panicked", reproduce()),
         };
+        if !request.operands.is_empty() {
+            tables += 1;
+        }
         if category == Category::Deep
             && name == "value"
             && levels(&request.input) > Limits::new().max_depth
@@ -536,6 +590,8 @@ fn ten_thousand_random_requests_never_panic() {
     }
     println!("Deep: {deep_values_beyond_default} values beyond the default max_depth");
     assert!(deep_values_beyond_default >= 100);
+    println!("General: {tables} requests with an operand table");
+    assert!(tables >= 200, "{tables}");
     let has = |category: Category, name: &str| seen[&category].get(name).copied().unwrap_or(0) > 0;
     for category in [
         Category::General,

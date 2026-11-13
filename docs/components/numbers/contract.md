@@ -66,8 +66,9 @@ A3 upgrade.
   - The layers that store a parent together with an element and call the
     pair check: with the first such layer; neither the
     [polynomials](../polynomials/contract.md#the-two-types-and-the-receiver-rule)
-    nor the [command entry](../command/contract.md#parents-and-elements)
-    stores such a pair in this release.
+    nor the command entry stores such a pair in this release, as
+    [parents and elements](../polynomials/contract.md#parents-and-elements)
+    in the contract of the polynomials states.
   - `PolynomialRing` and `Polynomial`: the
     [polynomials](../polynomials/contract.md).
   - Expressions and symbols: the [term core](../terms/contract.md). Spans

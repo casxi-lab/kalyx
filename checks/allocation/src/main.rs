@@ -1,43 +1,47 @@
 //! The allocation check of kalyx: every case of the answer vectors in
-//! `vectors/r02.tsv`, run 100 times through the command entry under a
-//! counting global allocator, leaves the live bytes at their baseline after
-//! every run. The same program measures the resource profile of the
-//! library, `docs/resource-profile.md`, when it is run with `profile`.
+//! `vectors/r02.tsv`, and a request with an operand table, run 100 times
+//! through the command entry under a counting global allocator, leave the
+//! live bytes at their baseline after every run. The same program measures
+//! the resource profile of the library, `docs/resource-profile.md`, when it
+//! is run with `profile`.
 //!
 //! The counting allocator forwards every allocation to the system allocator,
 //! adds the size of each block that it hands out to the live bytes and
 //! subtracts the size of each block that it takes back. The program embeds
 //! the vector file when it is built, reads its 58 cases with the limits of
-//! each and builds their requests first; the live bytes after that are the
-//! baseline. Each run then creates a context with the limits of its case,
-//! executes the request, writes the line of its outcome as a host does, with
-//! the fallback step of the command contract for an error whose line does
-//! not fit its own context, and drops all of them; the live bytes must be
-//! back at the baseline, so a run leaves 0 bytes behind. Every run must end
-//! with the result kind of its case and write a line, the same line as the
-//! first run of its case, which the check compares by its length and a
-//! checksum, so that it keeps no block across runs. Nothing is printed
-//! before the last run, since the first print allocates the buffer of
-//! standard output for the rest of the process. The program prints a
-//! summary and exits with 0 when it ran every case `RUNS` times and every
-//! run passes, and with 1 otherwise.
+//! each and builds their requests first, with one more case, `eval` of `1`
+//! with an entry of the operand table whose role `eval` does not read, which
+//! fails with `Unsupported` and writes an `error-at` line with the cause
+//! frame of its entry; the live bytes after that are the baseline. Each run
+//! then creates a context with the limits of its case, executes the
+//! request, writes the line of its outcome as a host does, with the
+//! fallback step of the command contract for an error whose line does not
+//! fit its own context, and drops all of them; the live bytes must be back
+//! at the baseline, so a run leaves 0 bytes behind. Every run must end with
+//! the result kind of its case and write a line, the same line as the first
+//! run of its case, which the check compares by its length and a checksum,
+//! so that it keeps no block across runs. Nothing is printed before the last
+//! run, since the first print allocates the buffer of standard output for
+//! the rest of the process. The program prints a summary and exits with 0
+//! when it ran every case `RUNS` times and every run passes, and with 1
+//! otherwise.
 //!
 //! Before it takes the baseline, the program tests its own measurement: a
 //! job that keeps a block of 19 bytes must leave exactly 19 bytes behind,
 //! and a job that frees all that it allocates must leave 0, so that a
 //! measurement that always gives 0 fails the check instead of passing it.
 //!
-//! `profile` prints, for each case, the peak of the live bytes above the
-//! baseline during one run, the blocks that the run allocates and the stack
-//! that the run uses; and the same for deep inputs at several values of
-//! `max_depth`. The stack is measured without any `unsafe` code. The
-//! program runs the request again in a child process, `probe`, on a thread
-//! with a stack of 1 MiB, below a number of padding frames that fill the
-//! stack before the request runs, and searches for the most padding frames
-//! under which the child still exits normally; a stack overflow ends the
-//! child with a signal. The padding frames that the request displaces,
-//! compared with a thread that runs nothing, times the bytes of one frame,
-//! are the stack that it uses, to within one frame.
+//! `profile` prints, for each case of the vector file, the peak of the live
+//! bytes above the baseline during one run, the blocks that the run
+//! allocates and the stack that the run uses; and the same for deep inputs
+//! at several values of `max_depth`. The stack is measured without any
+//! `unsafe` code. The program runs the request again in a child process,
+//! `probe`, on a thread with a stack of 1 MiB, below a number of padding
+//! frames that fill the stack before the request runs, and searches for the
+//! most padding frames under which the child still exits normally; a stack
+//! overflow ends the child with a signal. The padding frames that the
+//! request displaces, compared with a thread that runs nothing, times the
+//! bytes of one frame, are the stack that it uses, to within one frame.
 //!
 //! This crate is not part of the kalyx package: the package forbids `unsafe`
 //! code in every target, and a global allocator implements an unsafe trait.
@@ -52,6 +56,20 @@ use std::time::{Duration, Instant};
 use kalyx::command::serialize;
 use kalyx::context::CancelFlag;
 use kalyx::{Context, ErrorKind, FaultKind, Limits, Outcome, Request, Settled, execute};
+
+/// The case of a request with an operand table, which the check runs after
+/// the cases of the vector file: `eval` of `1` with the entry `scope` of
+/// `x: real`, a role that `eval` does not read, so that the request fails
+/// with `Unsupported` at the index 1 of its entry, with that cause frame,
+/// and writes an `error-at` line.
+fn table_case() -> Case<'static> {
+    Case {
+        id: "unknown_role_1",
+        request: Request::new("eval", "x", "1").with_operand("scope", "x: real"),
+        result: "Unsupported",
+        limits: Limits::new(),
+    }
+}
 
 /// The answer vectors, embedded when the program is built.
 const VECTORS: &str = include_str!("../../../vectors/r02.tsv");
@@ -344,14 +362,15 @@ fn status(failures: usize) -> u8 {
 }
 
 /// The runs that the check recorded beyond or short of `RUNS` runs for each
-/// of the `CASES` cases: 0 when it ran every case `RUNS` times.
+/// of the `CASES` cases and the case with an operand table: 0 when it ran
+/// every case `RUNS` times.
 fn shortfall(runs: usize) -> usize {
-    (CASES * RUNS).abs_diff(runs)
+    ((CASES + 1) * RUNS).abs_diff(runs)
 }
 
 /// The check: every case, `RUNS` times.
 fn check() -> ExitCode {
-    let cases = match cases(VECTORS) {
+    let mut cases = match cases(VECTORS) {
         Ok(cases) if cases.len() == CASES => cases,
         Ok(cases) => {
             eprintln!(
@@ -365,6 +384,7 @@ fn check() -> ExitCode {
             return ExitCode::from(1);
         }
     };
+    cases.push(table_case());
     if !self_test() {
         eprintln!("allocation: the leak self-test failed");
         return ExitCode::from(1);
@@ -384,7 +404,7 @@ fn check() -> ExitCode {
         eprintln!(
             "allocation: {} runs instead of {}",
             runs.len(),
-            CASES * RUNS
+            (CASES + 1) * RUNS
         );
         return ExitCode::from(1);
     }
@@ -414,8 +434,8 @@ fn check() -> ExitCode {
     }
     let total = runs.len();
     println!(
-        "allocation: {} cases of vectors/r02.tsv, {RUNS} runs each, {total} runs, {allocated} blocks",
-        total / RUNS
+        "allocation: {} cases of vectors/r02.tsv and 1 with an operand table, {RUNS} runs each, {total} runs, {allocated} blocks",
+        total / RUNS - 1
     );
     println!(
         "allocation: the largest peak {} bytes above the baseline of {baseline} bytes, in {}",
@@ -779,9 +799,9 @@ fn stack_use(probe: &Probe, empty: u64, stride: u64) -> Result<(u64, Report), St
     Ok((empty.saturating_sub(frames).saturating_mul(stride), report))
 }
 
-/// The profile: the heap peak, the blocks and the stack of every case, then
-/// the heap peak and the stack of the deep inputs at each value of
-/// `DEPTHS`, printed as the Markdown tables of the resource profile.
+/// The profile: the heap peak, the blocks and the stack of every case of the
+/// vector file, then the heap peak and the stack of the deep inputs at each
+/// value of `DEPTHS`, printed as the Markdown tables of the resource profile.
 fn profile() -> Result<(), String> {
     let cases = cases(VECTORS)?;
     let (empty, report) = headroom(&Probe::Empty)?;
@@ -865,9 +885,11 @@ fn main() -> ExitCode {
 mod tests {
     use super::{
         CASES, Ends, PADDING_BYTES, Probe, RUNS, Run, Shape, VECTORS, case_limits, cases, checksum,
-        deep_limits, failures, largest, pad, report, run, shortfall, status,
+        deep_limits, failures, largest, pad, report, run, shortfall, status, table_case,
     };
-    use kalyx::{Limits, Request};
+    use kalyx::command::serialize;
+    use kalyx::context::CancelFlag;
+    use kalyx::{Context, Limits, Request, execute};
 
     // The check runs every case 100 times, and exits with 1 when a run
     // fails, so that the step that runs it fails.
@@ -879,16 +901,49 @@ mod tests {
         assert_eq!(status(RUNS), 1);
     }
 
-    // The check fails unless it ran every one of the 58 cases 100 times:
-    // the runs of 57 cases, one run short or one run over are a shortfall.
+    // The check fails unless it ran every one of the 58 cases and the case
+    // with an operand table 100 times: the runs of 58 cases, one run short
+    // or one run over are a shortfall.
     #[test]
     fn the_check_fails_unless_every_case_ran_100_times() {
         assert_eq!(CASES, 58);
-        assert_eq!(shortfall(5_800), 0);
-        assert_eq!(shortfall(57 * 100), 100);
-        assert_eq!(shortfall(5_799), 1);
-        assert_eq!(shortfall(5_801), 1);
-        assert_eq!(shortfall(0), 5_800);
+        assert_eq!(shortfall(5_900), 0);
+        assert_eq!(shortfall(58 * 100), 100);
+        assert_eq!(shortfall(5_899), 1);
+        assert_eq!(shortfall(5_901), 1);
+        assert_eq!(shortfall(0), 5_900);
+    }
+
+    // The case with an operand table is `eval` of `1` with an entry of the
+    // role `scope`, which `eval` does not read: a run ends with
+    // `Unsupported`, with the cause frame of the entry, and publishes the
+    // `error-at` line whose location is the index 1 of the entry.
+    #[test]
+    fn the_check_runs_a_request_with_an_operand_table() {
+        let case = table_case();
+        assert_eq!(
+            case.request,
+            Request::new("eval", "x", "1").with_operand("scope", "x: real")
+        );
+        assert_eq!((case.result, case.limits), ("Unsupported", Limits::new()));
+        let found = run(&case.request, case.limits, 0);
+        assert_eq!(found.result, "Unsupported");
+        let c = &mut Context::new(Limits::new(), CancelFlag::new());
+        let outcome = execute(&case.request, c);
+        let error = outcome.result().as_ref().unwrap_err();
+        let frames: Vec<(&str, u64)> = error
+            .frames()
+            .iter()
+            .map(|frame| (frame.name(), frame.operand_index()))
+            .collect();
+        assert_eq!(frames, [("eval", 1)]);
+        let line = serialize(&outcome, c).unwrap();
+        assert!(line.starts_with(b"error-at\t0\t0\t0\tUnsupported\t-\t"));
+        assert!(line.ends_with(b"\t1\n"));
+        assert_eq!(
+            (found.length, found.checksum),
+            (Some(line.len()), checksum(&line))
+        );
     }
 
     // The embedded vector file has its 58 cases, each with the limits of

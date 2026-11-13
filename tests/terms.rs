@@ -1329,7 +1329,10 @@ fn constructions_comparisons_and_displays_charge_fixed_amounts() {
 }
 
 // A display charges its output before it writes it, and a display that fails
-// returns no text.
+// returns no text. For a term of each shape, a number, a symbol, a power, a
+// product and a sum, the display passes when `max_output_bytes` is exactly
+// its bytes and charges that output, and one byte less fails with
+// `ResourceLimit` naming `max_output_bytes` and returns no text.
 #[test]
 fn a_display_beyond_max_output_bytes_returns_no_text() {
     let c = &mut context(Limits::new().with_max_output_bytes(4));
@@ -1339,6 +1342,32 @@ fn a_display_beyond_max_output_bytes_returns_no_text() {
     let error = pair.display(c).unwrap_err();
     assert_limit(&error, LimitField::OutputBytes);
     assert!(c.output_used() <= 4);
+
+    let c = &mut context(Limits::new());
+    let x = symbol("x", c);
+    let y = symbol("y", c);
+    let shapes = [
+        (TermKind::Number, rational(-3, 4, c), "-3/4"),
+        (TermKind::Symbol, symbol("abc", c), "abc"),
+        (TermKind::Power, power(&x, -2, c), "x^(-2)"),
+        (
+            TermKind::Product,
+            product(&[integer(2, c), x.clone(), y.clone()], c),
+            "2*x*y",
+        ),
+        (TermKind::Sum, sum(&[integer(1, c), x, y], c), "1 + x + y"),
+    ];
+    for (kind, term, text) in shapes {
+        assert_eq!(term.kind(), kind, "{text}");
+        let bytes = text.len() as u64;
+        let exact = &mut context(Limits::new().with_max_output_bytes(bytes));
+        assert_eq!(show(&term, exact), text);
+        assert_eq!(exact.output_used(), bytes, "{text}");
+        let short = &mut context(Limits::new().with_max_output_bytes(bytes - 1));
+        let error = term.display(short).unwrap_err();
+        assert_limit(&error, LimitField::OutputBytes);
+        assert!(short.output_used() < bytes, "{text}");
+    }
 }
 
 // ---------------------------------------------------------------------------
