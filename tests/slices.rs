@@ -587,7 +587,7 @@ fn cli_request(row: &Row) -> Result<(Request, Limits, Option<LimitField>), Dispo
 
 /// The scope of a scope argument of the earlier command-line program, such
 /// as `{x:positive}` or `{x:real,y:positive}`, as the text of the role
-/// `scope`, `x: positive, y: real` with a space after each `:` and `,`;
+/// `scope`, `x: real, y: positive` with a space after each `:` and `,`;
 /// `Some(None)` for the empty scope `{}`, which holds no facts and so gives
 /// no entry, as the default of the role; and `None` for an argument that is
 /// no scope, such as a program `{ 1 }`.
