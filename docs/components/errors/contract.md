@@ -318,7 +318,7 @@ the mapping above is fixed, so each difference is accepted by its row.
 1. **Boundaries.** The unit tests in `src/error.rs` check that `settle` keeps
    values, turns a stop in each of the five states into that state and keeps
    every request failure, a domain error and an invalid input with its kind,
-   span and exceeded limit, and that no foundation fault becomes a state;
+   span and exceeded limit, and that no fault kind becomes a state;
    that `evaluation_stop` keeps stops and errors and turns every stop into the
    given stop; the fixed text of the cap; the accessors of `Settled`; and
    that `with_default_span` fills only a missing span
