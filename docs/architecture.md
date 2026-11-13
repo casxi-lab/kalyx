@@ -1615,7 +1615,8 @@ it; the name differs from that of `kalyx::context::Frame`, the token that
   to read, or an error of the operation that belongs to one operand. An
   error that concerns no operand, of the settings, the operation name, a
   missing role, the sum of the bytes or the variable, has no frame, and
-  neither has an error of a library function that is called directly.
+  neither has a request failure of the charge of a required role or of the
+  variable, or an error of a library function that is called directly.
 - **Nested frames.** The other frames are nested frames: each records an
   operation, or a fixed step of the library, that an operation enters, and
   the index of the operand there. The left relation of `rel-and` that fails

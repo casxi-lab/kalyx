@@ -384,8 +384,9 @@ impl Error {
     /// frame to an error of an operand of a request and to an error of the
     /// operation itself; an error of the settings, of the operation name, of
     /// a missing role, of the byte sum of the operands or of the variable has
-    /// no frame, and neither has an error of a library function that is
-    /// called directly, or one that [`Error::new`] builds. No operation of
+    /// no frame, and neither has a request failure of the charge of a
+    /// required role or of the variable, an error of a library function that
+    /// is called directly, or one that [`Error::new`] builds. No operation of
     /// this release adds a nested frame.
     ///
     /// ```
