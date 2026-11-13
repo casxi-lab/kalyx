@@ -6,18 +6,20 @@ implementations, the field $\mathbb{Q}$ of rational numbers and the prime
 fields $\mathbb F_p$ of the primes $p \lt 2^{32}$. It applies to the module
 `src/number.rs` with its submodules `src/number/arithmetic.rs`,
 `src/number/integer.rs`, `src/number/literal.rs` and `src/number/power.rs`,
-and to the module `src/coefficient.rs` with its submodule
-`src/coefficient/prime.rs`. The [architecture](../../architecture.md#coefficient-field-trait)
-places the component among the foundations and states the design rules of the
-trait, and the [public API conventions](../../conventions/public-api.md)
-state the rules that every public interface follows. The limits and the
-charges belong to the [context](../context/contract.md), and the errors to the
+and to the module `src/coefficient.rs` with its submodules
+`src/coefficient/prime.rs` and `src/coefficient/prime/traits.rs`. The
+[architecture](../../architecture.md#coefficient-field-trait) places the
+component among the foundations and states the design rules of the trait,
+and the [public API conventions](../../conventions/public-api.md) state the
+rules that every public interface follows. The limits and the charges belong
+to the [context](../context/contract.md), and the errors to the
 [errors and result states](../errors/contract.md).
 
 **Status.** Implemented in `src/number.rs` and `src/coefficient.rs`, at tier
 A0 (tested), with the integer kernel in `src/number/integer.rs` and the
-prime fields in `src/coefficient/prime.rs` at tier A1 (tested with a
-written contract); the trait is planned for tier A2 in release 0.2. The
+prime fields in `src/coefficient/prime.rs` and its child
+`src/coefficient/prime/traits.rs` at tier A1 (tested with a written
+contract); the trait is planned for tier A2 in release 0.2. The
 first caller in the library is the [term core](../terms/contract.md), whose
 numbers, coefficients and constants are rationals; the
 [polynomials](../polynomials/contract.md) over $\mathbb{Q}$ reach their
@@ -1149,24 +1151,29 @@ stated:
 
 The kernel is not a proof target, so the module list does not hold it.
 
-The prime fields in `src/coefficient/prime.rs` are written in the provable
-subset of the krepi convention, its constructs R1 to R7, its loop shapes and
-its design rules, and are shaped for a proof of the four kernels; they have
-not been extracted. The kernels `add`, `sub`, `mul` and `inverse` are pure
-functions of the modulus and machine-word residues, which take no context
-and allocate nothing, and `inverse` holds the only loop of the arithmetic,
-with no `?` and no early return. The methods of the coefficient traits have
-no loop: their domain tests, their bound checks and their charges come
-first, and each then computes its result with the kernels;
-`from_integer` reaches the Euclidean division of the integer kernel
-instead. The constructor's test calls
+The prime fields are written in the provable subset of the krepi convention,
+its constructs R1 to R7, its loop shapes and its design rules, and are
+shaped for a proof of the four kernels; they have not been extracted. The
+kernels and the constructor are in `src/coefficient/prime.rs` and the
+methods of the coefficient traits in its child
+`src/coefficient/prime/traits.rs`: `add` and `inverse` name both a kernel
+and a method of a trait, and in different files each has a key of its own in
+the inventory of `cargo xtask formal check`, which rejects an inherent
+method and a method of a trait with one name in one file. The kernels `add`,
+`sub`, `mul` and `inverse` are pure functions of the modulus and
+machine-word residues, which take no context and allocate nothing, and
+`inverse` holds the only loop of the arithmetic, with no `?` and no early
+return. The methods of the coefficient traits have no loop: their domain
+tests, their bound checks and their charges come first, and each then
+computes its result with the kernels; `from_integer` reaches the Euclidean
+division of the integer kernel instead. The constructor's test calls
 `modular_power`, whose num-bigint integers would be trusted external
 functions; it is split into a loopless constructor that returns early, a
 helper whose one loop runs over the bases and a helper whose one loop
 squares, each leaving before its loop through no `?` and no `return`, and
-the loop over the bases is an index loop over a constant array. Design
-rules 1 and 2 are met as for the integer kernel: the domain tests and the
-bound of each step come before its charge and the operands are never
+the loop over the bases is an index loop over a constant array. Design rules
+1 and 2 are met as adapted, as for the integer kernel: the domain tests and
+the bound of each step come before its charge and the operands are never
 written, a charge is not undone, and the integers of the test are allocated
 at run time only after the bound that covers them; the arithmetic of the
 residues allocates nothing.

@@ -1097,9 +1097,12 @@ fn prime_fields_measure_their_elements_by_the_storage_formula() {
     assert_eq!(c.work_used(), used);
 }
 
-/// The source of the prime fields, searched for calls of the frames and
+/// The sources of the prime fields, searched for calls of the frames and
 /// temporaries of the context.
-const PRIME_SOURCE: &str = include_str!("../src/coefficient/prime.rs");
+const PRIME_SOURCES: [&str; 2] = [
+    include_str!("../src/coefficient/prime.rs"),
+    include_str!("../src/coefficient/prime/traits.rs"),
+];
 
 // The element operations open no frame and reserve no temporary: they
 // succeed under no frames and under no storage bytes and leave nothing
@@ -1140,7 +1143,9 @@ fn prime_fields_hold_no_frame_or_reservation() {
         ".set_frame_cost(",
         ".leave_frame(",
     ] {
-        assert!(!PRIME_SOURCE.contains(call), "the prime fields call {call}");
+        for source in PRIME_SOURCES {
+            assert!(!source.contains(call), "the prime fields call {call}");
+        }
     }
 }
 
