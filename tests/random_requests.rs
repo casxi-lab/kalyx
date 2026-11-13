@@ -59,9 +59,27 @@ const CATEGORIES: [(Category, u64); 4] = [
 /// The deepest nesting of the deep category.
 const DEEPEST: u64 = 20_000;
 
-/// The most nested frames of an error, the bound $d$ of the contract of the
-/// command entry.
-const NESTED_FRAMES: usize = 1;
+/// The contract of the command entry, which states the bound $d$ of the
+/// nested frames of an error.
+const CONTRACT: &str = include_str!("../docs/components/command/contract.md");
+
+/// The most nested frames of an error, the bound $d$ as the contract of the
+/// command entry states it, `$d = <n>$`, the same wherever it does; a unit
+/// test of the command entry checks that this is the constant of the
+/// library.
+fn nested_frames() -> usize {
+    let stated: Vec<usize> = CONTRACT
+        .split("$d = ")
+        .skip(1)
+        .map(|rest| rest.split_once('$').unwrap().0.parse().unwrap())
+        .collect();
+    assert!(!stated.is_empty(), "the contract states d");
+    assert!(
+        stated.windows(2).all(|pair| pair[0] == pair[1]),
+        "{stated:?}"
+    );
+    stated[0]
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Category {
@@ -460,7 +478,7 @@ fn is_listed(kind: ErrorKind) -> bool {
 /// not listed, a line is not one whole line, or an error has more nested
 /// frames than the bound or no fallback line under
 /// `Context::new(Limits::new(), CancelFlag::new())`.
-fn check(request: &Request, limits: Limits) -> Result<String, String> {
+fn check(request: &Request, limits: Limits, nested: usize) -> Result<String, String> {
     let mut own = Context::new(limits, CancelFlag::new());
     let outcome = execute(request, &mut own);
     let name = match outcome.result() {
@@ -477,7 +495,7 @@ fn check(request: &Request, limits: Limits) -> Result<String, String> {
         },
     };
     if let Err(error) = outcome.result() {
-        if error.frames().len().saturating_sub(1) > NESTED_FRAMES {
+        if error.frames().len().saturating_sub(1) > nested {
             return Err(format!("more nested frames than the bound: {error:?}"));
         }
         let fresh = &mut Context::new(Limits::new(), CancelFlag::new());
@@ -536,10 +554,11 @@ fn ten_thousand_random_requests_never_panic() {
     let mut ran = 0;
     let mut deep_values_beyond_default = 0;
     let mut tables = 0;
+    let nested = nested_frames();
     for (category, index) in schedule() {
         assert_eq!(index, ran, "the requests run in the order of their indices");
         let (request, limits) = request(category, index);
-        let found = catch_unwind(AssertUnwindSafe(|| check(&request, limits)));
+        let found = catch_unwind(AssertUnwindSafe(|| check(&request, limits, nested)));
         let reproduce = || {
             format!(
                 "request {index} of {category:?}, seed {SEED:#x} + {index}: {request:?} under {limits:?}"

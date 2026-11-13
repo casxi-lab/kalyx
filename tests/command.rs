@@ -35,6 +35,28 @@ const VECTORS: &str = include_str!("../vectors/r02.tsv");
 /// The input syntax and semantics, with the examples of the output lines.
 const SEMANTICS: &str = include_str!("../docs/semantics.md");
 
+/// The contract of the command entry, which states the bound $d$ of the
+/// nested frames of an error.
+const CONTRACT: &str = include_str!("../docs/components/command/contract.md");
+
+/// The most nested frames of an error, the bound $d$ as the contract of the
+/// command entry states it, `$d = <n>$`, the same wherever it does; a unit
+/// test of the command entry checks that this is the constant of the
+/// library.
+fn nested_frames() -> usize {
+    let stated: Vec<usize> = CONTRACT
+        .split("$d = ")
+        .skip(1)
+        .map(|rest| rest.split_once('$').unwrap().0.parse().unwrap())
+        .collect();
+    assert!(!stated.is_empty(), "the contract states d");
+    assert!(
+        stated.windows(2).all(|pair| pair[0] == pair[1]),
+        "{stated:?}"
+    );
+    stated[0]
+}
+
 /// The operations of the dispatch table.
 const OPERATIONS: [&str; 3] = ["eval", "expand", "diff"];
 
@@ -1977,7 +1999,7 @@ fn a_deadline_on_an_injected_clock_ends_the_request() {
 // A deep input adds no frame: nesting inside an operand is shown by the
 // span alone, so an error deep inside 1,000 levels of parentheses, under a
 // `max_depth` raised for them, has the entry frame of the input and no
-// nested frame, at most the bound $d = 1$ of the contract.
+// nested frame, at most the bound $d$ that the contract states.
 #[test]
 fn a_deep_input_has_no_more_than_d_nested_frames() {
     let deep = format!("{}1/0{}", "(".repeat(1_000), ")".repeat(1_000));
@@ -1989,7 +2011,7 @@ fn a_deep_input_has_no_more_than_d_nested_frames() {
         let error = error(&outcome);
         assert_fault(error, FaultKind::DivisionByZero, Span::new(1_000, 1_003));
         assert_eq!(frames(error), [(operation, 0)]);
-        assert!(error.frames().len() - 1 <= 1);
+        assert!(error.frames().len() - 1 <= nested_frames());
         assert_eq!(fields(&line(&outcome)).len(), 11);
     }
 }

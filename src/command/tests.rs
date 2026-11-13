@@ -63,9 +63,13 @@ const CONTRACT: &str = include_str!("../../docs/components/command/contract.md")
 const SEMANTICS: &str = include_str!("../../docs/semantics.md");
 
 /// The rows of the Markdown table under the header line `header` in
-/// `text`, each as its cells without their surrounding spaces.
+/// `text`, which may be indented, each as its cells without their
+/// surrounding spaces.
 fn table_rows<'a>(text: &'a str, header: &str) -> Vec<Vec<&'a str>> {
-    let mut lines = text.lines().skip_while(|line| *line != header);
+    let mut lines = text
+        .lines()
+        .map(str::trim_start)
+        .skip_while(|line| *line != header);
     assert_eq!(lines.next(), Some(header), "no table {header:?}");
     assert!(
         lines.next().is_some_and(|rule| rule.starts_with("| ---")),
@@ -1585,14 +1589,41 @@ fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
     const { assert!(B <= 65_536) };
     assert_eq!(longest_message(), M, "the longest message of the sources");
     assert!(CONTRACT.contains("$B = 371$"), "the contract states B");
-    for (quantity, value) in [("K", K), ("Q", Q), ("M", M), ("d", 1), ("N", N)] {
+    let d = NESTED_FRAMES as u64;
+    for (quantity, value) in [("K", K), ("Q", Q), ("M", M), ("d", d), ("N", N)] {
         let stated = format!("${quantity} = {value}$");
         assert!(CONTRACT.contains(&stated), "the contract states {stated}");
     }
     assert_eq!(NESTED_FRAMES, 1);
-    let longest_name = CATEGORY_NAMES
+    // Every statement of $d$ in the contract, which the integration tests
+    // read, is the constant of the library.
+    let stated: Vec<&str> = CONTRACT
+        .split("$d = ")
+        .skip(1)
+        .map(|rest| rest.split_once('$').unwrap().0)
+        .collect();
+    assert!(
+        stated.iter().all(|value| *value == d.to_string()),
+        "{stated:?}"
+    );
+    // The frame names of the list of nested categories in the contract are
+    // the name of an operation, such as `ineq`, or the category names of
+    // `src/command/dispatch.rs`; $N$ is the longest of them and of the
+    // operations of the table.
+    let listed = table_rows(CONTRACT, "| Nested category | Entered from | Frame name |");
+    let frame_name = |row: &Vec<&'static str>| row[2].split('`').nth(1).unwrap();
+    let categories: Vec<&str> = listed
         .iter()
-        .chain(OPERATIONS.iter().map(|(name, _)| name))
+        .filter(|row| !row[2].ends_with("the name of the operation"))
+        .map(frame_name)
+        .collect();
+    assert_eq!(categories, CATEGORY_NAMES);
+    let frame_names: Vec<&str> = listed.iter().map(frame_name).collect();
+    assert!(frame_names.contains(&"ineq"), "{frame_names:?}");
+    let longest_name = frame_names
+        .into_iter()
+        .chain(CATEGORY_NAMES)
+        .chain(OPERATIONS.iter().map(|(name, _)| *name))
         .map(|name| name.len() as u64)
         .max();
     assert_eq!(longest_name, Some(N));
