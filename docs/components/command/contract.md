@@ -22,8 +22,9 @@ as a change of a contract, co-signed by krepi and approved by the owner:
   message and no `Parameter(name)` holds text of the caller and that
   parameter names come from a fixed list, its conditions (i) and (ii), the
   sources of frame names, the list of nested categories with their names,
-  the bound $d$, and $B \le$ 65,536; the current values of the quantities
-  of $B$ are not in the list.
+  the bound $d$, and $B \le$ 65,536; a longer message, a new and longer
+  name of an error kind, a new name in the list of parameter names and the
+  current values of $K$, $Q$ and $M$ are not in the list.
 - **The answer vectors.** The results of the 58 lines of `vectors/r02.tsv`
   and their fields within [the promise](#the-answer-vectors-across-releases).
 - **The common rules of a line.** One line for each request; fields
@@ -688,11 +689,11 @@ sets:
    sizes the queue of the standard output of a job to at least one whole
    line by this bound. A later change may lengthen a message, add a longer
    name of an error kind or add a name to the list of parameter names, and
-   update the current values here, as long as every condition of the
-   fallback step still holds: no text of the caller, the conditions (i) and
-   (ii), the sources of frame names and $B \le$ 65,536. The frame names and
-   $d$ are fixed with the list of nested categories, and a new category is
-   co-signed.
+   update the current values of $K$, $Q$ and $M$ here, as long as every
+   condition of the fallback step still holds: no text of the caller, the
+   conditions (i) and (ii), the sources of frame names and $B \le$ 65,536.
+   The frame names and $d$ are fixed with the list of nested categories,
+   and a new category is co-signed.
 5. **Evidence.** The deepest chain of an error has exactly $d$ nested
    frames; a deeply nested input, such as 1,000 levels of parentheses or
    1,000 levels of conditions under a raised `max_depth`, has at most $d$
