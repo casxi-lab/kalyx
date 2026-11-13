@@ -1118,8 +1118,8 @@ identifiers, so the requirements of this component are numbered here,
 `CMD-R01` to `CMD-R18`, a prefix that no other component uses; a number is
 never changed or reused. Tests are in `tests/command.rs` unless the entry
 names `src/command/tests.rs`, `src/error.rs`, `tests/root_names.rs`,
-`tests/host_fixtures.rs`, `tests/random_requests.rs`, a documentation
-test, the allocation check or `xtask`.
+`tests/host_fixtures.rs`, `tests/random_requests.rs`, `tests/cli.rs`, a
+documentation test, the allocation check or `xtask`.
 
 ### CMD-R01
 
