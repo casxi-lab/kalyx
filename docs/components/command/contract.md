@@ -85,7 +85,8 @@ contract is the closer review that a change of a public interface at a
 boundary of the library gets, such as a change of this contract, of the
 error kinds, of the charges of the context or of the parser; the review of
 an ordinary change is the review of a tested change that leaves those
-interfaces as they are, a new row of the operation index aside:
+interfaces as they are, apart from the changes that the first item below
+lists:
 
 - With the review of an ordinary change, without the owner's approval: a
   new operation, which adds a row to the
