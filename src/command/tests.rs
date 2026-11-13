@@ -1222,14 +1222,37 @@ fn longest_fallback_lines() -> Vec<Outcome> {
         .collect()
 }
 
+/// The source of the lines, whose functions `kind_name` and `fault_name`
+/// write the name of every request failure and every fault kind.
+const LINE: &str = include_str!("line.rs");
+
+/// The byte strings that the arms of the function `function` of
+/// `src/command/line.rs` return; its match has no wildcard arm.
+fn arm_names(function: &str) -> Vec<&'static str> {
+    let start = LINE
+        .find(&format!("\nfn {function}("))
+        .unwrap_or_else(|| panic!("no function {function}"));
+    let body = &LINE[start..];
+    let body = &body[..body.find("\n}\n").unwrap()];
+    assert!(!body.contains("_ =>"), "{function} has a wildcard");
+    let names = body
+        .split("=> b\"")
+        .skip(1)
+        .map(|arm| arm.split_once('"').unwrap().0)
+        .collect::<Vec<_>>();
+    assert!(!names.is_empty(), "{function} has no names");
+    names
+}
+
 // The longest `error-at` lines, with $d$ nested frames of the longest frame
 // name, are written under `Context::new(Limits::new(), CancelFlag::new())`
 // and are at most $B$ bytes, which is at most 65,536, the default
-// `max_output_bytes`. $K$ is the longest kind of the lines of every fault
-// kind and request failure, $Q$ the longest limit of every field, $N$ the
-// longest frame name and $M$ the bytes of the message of a malformed
-// variable, which review keeps the longest message of the library; the
-// contract states these values and $B$.
+// `max_output_bytes`. $K$ is the longest name of the matches without a
+// wildcard that write the kind of every request failure and fault kind,
+// which the lines of the kinds have, $Q$ the longest limit of every field,
+// $N$ the longest frame name and $M$ the bytes of the message of a
+// malformed variable, which review keeps the longest message of the
+// library; the contract states these values and $B$.
 #[test]
 fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
     assert_eq!(B, 371);
@@ -1246,7 +1269,13 @@ fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
         .map(|name| name.len() as u64)
         .max();
     assert_eq!(longest_name, Some(N));
-    let mut kinds = vec![
+    // The names come from the source of the two matches that write them,
+    // which have no wildcard, so a kind is counted once the library
+    // compiles with it; the lines of the kinds below must have exactly those
+    // names, so the list below holds every kind.
+    let mut names = arm_names("kind_name");
+    names.extend(arm_names("fault_name"));
+    let mut written = [
         FaultKind::Syntax,
         FaultKind::UnknownSymbol,
         FaultKind::DivisionByZero,
@@ -1258,37 +1287,22 @@ fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
         FaultKind::VariableMismatch,
     ]
     .into_iter()
-    .map(|fault| {
-        // No arm takes every other kind, so a new kind fails to compile here
-        // until the list above holds it.
-        match fault {
-            FaultKind::Syntax
-            | FaultKind::UnknownSymbol
-            | FaultKind::DivisionByZero
-            | FaultKind::NonIntegerExponent
-            | FaultKind::NotPolynomial
-            | FaultKind::Unsupported
-            | FaultKind::Internal
-            | FaultKind::OutsideDomain
-            | FaultKind::VariableMismatch => {}
-        }
-        line(&outcome(Err(Error::new(fault, None, "fault")))).0
-    })
-    .collect::<Vec<_>>();
-    for error in [
+    .map(|fault| Error::new(fault, None, "fault"))
+    .chain([
         context(Limits::new()).charge(u64::MAX).unwrap_err(),
         cancelled().charge(1).unwrap_err(),
         context(Limits::new())
             .with_timeout(0)
             .charge(1)
             .unwrap_err(),
-    ] {
-        kinds.push(line(&outcome(Err(error))).0);
-    }
-    let longest_kind = kinds
-        .iter()
-        .map(|text| fields_of(text)[4].len() as u64)
-        .max();
+    ])
+    .map(|error| fields_of(&line(&outcome(Err(error))).0)[4].to_owned())
+    .collect::<Vec<_>>();
+    written.sort_unstable();
+    let mut sorted = names.clone();
+    sorted.sort_unstable();
+    assert_eq!(written, sorted, "the lines have the names of the matches");
+    let longest_kind = names.iter().map(|name| name.len() as u64).max();
     assert_eq!(longest_kind, Some(K));
     let longest_limit = LimitField::ALL
         .iter()
