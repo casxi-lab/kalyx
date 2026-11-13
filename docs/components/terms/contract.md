@@ -711,12 +711,14 @@ term has no span.
 
 When the grammar reads constants and calls (planned for release 0.2),
 `eval` keeps this rule: an input that holds a free symbol fails with
-`UnknownSymbol`, and any other input gives its canonical term, which need not
-be a number. So `eval` of `i*i` is planned to give `-1`, of `i^3` `-i`, of
-`(1+i)^2` the term `(1 + i)^2`, whose power of a sum is not expanded, and of
-`sqrt(2)` and `sin(1)` those terms; `piecewise(true, 7, 1/0)` is to give
-`7`, `log(0)` to fail with `OutsideDomain` and `true` with
-`UnknownSymbol`.
+`UnknownSymbol`, an input whose canonical term cannot be built fails with
+the error of building it, and any other input gives its canonical term,
+which need not be a number. So `eval` of `i*i` is planned to give `-1`, of
+`i^3` `-i`, of `(1+i)^2` the term `(1 + i)^2`, whose power of a sum is not
+expanded, and of `sqrt(2)` and `sin(1)` those terms;
+`piecewise(true, 7, 1/0)` is to give `7`; `log(0)`, whose canonical term
+cannot be built, is to fail with `OutsideDomain`; and `true`, which in a
+value position is a symbol, with `UnknownSymbol`.
 
 ## Requirements
 
