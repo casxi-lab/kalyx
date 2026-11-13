@@ -11,6 +11,7 @@ Context
 Error
 ErrorClass
 ErrorKind
+Evidence
 FaultKind
 LimitAmount
 LimitExceeded
@@ -24,6 +25,7 @@ Request
 Result
 Settled
 Span
+Truth
 coefficient
 command
 context

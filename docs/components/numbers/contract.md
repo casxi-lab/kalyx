@@ -120,10 +120,18 @@ operators (`E0369`). The fields of `Congruence`, `IntegerDivision` and
   $\lfloor \log_2 \lvert x \rvert \rfloor + 1$. Integers are not checked
   against `max_integer_bits` when they are built from machine integers, since
   those have at most 64 bits; the operations of `Integer`, the integer kernel
-  and the operations of `Rational` check them when they use them.
+  and the operations of `Rational` check them when they use them. `bits`
+  does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states this count, 0 for zero and the bits of the absolute value for a
+  negative integer, only in its documentation, and its result does not name
+  it.
 - **Congruence.** A modulus $m \gt 0$ and the least nonnegative residue
   $0 \le r \lt m$, established by `Congruence::new` and by `crt`, the only
-  ways to build one.
+  ways to build one. `Congruence::new` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states the least nonnegative residue only in its documentation, and
+  `residue()` does not name it.
 - **Rational.** A numerator and a denominator with no common factor and a
   positive denominator; zero is $0/1$. Every public way to build a rational
   establishes this form, so two rationals are equal exactly when their values
@@ -369,7 +377,10 @@ and an absolute value one unit.
   for $b \gt 0$ and up for $b \lt 0$, so $-7$ divided by $2$ is
   $(-4, 1)$ and by $-2$ is $(4, 1)$. `exact_quotient` takes the same
   division and returns `NotDivisible`, a value and not an error, when the
-  remainder is not zero.
+  remainder is not zero. `divide_with_remainder` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states the Euclidean remainder only in its documentation, and its
+  result does not name it.
 - **GCD and Bézout coefficients.** The bound of `gcd` covers every step,
   since the remainders decrease. `extended_gcd` runs on $\lvert a \rvert$
   and $\lvert b \rvert$ and gives the signs of $a$ and $b$ to $s$ and $t$:
@@ -377,14 +388,24 @@ and an absolute value one unit.
   coefficients of the rounds alternate in sign and never exceed
   $\max(\lvert a \rvert, \lvert b \rvert)$ in absolute value, so the bound
   of $\max(\lvert a \rvert, \lvert b \rvert) + 2$ bits covers every product
-  and difference of a round.
+  and difference of a round. `extended_gcd` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states these coefficients only in its documentation, and its result
+  does not name the choice. `gcd` and `lcm` do not follow it either: they
+  state that their results are nonnegative, with $\gcd(0, 0) = 0$ and an LCM
+  of 0 when an operand is 0, only in their documentation, and their results
+  do not name it.
 - **Modular inverse.** Modulo 1 every residue is the unit 0, with inverse
   0. For $m \gt 1$ the result is `Inverse(v)` when
   $g = \gcd(a \bmod m, m) = 1$, and otherwise `NonUnit(g)`, which is $m$ for
   a residue of zero; a missing inverse is a value, not an error. The bound
   $\lvert m \rvert + 2$ is checked whether the residue is zero or not, since
   only the operands decide it before the charge. These are functions on
-  integers, not the operations of a residue ring.
+  integers, not the operations of a residue ring. `modular_inverse` does not
+  follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states the representative $0 \le v \lt m$ of the inverse only in its
+  documentation, and its result does not name it.
 - **Modular power.** For $e \lt 0$ the base is first inverted, and a base
   that is not a unit, a residue of zero included, fails with
   `Fault(OutsideDomain)` after the charges of the inverse. Every product
@@ -403,7 +424,12 @@ and an absolute value one unit.
   default limits and under 16 bits, and fails under 15 and 8 bits with the
   amount 16 and no work. The exponent is checked by its bits against
   `max_integer_bits` only, never against `max_exponent`: the result is a
-  residue, which does not grow with the exponent.
+  residue, which does not grow with the exponent. `modular_power` does not
+  follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states that its result is the residue in $[0, m)$, and that $a^0 = 1$
+  with $0^0$ included, only in its documentation, and its result names
+  neither.
 - **Chinese remaindering.** The moduli need not be coprime. The congruences
   are merged in order into $r \bmod M$ from $0 \bmod 1$, the empty system's
   solution. Merging $x \equiv r_i \pmod{m_i}$ runs the extended GCD
@@ -419,7 +445,10 @@ and an absolute value one unit.
   `max_integer_bits`. Its bound is at least one bit, the bits of the
   modulus 1 of the empty system's solution, so that under
   `max_integer_bits` 0 the empty system fails with the amount 1, as
-  `Congruence::new` does for $0 \bmod 1$.
+  `Congruence::new` does for $0 \bmod 1$. `crt` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states only in its documentation that the solution has the least
+  nonnegative residue of a congruence, and its result does not name it.
 - **Storage.** Only the returned value is admitted, by the formulas of
   [storage](#storage); the storage of the operands is not checked. The
   earlier implementation also checked the nodes and bytes of the operands,
@@ -620,7 +649,10 @@ $\lvert e \rvert \cdot \mathit{bits}(a) + 1$ for any exponent. The check
 also covers the bits of the base, so $a^0$ fails when $a$ has more than
 `max_integer_bits` bits; for $e \ne 0$ the estimate covers them, so a power
 whose estimate is within `max_integer_bits` is returned when the charge
-succeeds.
+succeeds. `Rational::power` does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+it states $0^0 = 1$ only in its documentation, and its result does not name
+it.
 
 - **Implemented here.** `Rational::power`, with `power_bits`,
   `power_charge` and `power_part` of `src/number/power.rs`.

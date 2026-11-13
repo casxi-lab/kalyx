@@ -14,12 +14,13 @@ request, its results with their output lines, and the table of value kinds.
 The interface conventions that all public items follow are in
 [the public API conventions](conventions/public-api.md).
 
-**Status.** kalyx ships the errors and result states, the context and
-limits, the exact numbers with the coefficient-field trait over
-$\mathbb{Q}$, the term core, the parser, the univariate polynomials over
-$\mathbb{Q}$, the command entry with its output lines, the command-line
-program `kalyx` and the repository checks. The errors and result
-states, the context and limits, the exact numbers with the integer kernel,
+**Status.** kalyx ships the errors and result states, the shared result
+types `Evidence` and `Truth`, the context and limits, the exact numbers with
+the coefficient-field trait over $\mathbb{Q}$, the term core, the parser,
+the univariate polynomials over $\mathbb{Q}$, the command entry with its
+output lines, the command-line program `kalyx` and the repository checks.
+The errors and result states, the shared result types `Evidence` and
+`Truth`, the context and limits, the exact numbers with the integer kernel,
 the two layers of the coefficient-field trait and `Rationals`, the term core
 with its canonical forms, the parser of the [input syntax](semantics.md), the
 univariate polynomials with expansion and differentiation, the
@@ -27,6 +28,7 @@ crate-internal function registry with the records of the eleven functions of
 function expressions and the command entry with the
 [output lines](semantics.md#output-lines) are implemented, each with its
 contract ([errors](components/errors/contract.md),
+[shared result types](components/shared-results/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
 [terms](components/terms/contract.md),
@@ -128,7 +130,7 @@ when each release is planned, except where the plan already fixes them.
 | Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Elimination skeleton: Gauss–Jordan elimination over a coefficient field | 0.2 | set when planned | basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Function registry: the records of the eleven functions of function expressions and the identity list (`registry`, crate-internal; implemented, [contract](components/registry/contract.md)) | 0.2 | A1; A3 upgrade in 0.3 | the function-expression baseline, with the derivatives and the Taylor series of function expressions, 0.2; the call constructor of the term core reads the records in the same release and is not counted as the first caller |
-| Shared result types: `Completeness`, `Evidence`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | set when planned | root lists and real sets (`Completeness`), zero tests of algebraic numbers and assumption queries (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
+| Shared result types: `Evidence` and `Truth` (implemented, [contract](components/shared-results/contract.md)), `Completeness`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | A1; no A3 upgrade; the tier of `Guarantee` is set when 0.3 is planned | the assumption queries of function expressions (`Evidence`, `Truth`; the assumption system of the same release answers them through these types and is not counted), root lists and real sets (`Completeness`), zero tests of algebraic numbers (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
 | Numerical kernel and evaluation framework: rational-endpoint intervals, complex balls, summation, elementary kernels, one precision driver | 0.3 | A2 for inclusion; A1 for the framework; A3 upgrade in 0.3 for the series summer | the numerical evaluation entries `precision`, `ball`, `round` and `approx`, 0.3 |
 | Collection values and controlled iteration | 0.3 | A3 upgrade in 0.3 for the collection tree and text | user functions, programs and the session, 0.3 |
 | Value model | 0.3 | A2 | every value kind of 0.1 to 0.3, 0.3 |
@@ -853,7 +855,9 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   there is no optional zero-test subtrait. Its result `ZeroTest` is the one
   enum that is not `#[non_exhaustive]`, since its three cases are complete.
   A field whose zero test cannot always decide names its reason as the
-  associated type `Undecided`.
+  associated type `Undecided`; for a field that is not exact, that reason
+  is the shared result type `Evidence`, given only as `NumericEvidence` or
+  `Unknown` ([shared result types](components/shared-results/contract.md#the-reason-of-an-undecided-zero-test)).
 - **The storage cost is required.** `measure` returns the cost of an
   element as a `Storage`, its nodes and logical bytes by the rules of
   [storage bytes](#storage-bytes). It depends only on the parent and the
@@ -2012,13 +2016,15 @@ constructor, and derives `PartialEq` and `Eq`.
 ### Shared result types
 
 The types that describe how good a result is are defined once for the whole
-crate, by their first user, and are only extended afterwards; no domain
-defines a synonym. `Completeness` and `Evidence` are planned for 0.2, and
-`Guarantee` for 0.3. None of them exists in 0.1.
+crate and are only extended afterwards; no domain defines a synonym.
+`Evidence` and `Truth` are implemented in `src/shared.rs`, and their
+[contract](components/shared-results/contract.md) states their
+combinations and tests; `Completeness` is planned for 0.2, and `Guarantee`
+for 0.3.
 
-- All three are `#[non_exhaustive]`. `Guarantee` is `Exact`, `Certified`,
+- All four are `#[non_exhaustive]`. `Guarantee` is `Exact`, `Certified`,
   `Estimated` or `Heuristic`; `Evidence` has at least `Proved`, `Refuted`,
-  `NumericEvidence` and `Unknown`.
+  `NumericEvidence` and `Unknown`; `Truth` is `True`, `False` or `Unknown`.
 - Combining results never raises the guarantee; numerical evidence never
   becomes `Proved` or true; an `Unknown` from three-valued equality is never
   promoted.

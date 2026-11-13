@@ -169,6 +169,15 @@ differs decides, and the counts decide only when every common pair is equal.
 The order is total on canonical terms, and `compare` gives `Equal` exactly
 for structurally equal terms. `equals` is `compare` giving `Equal`; since
 canonical forms are unique, structurally equal terms are the same term.
+`compare` and `TermKind::rank` do not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+they state this order, in which `children`, `as_product`, `as_sum` and
+`negative_bases` also return their parts, only in their documentation, and
+an `Ordering` or a rank does not name it. `equals` does not follow it
+either: only its documentation says that it is `compare` giving `Equal`, a
+structural test, so that terms of equal value and different structure, such
+as $(x + 1)^2$ and $x^2 + 2x + 1$, are not equal, and its result does not
+name the test.
 
 ### Products
 
@@ -226,7 +235,12 @@ and the power of a product returns its factors here.
 4. The exponent 0 gives the number 1 when the base holds no power with a
    negative exponent, and otherwise the ones $(b^{-1})^0$ of the elements $b$
    of $\max N(\mathrm{base})$: the one itself for a single element, and
-   otherwise the product of the ones with the coefficient 1.
+   otherwise the product of the ones with the coefficient 1. `power` does not
+   follow
+   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions)
+   in this rule and in rule 2: it states $0^0 = 1$, and so $t^0 = 1$ also
+   where $t$ is 0, only in its documentation, and its result does not name
+   the convention.
 5. An integer power distributes over a product:
    $(c \prod f)^k = c^k \prod f^k$, with $c^k$ computed strictly, so a
    product with the coefficient 0 raised to a negative power fails with
@@ -300,7 +314,12 @@ their grouping.
   monomial, in the order of the cores, whose coefficient is not 0, or its
   constant when its only monomial is the witness monomial. A sum has at
   least two parts and at most one monomial with the coefficient 0, so the
-  content is never 0.
+  content is never 0. This content and the scaling above do not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  `product`, `power`, `divide` and `negate` state this normalization of
+  sums, which is not the greatest common divisor of the coefficients, only
+  in their documentation, and the coefficient of `as_product` and the base
+  of `as_power` do not name it.
 - **Primitive part.** The primitive part of a sum $s$ with the content $c$
   is $p = s / c$, the scaling of $s$ by $1/c$, whose content is 1; a sum
   whose content is 1 is its own primitive part. Only the division of
@@ -490,9 +509,16 @@ per byte of the name.
 
 - **Size.** The tree size of a term is its number of nodes, a shared subterm
   counted once for each occurrence. Coefficients, constants and exponents
-  stored in a node add no nodes.
+  stored in a node add no nodes. `size` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states this count only in its documentation, and neither its result
+  nor the nodes of the `StorageCost` of a term, which `max_nodes` bounds,
+  name it.
 - **Depth.** A number and a symbol have the depth 1, and any other node one
-  more than the largest depth of its children.
+  more than the largest depth of its children. `depth` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states that a leaf has the depth 1 only in its documentation, and
+  neither its result nor the amount of a `max_depth` check names the count.
 - **Logical bytes.** The bytes of a term are those of its canonical binary
   rendering, the term formula of the
   [architecture](../../architecture.md#storage-bytes), which this contract

@@ -38,7 +38,10 @@ The crate root re-exports every public item of the component:
 - `LimitExceeded`, with the accessors `id()`, `scope()`, `allowed()` and
   `amount()`, and `LimitId`, `LimitField`, `LimitScope` and `LimitAmount`;
 - `Span`, a half-open byte range with `Span::new(start, end)`, which is `None`
-  when `end < start`;
+  when `end < start`. It does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  only its documentation states that its offsets count bytes from 0 and that
+  `end` is excluded, and neither `start()` nor `end()` names the unit;
 - `MathState` and `Settled<T>`, with the accessors `value()`, `into_value()`,
   `state()`, `is_value()` and `is_state()`;
 - `Result<T>`, which is `std::result::Result<T, Error>`.
@@ -212,7 +215,10 @@ that dominates it, with `allowed` its effective value. A bound that no field or
 parameter dominates is never a `ResourceLimit`: a method that gives up returns
 the state `NotApplicable`, and an unreachable counter overflow is an
 `Internal` error. So a `ResourceLimit` error can always be lifted by changing
-one named field or parameter.
+one named field or parameter. This rule does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+only the documentation says that `allowed` is then the effective value and
+not the value of the field, and the record does not name the width.
 
 ### Mathematical states
 

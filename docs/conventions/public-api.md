@@ -1,20 +1,29 @@
 # Public API conventions
 
-These fifteen conventions govern every public interface of the kalyx
+These seventeen conventions govern every public interface of the kalyx
 library: functions, methods, types and the crate root. They also apply to
 crate-internal interfaces that a public entry reaches, wherever the
-convention is about behavior (limits, determinism, panics, depth).
+convention is about behavior (limits, determinism, panics, depth). Four of
+them are uniform conventions for the requests and results of every
+component: settings are inputs of the request
+([convention 13](#13-request-inputs-and-progress)), enums and records are
+extensible ([convention 3](#3-extensible-enums-and-records)), randomness is
+explicit ([convention 16](#16-explicit-randomness)) and no convention is
+implicit ([convention 17](#17-no-implicit-conventions)).
 
 **Status.** The library's only public items so far are the types of its
-errors and result states, the request context with its limits, the exact
-numbers with the coefficient-field trait over $\mathbb{Q}$, the terms of the
-term core, the parser, the univariate polynomials and the command entry,
-which follow these conventions. They are the rules that each further
-component follows when it lands, and review holds every change to them.
-`Error`, `Settled<T>`, `LimitId`, `MathState`, `Context`, `Limits`,
-`Integer`, `Rational`, `ZeroTest`, `CoefficientRing`, `CoefficientField`,
-`Rationals`, `Term`, `TermKind`, `parse`, `PolynomialRing`, `Polynomial`,
-`Request`, `Settings`, `Outcome`, `execute` and `serialize` exist today;
+errors and result states, the shared result types, the request context with
+its limits, the exact numbers with the coefficient-field trait over
+$\mathbb{Q}$, the terms of the term core, the parser, the univariate
+polynomials and the command entry, which follow these conventions, apart
+from the entries that
+[convention 17](#17-no-implicit-conventions) lists. They are the rules that
+each further component follows when it lands, and review holds every change
+to them. `Error`, `Settled<T>`, `LimitId`, `MathState`, `Evidence`, `Truth`,
+`Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`, `CoefficientRing`,
+`CoefficientField`, `Rationals`, `Term`, `TermKind`, `parse`,
+`PolynomialRing`, `Polynomial`, `Request`, `Settings`, `Outcome`, `execute`
+and `serialize` exist today;
 other names used here are the names that the code is planned to use. Their
 full rules are in [the architecture](../architecture.md). `cargo xtask check`
 already enforces the parts that it can check mechanically, as each convention
@@ -41,6 +50,8 @@ out; none of that code is taken over.
 13. [Request inputs and progress](#13-request-inputs-and-progress)
 14. [Canonical representation and equality](#14-canonical-representation-and-equality)
 15. [Depth](#15-depth)
+16. [Explicit randomness](#16-explicit-randomness)
+17. [No implicit conventions](#17-no-implicit-conventions)
 
 ## 1. Request context last
 
@@ -106,8 +117,8 @@ mathematically complete. Every public record with public fields is
 `#[non_exhaustive]`; other structs keep their fields private.
 
 The crate root re-exports only request-level items: the context and its
-limits, errors and result states, the request and outcome types, the command
-entry `execute`, and `parse`.
+limits, errors and result states, the shared result types, the request and
+outcome types, the command entry `execute`, and `parse`.
 Component types are reached through their component's module. The root
 re-exports neither command-language types nor third-party types. The public
 names of the crate root are listed in the tracked file `api/root-names.txt`,
@@ -375,3 +386,84 @@ comparison recurse natively; only the hidden cap
 `max_symbolic_depth.min(128)` keeps the stack safe. Raising the depth limit
 has no effect, and without the cap a deep term would overflow the stack when
 it is dropped or formatted.
+
+## 16. Explicit randomness
+
+The randomness of a random operation comes only from an explicit input: a
+seed or a random stream that is a parameter of the request or of the method.
+The library keeps no random state of its own and never takes a seed from the
+clock, from an address or from the operating system
+([convention 8](#8-determinism) and [convention 9](#9-no-global-state)).
+
+A deterministic method that, when its limits suffice, gives each input the
+same result whatever choices it makes, so that its choices change only its
+cost, is not a random operation: for example, a multimodular algorithm that
+takes its primes from a sequence written into its definition. A method whose
+result changes with the choices that it makes, such as Pollard's rho method,
+takes those choices from an explicit input, or its result names the method
+and the choices that it used. No operation of the library is random so far;
+the first random operation is planned for release 0.3. The guard of
+`cargo xtask check` already rejects `RandomState` and `SystemTime` in library
+code, and the `rand` family of packages in `Cargo.lock`.
+
+**Counterexample in the earlier implementation.**
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/algebra/integer.rs:722-734`.
+The integer factorization splits a cofactor $n$ by Pollard's rho method,
+iterating $x \mapsto x^2 + c$ modulo $n$ from $x = 2$ with the constants
+$c = 1, 2, \dots$ in turn, all written into the code; its options,
+`FactorOptions` at
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/algebra/integer.rs:551-556`,
+give the bound of the trial division and, for this method, only the number
+of steps and of constants. Its result,
+`IntegerFactorization` at
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/algebra/integer.rs:607-612`,
+may leave a cofactor unsplit, yet names neither the method nor the constants
+that were tried. A caller can neither give the choices nor continue the
+search with other ones.
+
+## 17. No implicit conventions
+
+A quantity with several accepted definitions, such as the rounding rule of
+an approximation, the sign of a remainder, the normalization of a transform
+or a quantile, is chosen by an explicit parameter, or the result names the
+definition that was used. A definition that is stated only in the
+documentation of an entry is not an explicit choice.
+
+Some entries that exist today do not follow this convention. Each fixes its
+definition only in its documentation, no parameter chooses it and its result
+does not name it, and the contract of its component says so at its rule:
+
+- in the [exact numbers](../components/numbers/contract.md),
+  `Integer::divide_with_remainder`, `Integer::bits`, `gcd`, `lcm`,
+  `extended_gcd`, `modular_inverse`, `modular_power`, `Congruence::new`,
+  `crt` and `Rational::power`;
+- in the [context](../components/context/contract.md), the bits that are
+  checked against `max_integer_bits`, and the deadline of `with_deadline`
+  with the readings of `Clock`;
+- in the [errors](../components/errors/contract.md), `Span` and the
+  `allowed` value of a bound that a machine width sets;
+- in the [shared result types](../components/shared-results/contract.md#combinations),
+  `Evidence::and` and `Truth::and`;
+- in the [term core](../components/terms/contract.md), `Term::power`,
+  `compare` with `TermKind::rank`, `equals`, `size`, `depth` and the content
+  of sums;
+- in the [polynomials](../components/polynomials/contract.md#operations),
+  `PolynomialRing::power`;
+- in the [parser](../components/syntax/contract.md), `parse`, for its
+  grammar, for powers with the exponent 0 and for its measures of depth and
+  nodes;
+- in the [command entry](../components/command/contract.md#the-dispatch-table),
+  `execute`, for powers with the exponent 0.
+
+**Counterexample in the earlier implementation.**
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/environment/numerical.rs:79`.
+An approximation `approx` that is given only a number of bits rounds to the
+nearest value with ties to even, and its answer line, written by
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/numerical/result.rs:255-275`
+through
+`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/environment.rs:1013`,
+does not name the rounding rule, while `round` of the same command group
+takes the rounding rule as an explicit operand
+(`cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/command/numerical.rs:90-94`).
+The value of the library keeps its rounding rule in `precision()`, but a
+reader of the answer line cannot tell which rule gave the rounded value.

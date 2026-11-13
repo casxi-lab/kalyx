@@ -260,7 +260,10 @@ All operations are generic over the coefficient ring. Each charges as the
   polynomial 1 for every $a$, also $0^0 = 1$. For $k \ge 1$ the power starts
   from a copy of $a$, and each bit of $k$ below its highest one, from the top,
   squares the power and, when the bit is set, multiplies it by $a$, each as a
-  product. So $0^k = 0$ for $k \ge 1$.
+  product. So $0^k = 0$ for $k \ge 1$. `power` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states $0^0 = 1$ only in its documentation, and its result does not
+  name it.
 - **The derivative** by the variable takes each term $c x^d$ with $d \ge 1$ to
   $(d \cdot 1) \, c \, x^{d - 1}$, where $d \cdot 1$ is the image of the
   integer $d$ by `from_integer` and the product is that of $K$, tested for
