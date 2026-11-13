@@ -25,12 +25,13 @@ and the prime fields of the exact numbers return `OutsideDomain` as well.
 The crate-internal pair check of the coefficient fields returns
 `VariableMismatch`; no layer of the library calls it yet. An error carries
 the [cause frames](#cause-frames) that `Error::frames` lists: the command
-entry adds the entry frame to every error of an operand of a request and of
-its operation, and no operation of this release adds a nested frame, which
-the unit tests of the command entry build. The first public method with
-result states comes with a later release. The crate-internal channel and
-its boundaries, and the cause frames, are exercised by the unit tests of
-`src/error.rs`.
+entry adds the entry frame to the errors of the entries of the operand
+table, of the reading of the operands and of the operation itself, and an
+error that concerns no operand has none; no operation of this release adds
+a nested frame, which the unit tests of the command entry build. The first
+public method with result states comes with a later release. The
+crate-internal channel and its boundaries, and the cause frames, are
+exercised by the unit tests of `src/error.rs`.
 
 ## Interface
 
