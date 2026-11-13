@@ -329,10 +329,15 @@ and in fields 5 to 11 of an `error-at` line:
   builds, have the spans that its [contract](components/syntax/contract.md#spans)
   states. An error that has no single range of an operand has the span `-`:
   settings other than the default, an unknown operation, an entry of the
-  operand table with an unknown role, a variable that is not a symbol name,
-  and every error of the work on a term after it is read, such as
-  `UnknownSymbol`, `NotPolynomial` and the request failures of its charges,
-  since a term has no span.
+  operand table with an unknown role, a second entry of a role that is not
+  repeatable, a missing required role, a variable that is not a symbol
+  name, a byte sum of a nonempty operand table over `max_input_bytes`, the
+  request failures of the charges of the entries of the table, of the
+  required roles and of the variable, and every error of the work on a term
+  after it is read, such as `UnknownSymbol`, `NotPolynomial` and the request
+  failures of its charges, since a term has no span. The
+  [order of a request](components/command/contract.md#the-request-and-its-order)
+  states where each of these errors arises.
 - **Limits.** The limit, the scope, the allowed value and the amount are
   those of the `LimitExceeded` record of the error.
 - **Messages.** The message is text for people. Its bytes depend only on the
