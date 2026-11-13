@@ -1680,6 +1680,46 @@ fn shape_kind(kind: TermKind) -> Option<&'static str> {
     }
 }
 
+/// The source of the command entry, which declares `Answer`.
+const COMMAND: &str = include_str!("../command.rs");
+
+/// The source of the term core, which declares `TermKind`.
+const TERM: &str = include_str!("../term.rs");
+
+/// The variants of the public enum `name` of `source`, in their order: the
+/// names that start the lines of its body at the indentation of a variant,
+/// after their documentation and attributes.
+fn variants(source: &'static str, name: &str) -> Vec<&'static str> {
+    let header = format!("\npub enum {name} {{\n");
+    let start = source
+        .find(&header)
+        .unwrap_or_else(|| panic!("no enum {name}"))
+        + header.len();
+    let body = &source[start..];
+    let body = &body[..body.find("\n}\n").unwrap()];
+    let names: Vec<&str> = body
+        .lines()
+        .filter_map(|line| line.strip_prefix("    "))
+        .filter(|line| line.starts_with(|first: char| first.is_ascii_uppercase()))
+        .map(|line| {
+            line.split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+                .next()
+                .unwrap()
+        })
+        .collect();
+    assert!(!names.is_empty(), "{name} has no variants");
+    names
+}
+
+/// The name of the variant of a value from its `Debug` text.
+fn variant_name(debug: &str) -> String {
+    debug
+        .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
+        .next()
+        .unwrap()
+        .to_owned()
+}
+
 /// The test files that the table of value kinds names.
 const TEST_FILES: [(&str, &str); 4] = [
     ("tests/terms.rs", include_str!("../../tests/terms.rs")),
@@ -1710,7 +1750,10 @@ fn assert_tests_exist(cell: &str) {
 // variant of `Answer` and one for each shape of a term with a display rule,
 // and every row names its display tests and its round-trip tests, each a
 // function of the test file that the row names, and the release of its
-// value model and encoding.
+// value model and encoding. The variants are read from the source of the
+// two enums: a value of each variant is listed below, so a new variant
+// fails until it is listed, and the matches above, which have no wildcard,
+// give it its row; only the reserved call has none.
 #[test]
 fn the_table_of_value_kinds_has_a_row_for_every_answer_variant_and_term_shape() {
     let rows = table_rows(
@@ -1718,19 +1761,43 @@ fn the_table_of_value_kinds_has_a_row_for_every_answer_variant_and_term_shape() 
         "| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Encoding |",
     );
     let kinds: Vec<String> = rows.iter().map(|row| row[0].replace('`', "")).collect();
-    let mut expected = vec![answer_kind(&Answer::Term(
+    let answers = [Answer::Term(
         Term::symbol("x", &mut context(Limits::new())).unwrap(),
-    ))];
-    for kind in [
+    )];
+    let listed: Vec<String> = answers
+        .iter()
+        .map(|answer| variant_name(&format!("{answer:?}")))
+        .collect();
+    assert_eq!(
+        listed,
+        variants(COMMAND, "Answer"),
+        "every variant of Answer"
+    );
+    let shapes = [
         TermKind::Number,
         TermKind::Symbol,
+        TermKind::Call,
         TermKind::Power,
         TermKind::Product,
         TermKind::Sum,
-        TermKind::Call,
-    ] {
-        expected.extend(shape_kind(kind));
-    }
+    ];
+    let listed: Vec<String> = shapes.iter().map(|shape| format!("{shape:?}")).collect();
+    assert_eq!(
+        listed,
+        variants(TERM, "TermKind"),
+        "every variant of TermKind"
+    );
+    let without_row: Vec<TermKind> = shapes
+        .into_iter()
+        .filter(|shape| shape_kind(*shape).is_none())
+        .collect();
+    assert_eq!(
+        without_row,
+        [TermKind::Call],
+        "only the reserved call has no row"
+    );
+    let mut expected: Vec<&str> = answers.iter().map(answer_kind).collect();
+    expected.extend(shapes.into_iter().filter_map(shape_kind));
     assert_eq!(kinds, expected);
     for row in &rows {
         assert_eq!(row.len(), 11, "{row:?}");
