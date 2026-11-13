@@ -488,14 +488,17 @@ fn the_byte_sum_of_the_operands_is_checked_against_max_input_bytes() {
     assert_eq!(exceeded.allowed(), 5);
     assert_eq!(exceeded.amount(), LimitAmount::Required(6));
     for (limit, passes) in [(6, true), (5, false)] {
-        let mut c = cancelled().with_timeout(0);
-        let c = &mut c;
-        let checked = operands::check_input_bytes(&request, c);
-        let limited = Context::new(Limits::new().with_max_input_bytes(limit), CancelFlag::new());
-        let checked_at_limit = operands::check_input_bytes(&request, &limited);
-        assert!(checked.is_ok());
-        assert_eq!(checked_at_limit.is_ok(), passes);
-        assert_eq!((c.work_used(), limited.work_used()), (0, 0));
+        let flag = CancelFlag::new();
+        flag.cancel();
+        let c = Context::new(Limits::new().with_max_input_bytes(limit), flag).with_timeout(0);
+        match operands::check_input_bytes(&request, &c) {
+            Ok(()) => assert!(passes),
+            Err(error) => {
+                assert!(!passes);
+                assert_eq!(error.kind(), ErrorKind::ResourceLimit, "not a charge point");
+            }
+        }
+        assert_eq!((c.work_used(), c.output_used()), (0, 0));
     }
     let request = Request::new("eval", "x", "1234567");
     let limited = context(Limits::new().with_max_input_bytes(6));
