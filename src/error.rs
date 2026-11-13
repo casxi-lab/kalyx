@@ -372,7 +372,8 @@ impl Error {
     /// The range counts bytes of the text of the operand that the innermost
     /// [cause frame](Error::frames) names. With no frame, or with only an
     /// outer frame of the operand index 0, it counts bytes of the text that
-    /// the entry was given, the input of a request.
+    /// the entry was given: the input of a request, or the source text of a
+    /// library function that is called directly.
     #[must_use]
     pub const fn span(&self) -> Option<Span> {
         self.span

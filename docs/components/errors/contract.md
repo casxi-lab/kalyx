@@ -61,9 +61,11 @@ The crate root re-exports every public item of the component:
   `end` is excluded, and neither `start()` nor `end()` names the unit. The
   span of an error counts bytes of the text of the operand that its
   innermost cause frame names, and with no frame, or with only an outer
-  frame of the operand index 0, of the text that the entry was given. This
-  origin does not follow convention 17 either: only the documentation of
-  `Error::span` states it, and the span does not name the operand;
+  frame of the operand index 0, of the text that the entry was given: the
+  input of a request, or the source text of a library function that is
+  called directly. This origin does not follow convention 17 either: only
+  the documentation of `Error::span` states it, and the span does not name
+  the operand;
 - `MathState` and `Settled<T>`, with the accessors `value()`, `into_value()`,
   `state()`, `is_value()` and `is_state()`;
 - `Result<T>`, which is `std::result::Result<T, Error>`.
@@ -262,8 +264,9 @@ scope, the allowed value and the amount.
   without frames.
 - The span of an error counts bytes of the text of the operand that the
   innermost frame names; with no frame, or with only an outer frame of the
-  operand index 0, it counts bytes of the text that the entry was given.
-  Adding a frame does not change the span.
+  operand index 0, it counts bytes of the text that the entry was given:
+  the input of a request, or the source text of a library function that is
+  called directly. Adding a frame does not change the span.
 - `CauseFrame` derives `PartialEq`, `Eq` and `Hash`, so tests compare frames
   whole.
 - No layer of the library adds a frame yet, so every error has none. The
