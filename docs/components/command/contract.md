@@ -1097,12 +1097,12 @@ process to their baseline after every run.
   run leaves the same amount, a run with another result kind than its case,
   a run without a line and a run whose line differs from the first, that
   the program reads the 58 cases with their limits, and that the case with
-  an operand table fails at its entry and publishes its `error-at` line. The guard does not scan the
-  crate, which is not code of the package, but scans every other file under
-  `checks/`; it checks that the lock file of the crate holds only the
-  package, the check crate and the packages of `guard/crates.txt`, and
-  reports a crate under `checks/` that is not the check crate, as
-  [CONTRIBUTING](../../../CONTRIBUTING.md#guard) states.
+  an operand table fails at its entry and publishes its `error-at` line.
+  The guard does not scan the crate, which is not code of the package, but
+  scans every other file under `checks/`; it checks that the lock file of
+  the crate holds only the package, the check crate and the packages of
+  `guard/crates.txt`, and reports a crate under `checks/` that is not the
+  check crate, as [CONTRIBUTING](../../../CONTRIBUTING.md#guard) states.
 
 ## Requirements
 

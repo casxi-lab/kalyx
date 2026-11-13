@@ -12,18 +12,19 @@
 //! each and builds their requests first, with one more case, `eval` of `1`
 //! with an entry of the operand table whose role `eval` does not read, which
 //! fails with `Unsupported` and writes an `error-at` line with the cause
-//! frame of its entry; the live bytes after that are the baseline. Each run then creates a context with the limits of its case,
-//! executes the request, writes the line of its outcome as a host does, with
-//! the fallback step of the command contract for an error whose line does
-//! not fit its own context, and drops all of them; the live bytes must be
-//! back at the baseline, so a run leaves 0 bytes behind. Every run must end
-//! with the result kind of its case and write a line, the same line as the
-//! first run of its case, which the check compares by its length and a
-//! checksum, so that it keeps no block across runs. Nothing is printed
-//! before the last run, since the first print allocates the buffer of
-//! standard output for the rest of the process. The program prints a
-//! summary and exits with 0 when it ran every case `RUNS` times and every
-//! run passes, and with 1 otherwise.
+//! frame of its entry; the live bytes after that are the baseline. Each run
+//! then creates a context with the limits of its case, executes the
+//! request, writes the line of its outcome as a host does, with the
+//! fallback step of the command contract for an error whose line does not
+//! fit its own context, and drops all of them; the live bytes must be back
+//! at the baseline, so a run leaves 0 bytes behind. Every run must end with
+//! the result kind of its case and write a line, the same line as the first
+//! run of its case, which the check compares by its length and a checksum,
+//! so that it keeps no block across runs. Nothing is printed before the last
+//! run, since the first print allocates the buffer of standard output for
+//! the rest of the process. The program prints a summary and exits with 0
+//! when it ran every case `RUNS` times and every run passes, and with 1
+//! otherwise.
 //!
 //! Before it takes the baseline, the program tests its own measurement: a
 //! job that keeps a block of 19 bytes must leave exactly 19 bytes behind,
