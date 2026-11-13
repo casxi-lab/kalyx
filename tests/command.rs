@@ -1238,10 +1238,11 @@ fn random_limits(random: &mut SplitMix64) -> Limits {
 // readings. Each writing charges exactly its bytes as output and the same
 // work, and every line has the documented shape. A sum or a product built in
 // the other order of its operands is the same canonical term, so its value
-// has the same line and its error the same kind; only the work may depend on
-// the order, so one order alone may exhaust `max_work`. 1,000 cases from a
-// fixed seed; every kind of line, an `error-at` line of a request with an
-// operand table included, and the main kinds of error occur.
+// has the same line and its error the same kind, and the same line when
+// neither order gives the error a span; only the work may depend on the
+// order, so one order alone may exhaust `max_work`. 1,000 cases from a fixed
+// seed; every kind of line, an `error-at` line of a request with an operand
+// table included, and the main kinds of error occur.
 #[test]
 fn the_same_outcome_is_written_as_the_same_bytes() {
     let mut random = SplitMix64(DETERMINISM_SEED);
@@ -1251,6 +1252,7 @@ fn the_same_outcome_is_written_as_the_same_bytes() {
     let mut extra = SplitMix64(DETERMINISM_SEED.rotate_left(32));
     let mut kinds = std::collections::BTreeSet::new();
     let mut reordered = 0;
+    let mut unplaced = 0;
     for index in 0..CASES {
         let request = with_random_operand(random_request(&mut random), &mut extra);
         let limits = random_limits(&mut random);
@@ -1313,11 +1315,19 @@ fn the_same_outcome_is_written_as_the_same_bytes() {
             }
             (Err(first), Err(second)) => {
                 assert!(work || first.kind() == second.kind(), "{pair}");
+                if !work && first.span().is_none() && second.span().is_none() {
+                    assert_eq!(line(&one), line(&other), "{pair}");
+                    unplaced += 1;
+                }
             }
             _ => assert!(work, "{pair}: a value in one order only"),
         }
     }
     assert!(reordered >= 200, "{reordered} values in both orders");
+    assert!(
+        unplaced >= 100,
+        "{unplaced} errors without a span in both orders"
+    );
     for kind in [
         "value",
         "error-at",
