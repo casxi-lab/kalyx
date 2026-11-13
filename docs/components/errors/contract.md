@@ -49,9 +49,11 @@ The crate root re-exports every public item of the component:
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
   only their documentation states that the index counts the operands from
   0, with 0 the input of an operation, that an index $k \ge 1$ is the entry
-  `operands[k-1]` of the operand table of the request for the entry frame
-  and the operand $k$ of the signature of its operation or of its step for
-  a nested frame, and that the outer frame comes first, and neither the
+  `operands[k-1]` of the operand table of the request for the entry frame,
+  that the index of a nested frame is the operand $k$ of the signature of
+  its operation, or, for a fixed step of the library, of the operands of
+  that step, which the contract of the component that delivers the step
+  numbers from 0, and that the outer frame comes first, and neither the
   record nor `frames()` names the base of the index, its numbering or the
   order. The location of an `error-at` line, which the
   [output lines](../../semantics.md#output-lines) state, writes the index
@@ -261,7 +263,9 @@ scope, the allowed value and the amount.
   of the operation of the request, whose index $k \ge 1$ is the entry
   `operands[k-1]` of the operand table of the request, and each later frame,
   a nested frame, is one that the frame before it entered, whose index
-  counts the operands of the signature of its operation or of its step.
+  counts the operands of the signature of its operation, or, for a fixed
+  step, the operands of that step, which the contract of the component that
+  delivers the step numbers from 0.
 - Frames are records only. Adding one charges nothing, opens no frame of
   the request context with `enter_frame` and does not count against
   `max_frames`.

@@ -197,11 +197,13 @@ pub struct Error {
 /// the form `[a-z][a-z0-9-]*`. The index counts the operands of that
 /// operation or step from 0; for an operation, 0 is its input. For the
 /// entry frame, the first, an index $k \ge 1$ is the entry `operands[k-1]`
-/// of the operand table of the request, and for a nested frame, the operand
-/// $k$ of the signature of its operation or of its step. Only the library
-/// builds frames: the command entry adds the entry frame, the operation of
-/// the request and the index of the operand in which an error arose, and no
-/// operation of this release enters a fixed step that adds a nested frame.
+/// of the operand table of the request; for a nested frame, the operand $k$
+/// of the signature of its operation, or, for a fixed step, of the operands
+/// of that step, which the contract of the component that delivers the step
+/// numbers. Only the library builds frames: the command entry adds the entry
+/// frame, the operation of the request and the index of the operand in which
+/// an error arose, and no operation of this release enters a fixed step that
+/// adds a nested frame.
 /// Code outside the library reads frames but cannot build them:
 ///
 /// ```compile_fail,E0624
@@ -375,15 +377,16 @@ impl Error {
     /// operation or a fixed step that the one before it entered, with the
     /// operand there. An operand index counts from 0: 0 is the input, and
     /// an index $k \ge 1$ is the entry `operands[k-1]` of the operand table
-    /// of the request for the entry frame, and the operand $k$ of the
-    /// signature of its operation or of its step for a nested frame. The
-    /// command entry adds the entry frame to an error of an operand of a
-    /// request and to an error of the operation itself; an error of the
-    /// settings, of the operation name, of a missing role, of the byte sum
-    /// of the operands or of the variable has no frame, and neither has an
-    /// error of a library function that is called directly, or one that
-    /// [`Error::new`] builds. No operation of this release adds a nested
-    /// frame.
+    /// of the request for the entry frame, and for a nested frame the
+    /// operand $k$ of the signature of its operation, or, for a fixed step,
+    /// of the operands of that step, which the contract of the component
+    /// that delivers the step numbers. The command entry adds the entry
+    /// frame to an error of an operand of a request and to an error of the
+    /// operation itself; an error of the settings, of the operation name, of
+    /// a missing role, of the byte sum of the operands or of the variable has
+    /// no frame, and neither has an error of a library function that is
+    /// called directly, or one that [`Error::new`] builds. No operation of
+    /// this release adds a nested frame.
     ///
     /// ```
     /// use kalyx::context::CancelFlag;
