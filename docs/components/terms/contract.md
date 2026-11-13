@@ -174,8 +174,9 @@ canonical forms are unique, structurally equal terms are the same term.
 they state this order, in which `children`, `as_product`, `as_sum` and
 `negative_bases` also return their parts, only in their documentation, and
 an `Ordering` or a rank does not name it. `equals` does not follow it
-either: only its documentation says that it tests whether two terms are the
-same term and not whether their values are equal, and its result does not
+either: only its documentation says that it is `compare` giving `Equal`, a
+structural test, so that terms of equal value and different structure, such
+as $(x + 1)^2$ and $x^2 + 2x + 1$, are not equal, and its result does not
 name the test.
 
 ### Products

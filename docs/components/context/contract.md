@@ -412,9 +412,9 @@ field or by a machine width that no field names.
   follow
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
   they state only in their documentation that a reading counts nanoseconds
-  from an origin of the clock's own choosing and that a deadline is reached
-  when a reading is at least `at`, and neither `at` nor a reading names its
-  unit.
+  from an origin of the clock's own choosing, and neither `at` nor a reading
+  names its unit. No documentation states whether a reading equal to `at`
+  reaches the deadline; the context counts it as reached.
 - Tests that depend on when the deadline passes or on the count of polls
   inject a fake clock and a fake probe through `Context::with_observers`. The
   tests of the default flag, the two host tests and the carried-over examples

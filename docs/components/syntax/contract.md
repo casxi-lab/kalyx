@@ -308,8 +308,8 @@ its productions, the precedence and associativity of its operators, unary
 minus in front of every operand and after `^`, and its whitespace. `parse`
 does not follow
 [convention 17](../../conventions/public-api.md#17-no-implicit-conventions)
-here: only the documentation of the input syntax states the precedence and
-associativity under which `-2^2` is $-4$ and `2^3^2` is 512, and that names
+here: only the documentation states the precedence and associativity
+under which `-2^2` is $-4$ and `2^3^2` is 512, and that names
 are case-sensitive, and the term that it returns does not name the grammar.
 
 - **Implemented here.** `src/syntax/lexer.rs` and `src/syntax/parser.rs`.
