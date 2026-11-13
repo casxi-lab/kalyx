@@ -503,9 +503,11 @@ impl Outcome {
 /// - `Fault(Syntax)` or `Fault(Unsupported)`, without a span and without a
 ///   frame, for a variable of `expand` or `diff` that is not a symbol name or
 ///   is reserved;
-/// - `ResourceLimit` naming `max_input_bytes`, without a span and without a
-///   frame, when the operand table is not empty and the bytes of the input
-///   and of every entry exceed that limit;
+/// - for an operation that reads a role of the operand table, which no
+///   operation of this release does, `ResourceLimit` naming
+///   `max_input_bytes`, without a span and without a frame, when the table
+///   is not empty and the bytes of the input and of every entry exceed that
+///   limit;
 /// - the errors of `parse`, each with a span into the input: among them
 ///   `Fault(Syntax)` with the empty span at the end of the input when the
 ///   operand is missing;
