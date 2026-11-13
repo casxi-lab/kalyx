@@ -1,8 +1,9 @@
 //! The dispatch table of the command entry and its three operations.
 //!
-//! The table is the one place that names the operations: a request names
-//! its operation, the table gives the operation of that name, and a `match`
-//! runs it. A name that the table does not hold is an unknown operation.
+//! The table is the one place that registers the operations by name: a
+//! request names its operation, the table gives the operation of that name,
+//! and a `match` runs it. A name that the table does not hold is an unknown
+//! operation, whose message lists the operations of the table.
 //! Each operation has a signature, the roles of the operand table that it
 //! reads; `eval`, `expand` and `diff` read the input alone.
 

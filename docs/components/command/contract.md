@@ -391,16 +391,18 @@ are bounded whatever the length of the name.
 
 The table names each operation once, by its name, and a `match` on the
 operation that the name gives runs it. An operation is registered only by
-its name in this one table: no other place of the library names the
-operations, and no request reaches an operation that the table does not
-hold. The operation index below has one row for each operation of the
-table, in its order: the name, the contract of its component, its
-signature, which gives its roles and so its number of operands, the
-variant of `Answer` that it returns and the version in which it first
-appears. What the operation reads, its steps, its result and the order of
-its errors are stated in the contract that the row links, and the test
-`the_dispatch_table_holds_eval_expand_and_diff` in `src/command/tests.rs`
-checks that the names of the index are those of the table.
+its name in this one table: no other place of the library registers an
+operation or looks one up by its name, and no request reaches an operation
+that the table does not hold. The message of an unknown operation lists the
+operations of the table. The operation index below has one row for each
+operation of the table, in its order: the name, the contract of its
+component, its signature, which gives its roles and so its number of
+operands, the variant of `Answer` that it returns and the version in which
+it first appears. What the operation reads, its steps, its result and the
+order of its errors are stated in the contract that the row links, and the
+test `the_dispatch_table_holds_eval_expand_and_diff` in
+`src/command/tests.rs` checks that the names of the index and of the
+message of an unknown operation are those of the table.
 
 | Operation | Contract | Signature | Result | Since |
 | --- | --- | --- | --- | --- |
@@ -1195,7 +1197,8 @@ with `Unsupported` before any work.
   steps of an operation and its line charge one context, and
   `the_dispatch_table_holds_eval_expand_and_diff` in `src/command/tests.rs`,
   which checks the table and that the names of the operation index of this
-  contract are those of the table.
+  contract and of the message of an unknown operation are those of the
+  table.
 
 ### CMD-R05
 
@@ -1540,10 +1543,11 @@ baseline.
    fixed seed in four categories of fixed counts, each error with its
    fallback line.
 9. **No message text.** No test asserts the wording of a message of an
-   error of the library. Two tests check what a rule asks of a message:
-   that the message of a missing role ends with the name of the role, and
-   that the message of a variable that is not a symbol name, the longest
-   message of the library, has the $M$ bytes that
+   error of the library. Three tests check what a rule asks of a message:
+   that the message of a missing role ends with the name of the role; that
+   the message of an unknown operation lists the operations of the dispatch
+   table; and that the message of a variable that is not a symbol name, the
+   longest message of the library, has the $M$ bytes that
    [the fallback line](#the-fallback-line) states. A test that reads the
    message field of a line compares it with the escaped message of the
    error.
