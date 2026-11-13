@@ -166,7 +166,8 @@ impl CoefficientRing for PrimeField {
     }
 
     /// [`ZeroTest::Zero`] exactly for the residue 0, otherwise
-    /// [`ZeroTest::Nonzero`], without a charge.
+    /// [`ZeroTest::Nonzero`], without a charge. A residue at or above the
+    /// modulus fails with `Fault(OutsideDomain)`, also without a charge.
     fn zero_test(&self, a: &PrimeResidue, _context: &mut Context) -> Result<ZeroTest<Infallible>> {
         if self.residue(a)? == 0 {
             Ok(ZeroTest::Zero)

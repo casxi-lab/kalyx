@@ -696,9 +696,11 @@ residue.
   `Fault(DivisionByZero)` before any check and any charge, so under every
   limit, with no work left and when the request is cancelled, and nothing
   is charged (`a_prime_field_inverts_zero_to_division_by_zero_without_a_charge`).
-- **Zero tests and parents.** `zero_test` reads the residue and always
-  decides; `same_parent` compares the moduli. Both take constant time,
-  allocate nothing and charge nothing
+- **Zero tests and parents.** For a residue below $p$, `zero_test` reads
+  the residue and always decides; a residue at or above $p$ fails with
+  `Fault(OutsideDomain)`, as in every method that takes residues.
+  `same_parent` compares the moduli. Both take constant time, allocate
+  nothing and charge nothing
   (`prime_fields_decide_every_zero_test_without_a_charge`).
 - **Storage.** `measure` is one node and $\lvert r \rvert + 4$ bytes for
   the residue $r$, the cost $(1, \lvert r \rvert + 4)$ of the integer $r$
