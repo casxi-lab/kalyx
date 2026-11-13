@@ -16,8 +16,8 @@ errors and result states, the shared result types, the request context with
 its limits, the exact numbers with the coefficient-field trait over
 $\mathbb{Q}$, the terms of the term core, the parser, the univariate
 polynomials and the command entry, which follow these conventions, apart
-from the two entries that
-[convention 17](#17-no-implicit-conventions) names. They are the rules that
+from the entries that
+[convention 17](#17-no-implicit-conventions) lists. They are the rules that
 each further component follows when it lands, and review holds every change
 to them. `Error`, `Settled<T>`, `LimitId`, `MathState`, `Evidence`, `Truth`,
 `Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`, `CoefficientRing`,
@@ -429,11 +429,31 @@ or a quantile, is chosen by an explicit parameter, or the result names the
 definition that was used. A definition that is stated only in the
 documentation of an entry is not an explicit choice.
 
-Two entries of the integer kernel do not follow this convention:
-`Integer::divide_with_remainder`, whose remainder is the Euclidean one and
-never negative, and `kalyx::number::extended_gcd`, whose Bézout
-coefficients are the ones that its documentation fixes. Each states its
-definition only in its documentation, and neither result names it.
+Some entries that exist today do not follow this convention. Each fixes its
+definition only in its documentation, no parameter chooses it and its result
+does not name it, and the contract of its component says so at its rule:
+
+- in the [exact numbers](../components/numbers/contract.md),
+  `Integer::divide_with_remainder`, `Integer::bits`, `gcd`, `lcm`,
+  `extended_gcd`, `modular_inverse`, `modular_power`, `Congruence::new`,
+  `crt` and `Rational::power`;
+- in the [context](../components/context/contract.md), the bits that are
+  checked against `max_integer_bits`, and the deadline of `with_deadline`
+  with the readings of `Clock`;
+- in the [errors](../components/errors/contract.md), `Span` and the
+  `allowed` value of a bound that a machine width sets;
+- in the [shared result types](../components/shared-results/contract.md#combinations),
+  `Evidence::and` and `Truth::and`;
+- in the [term core](../components/terms/contract.md), `Term::power`,
+  `compare` with `TermKind::rank`, `equals`, `size`, `depth` and the content
+  of sums;
+- in the [polynomials](../components/polynomials/contract.md#operations),
+  `PolynomialRing::power`;
+- in the [parser](../components/syntax/contract.md), `parse`, for its
+  grammar, for powers with the exponent 0 and for its measures of depth and
+  nodes;
+- in the [command entry](../components/command/contract.md#the-dispatch-table),
+  `execute`, for powers with the exponent 0.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/environment/numerical.rs:79`.
