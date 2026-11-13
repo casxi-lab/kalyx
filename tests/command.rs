@@ -2209,10 +2209,11 @@ fn a_corrupted_expectation_fails_the_comparison() {
 
 // The examples of the output lines in `docs/semantics.md`, with the requests
 // that they name: every field but the message, whose wording is not part of
-// the interface, and the whole line as the example writes it. The state
-// line, the answer lines and the `error-at` lines of nested and later
-// operations among the examples are written by the unit tests in
-// `src/command/tests.rs`, since no request of this release writes them.
+// the interface, both as the test writes it and as the example in the page
+// writes it. The state line, the answer lines and the `error-at` lines of
+// nested and later operations among the examples are written by the unit
+// tests in `src/command/tests.rs`, since no request of this release writes
+// them.
 #[test]
 fn the_examples_of_the_output_lines_hold() {
     let versions = Request::new("expand", "x", "x^257")
@@ -2266,23 +2267,29 @@ fn the_examples_of_the_output_lines_hold() {
             "error-at\t0\t0\t0\tUnsupported\t-\t-\t-\t-\t-\t1",
         ),
     ];
+    // Every field of a line but the message, the field 11 of an `error` line
+    // and of an `error-at` line.
+    let without_message = |found: &[&str]| -> String {
+        match found[0] {
+            "error" => found[..10].join("\t"),
+            "error-at" => [&found[..10], &found[11..]].concat().join("\t"),
+            _ => found.join("\t"),
+        }
+    };
     let documented: Vec<String> = SEMANTICS
         .lines()
-        .filter(|line| line.starts_with("value⇥") || line.starts_with("error"))
-        .map(|line| line.replace('⇥', "\t"))
+        .filter(|line| {
+            ["value⇥", "error⇥", "error-at⇥"]
+                .iter()
+                .any(|kind| line.starts_with(kind))
+        })
+        .map(|line| without_message(&line.split('⇥').collect::<Vec<&str>>()))
         .collect();
     for (request, limits, expected) in cases {
         let (outcome, _) = run(&request, limits);
         let text = line(&outcome);
-        let found = fields(&text);
-        let without_message: Vec<&str> = match found[0] {
-            "error" => found[..10].to_vec(),
-            "error-at" => [&found[..10], &found[11..]].concat(),
-            _ => found.clone(),
-        };
-        assert_eq!(without_message.join("\t"), expected, "{request:?}");
-        // The example of the line in `docs/semantics.md` is the whole line.
-        let whole = text.strip_suffix('\n').unwrap();
-        assert!(documented.iter().any(|line| line == whole), "{whole:?}");
+        let found = without_message(&fields(&text));
+        assert_eq!(found, expected, "{request:?}");
+        assert!(documented.contains(&found), "{found:?} in {documented:?}");
     }
 }
