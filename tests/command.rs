@@ -1207,6 +1207,17 @@ fn with_random_operand(request: Request, random: &mut SplitMix64) -> Request {
     }
 }
 
+/// Whether `outcome` ended with a `ResourceLimit` on `max_work`, the one
+/// error that the order of the operands of a sum or a product may change.
+fn exhausts_work(outcome: &Outcome) -> bool {
+    matches!(
+        outcome.result(),
+        Err(error) if error
+            .exceeded()
+            .is_some_and(|exceeded| *exceeded.id() == LimitId::Field(LimitField::Work))
+    )
+}
+
 /// The limits of a case: the defaults, or the defaults with one small field.
 fn random_limits(random: &mut SplitMix64) -> Limits {
     match random.below(8) {
@@ -1227,9 +1238,10 @@ fn random_limits(random: &mut SplitMix64) -> Limits {
 // readings. Each writing charges exactly its bytes as output and the same
 // work, and every line has the documented shape. A sum or a product built in
 // the other order of its operands is the same canonical term, so its value
-// has the same line. 1,000 cases from a fixed seed; every kind of line, an
-// `error-at` line of a request with an operand table included, and the main
-// kinds of error occur.
+// has the same line and its error the same kind; only the work may depend on
+// the order, so one order alone may exhaust `max_work`. 1,000 cases from a
+// fixed seed; every kind of line, an `error-at` line of a request with an
+// operand table included, and the main kinds of error occur.
 #[test]
 fn the_same_outcome_is_written_as_the_same_bytes() {
     let mut random = SplitMix64(DETERMINISM_SEED);
@@ -1292,13 +1304,17 @@ fn the_same_outcome_is_written_as_the_same_bytes() {
             &Request::new(operation, "x", &format!("({b}){operator}({a})")),
             Limits::new(),
         );
-        if let (Ok(_), Ok(_)) = (one.result(), other.result()) {
-            assert_eq!(
-                line(&one),
-                line(&other),
-                "case {index}: ({a}){operator}({b})"
-            );
-            reordered += 1;
+        let pair = format!("case {index}: {operation} of ({a}){operator}({b})");
+        let work = exhausts_work(&one) || exhausts_work(&other);
+        match (one.result(), other.result()) {
+            (Ok(_), Ok(_)) => {
+                assert_eq!(line(&one), line(&other), "{pair}");
+                reordered += 1;
+            }
+            (Err(first), Err(second)) => {
+                assert!(work || first.kind() == second.kind(), "{pair}");
+            }
+            _ => assert!(work, "{pair}: a value in one order only"),
         }
     }
     assert!(reordered >= 200, "{reordered} values in both orders");
