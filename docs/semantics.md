@@ -331,11 +331,12 @@ and in fields 5 to 11 of an `error-at` line:
   settings other than the default, an unknown operation, an entry of the
   operand table with an unknown role, a second entry of a role that is not
   repeatable, a missing required role, a variable that is not a symbol
-  name, a byte sum of a nonempty operand table over `max_input_bytes`, the
-  request failures of the charges of the entries of the table, of the
-  required roles and of the variable, and every error of the work on a term
-  after it is read, such as `UnknownSymbol`, `NotPolynomial` and the request
-  failures of its charges, since a term has no span. The
+  name or is reserved, a byte sum of a nonempty operand table over
+  `max_input_bytes`, the request failures of the charges of the entries of
+  the table, of the required roles and of the variable, and every error of
+  the work on a term after it is read, such as `UnknownSymbol`,
+  `NotPolynomial` and the request failures of its charges, since a term has
+  no span. The
   [order of a request](components/command/contract.md#the-request-and-its-order)
   states where each of these errors arises.
 - **Limits.** The limit, the scope, the allowed value and the amount are
