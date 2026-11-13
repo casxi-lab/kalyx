@@ -6,8 +6,10 @@
 //! escaping and of errors with cause frames, the representative lines of
 //! the serialization at their limits and under cancellation, the bound of
 //! the fallback line and the table of value kinds. Errors are compared by
-//! kind, span, cause frames and exceeded limit, never by message, but for
-//! the one rule that the message of a missing role names its role.
+//! kind, span, cause frames and exceeded limit, never by the wording of a
+//! message, but for the two rules that the message of a missing role ends
+//! with its role and that the message of a malformed variable, the longest,
+//! has the bytes that the bound of the fallback line counts.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};

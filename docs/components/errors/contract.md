@@ -213,7 +213,8 @@ requirement.
   case, so no error has one without the other.
 - Programs act on `kind()`, `span()`, `frames()` and `exceeded()`. The
   message is text for people, so `Error` implements neither `PartialEq`,
-  `Eq` nor `Hash`, and tests compare those parts, never the message.
+  `Eq` nor `Hash`, and tests compare those parts, never the wording of the
+  message.
 
 ### Constructing errors
 
@@ -422,7 +423,8 @@ the mapping above is fixed, so each difference is accepted by its row.
    outside the library sees it: errors that such code constructs, the
    standard error trait, the `Display` form (the message, then the span),
    spans, the names of the limit fields and `Settled`.
-6. **No message text.** No test asserts the message of an `Error`.
+6. **No message text.** No test asserts the wording of a message of an
+   `Error`.
 7. **Cause frames.** `causal_frames_are_records_without_charges` in
    `src/error.rs` checks that every constructor gives an error without
    frames, that `with_outer_frame` puts its frame first and keeps the kind,

@@ -6,8 +6,8 @@
 //! determinism of lines, and the replay of every case of `vectors/r02.tsv`
 //! with its comparison.
 //! The rules are those of `docs/components/command/contract.md` and of the
-//! output lines of `docs/semantics.md`. Errors are compared by kind, span
-//! and exceeded limit, never by message.
+//! output lines of `docs/semantics.md`. Errors are compared by kind, span,
+//! cause frames and exceeded limit, never by message.
 
 #![allow(
     clippy::expect_used,

@@ -2015,7 +2015,7 @@ entry adds.
   documentation test with the expected error code checks this.
 - `Error` does not derive `PartialEq`, `Eq` or `Hash`, because it carries
   message text. Tests compare `kind()`, `span()`, `frames()` and
-  `exceeded()`, never the message.
+  `exceeded()`, never the wording of the message.
 
 ### Limit identifiers
 

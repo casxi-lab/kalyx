@@ -365,7 +365,7 @@ compared by a method that takes the context. Values are normalized before
 they are encoded or hashed, and equality and ordering never use pointer
 identity. `Error` does not derive equality either, since it carries message
 text: tests compare its kind, span, cause frames and exceeded limit, never
-the message.
+the wording of the message.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/numerical/interval.rs:6-12`.
