@@ -1284,10 +1284,10 @@ order of a repeatable role.
 - **Evidence.** `the_same_outcome_is_written_as_the_same_bytes`, a property
   test of 1,000 cases from the fixed seed `0x5EED_0000_0000_0201`, with
   requests with an operand table and sums and products in both orders of
-  their operands, whose values have the same line and whose errors the same
-  kind, and the same line when neither has a span; and
-  `operands_are_read_in_the_order_of_the_signature` in
-  `src/command/tests.rs`.
+  their operands, whose values have the same line and whose errors, unless
+  one order exhausts `max_work`, the same kind, and the same line when
+  neither has a span; and `operands_are_read_in_the_order_of_the_signature`
+  in `src/command/tests.rs`.
 
 ### CMD-R10
 
