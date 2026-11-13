@@ -1265,11 +1265,11 @@ that field and returns no bytes.
   with a value line, an error line and an `error-at` line at their exact
   length, one byte less, half and nothing, and under too little work; and
   `representative_lines_pass_at_their_exact_limits_and_fail_one_below`, in
-  this file and in `src/command/tests.rs`, which writes the line of each
-  representative outcome under `max_output_bytes` and `max_work` at exactly
-  what it needs and one less, and checks that the retained storage of the
-  context does not change. Positive: every test that writes a line checks
-  that its output equals its length.
+  `tests/command.rs` and in `src/command/tests.rs`, which writes the line of
+  each representative outcome under `max_output_bytes` and `max_work` at
+  exactly what it needs and one less, and checks that the retained storage
+  of the context does not change. Positive: every test that writes a line
+  checks that its output equals its length.
 
 ### CMD-R09
 
@@ -1301,7 +1301,7 @@ names, and an `error-at` line writes the frames as its location.
   and the location in `src/command/line.rs`; the frames themselves in the
   [errors](../errors/contract.md#cause-frames).
 - **Evidence.** `the_entry_frame_names_the_operation_and_the_operand`;
-  `errors_outside_the_operands_have_no_frame`, in this file and in
+  `errors_outside_the_operands_have_no_frame`, in `tests/command.rs` and in
   `src/command/tests.rs`; in `src/command/tests.rs`
   `every_nested_category_writes_its_frame_in_the_location`, one example of
   each nested category, built in the test, since their operations come with
@@ -1322,7 +1322,7 @@ gives no bytes.
   `a_cancellation_at_any_charge_point_writes_a_whole_line_or_nothing` in
   `src/command/tests.rs`, with a fake clock and an injected probe, for the
   five kinds of lines; `representative_lines_cancelled_at_every_charge_point_leave_nothing`,
-  in this file and in `src/command/tests.rs`;
+  in `tests/command.rs` and in `src/command/tests.rs`;
   `a_flag_cancelled_between_two_requests_stops_the_second`;
   `a_request_that_fails_before_its_first_charge_reports_its_own_error`, for
   an unknown operation, a malformed variable, a reserved name as the
