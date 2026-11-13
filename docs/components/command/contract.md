@@ -90,9 +90,9 @@ interfaces as they are, a new row of the operation index aside:
   new operation, which adds a row to the
   [operation index](#the-dispatch-table) and a section to the contract of
   its component; a change of the signature or the result of an operation
-  that no tag has released yet; and a new value kind with its variant of
-  `Answer`. A change of the signature or the result of `eval`, `expand` or
-  `diff` is not among them.
+  that release 0.2 adds and that no tag has released yet; and a new value
+  kind with its variant of `Answer`. A change of the signature or the
+  result of `eval`, `expand` or `diff` is not among them.
 - With the review of a change of a contract: a new start symbol or a new
   spelling of the parser, and a new `FaultKind` whose `class()` is `Input`
   or `Internal`, which falls into the existing classes of Table 1.
