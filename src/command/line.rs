@@ -343,7 +343,9 @@ fn state_name(state: MathState) -> &'static [u8] {
     }
 }
 
-/// The span as `start..end`, its byte offsets into the input, or `-`.
+/// The span as `start..end`, its byte offsets into the text of the operand
+/// that the innermost cause frame names, the input for an error without a
+/// location, or `-`.
 fn span_text(span: Option<Span>) -> Vec<u8> {
     match span {
         Some(span) => {
