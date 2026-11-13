@@ -40,7 +40,8 @@ The crate root re-exports every public item of the component:
   `std::error::Error`;
 - `CauseFrame`, a `#[non_exhaustive]` record of the name of an operation, or
   of a fixed step of the library, and the index of an operand there, with
-  the accessors `name()` and `operand_index()` and no public constructor;
+  the accessors `name()`, a `&str`, and `operand_index()`, a `u64`, and no
+  public constructor;
   `Error::frames()` returns the cause frames of an error as
   `&[CauseFrame]`, outer first. They do not follow
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
@@ -78,7 +79,8 @@ states:
   nothing else: the [parser](../syntax/contract.md#spans) gives each error of
   the term core, which carries no span, the span of the syntax node whose
   term failed;
-- `CauseFrame::new(name, operand_index)`, whose name is a `&'static str`, and
+- `CauseFrame::new(name, operand_index)`, which takes the name as a
+  `&'static str` and stores it as an owned string, and
   `Error::with_outer_frame(frame)`, which puts `frame` before the cause
   frames of an error and changes nothing else. No layer calls them yet: the
   command entry is planned to add the first frame of an error, and the
@@ -249,8 +251,11 @@ scope, the allowed value and the amount.
   the request context with `enter_frame` and does not count against
   `max_frames`.
 - A frame name is a name that the library defines, of the form
-  `[a-z][a-z0-9-]*`, never text of a request: `CauseFrame::new` takes it as
-  a `&'static str`. The constructor is crate-internal, so code outside the
+  `[a-z][a-z0-9-]*`, never text of a request. `CauseFrame::new` takes it as
+  a `&'static str`, a static name of the library, and stores it as an owned
+  string, as a message is stored. Text of a request could reach it only by
+  leaking a string into a `&'static str`, which the library never does and
+  review rejects. The constructor is crate-internal, so code outside the
   library can neither build a frame nor add one to an error; the
   `compile_fail,E0624` documentation test of `CauseFrame` holds such a call.
   `Error::new` and the constructors of the request failures give an error
@@ -422,18 +427,28 @@ closure, combinator, function value, borrow or `?`, and the only allocation is
 the owned string of `Cap::message`, built by `String::from`. They have not
 been extracted: no proof target is registered for them yet.
 
-The cause frames follow the subset as well. `CauseFrame::new`,
-`CauseFrame::name`, `CauseFrame::operand_index` and `Error::frames` each
-build or read fields, and `Error::with_outer_frame` takes the error by
-value, turns its frames into a `Vec`, inserts the frame at index 0 and
-stores them back as a boxed slice; none has a loop, closure, combinator,
-function value or `?`. The frames are a `Box<[CauseFrame]>` rather than a
-`Vec`, which keeps `Error` below the size at which Clippy's
-`result_large_err` lint, an error under `cargo xtask check`, rejects every
-function that returns it, and an error without frames allocates nothing for
-them. A proof of `with_outer_frame` will need models of `Vec` and `Box`, as
-the frame table of the [context](../context/contract.md#extractability)
-does. They have not been extracted either.
+The cause frames are written for the subset as well, and the qualification
+cases of the proof tooling cover part of their shapes. A frame stores its
+name as an owned string, which `CauseFrame::new` builds by `String::from`,
+the conversion of the case `str_from`, and its index as a `u64`.
+`CauseFrame::name` returns a borrow of the stored string as a `&str`, as the
+case `moving-if-join` does, and the derived `PartialEq` compares two names
+with `String::eq`, which the case `collection-hand-traits` translates. A
+name stored as a `&'static str` and compared with `==` is the shape that
+the cases `registry-str-names` and `const-str-names` record as rejected for
+nested borrows. No case covers the derived `Hash`, which `LimitId` also
+derives over an owned string, or the boxed slice of the frames.
+`CauseFrame::operand_index` and `Error::frames` read a field, and
+`Error::with_outer_frame` takes the error by value, turns its frames into a
+`Vec`, inserts the frame at index 0 and stores them back as a boxed slice;
+none of these functions has a loop, closure, combinator, function value or
+`?`. The frames are a `Box<[CauseFrame]>` rather than a `Vec`, which keeps
+`Error` below the size at which Clippy's `result_large_err` lint, an error
+under `cargo xtask check`, rejects every function that returns it, and an
+error without frames allocates nothing for them. A proof of `Error::frames`
+and `with_outer_frame` will need models of `Vec` and `Box`, as the frame
+table of the [context](../context/contract.md#extractability) does. They
+have not been extracted either.
 
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that

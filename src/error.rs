@@ -206,14 +206,17 @@ pub struct Error {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct CauseFrame {
-    name: &'static str,
-    operand_index: usize,
+    name: String,
+    operand_index: u64,
 }
 
 impl CauseFrame {
     /// The frame of the operation or step `name` at its operand
-    /// `operand_index`. The name is a name of the library, which the type
-    /// `&'static str` keeps apart from the text of a request.
+    /// `operand_index`. The name is taken as a `&'static str`, a static name
+    /// of the library, and stored as an owned string, since code meant to be
+    /// proved returns no string literal. Text of a request could reach it
+    /// only by leaking a string into a `&'static str`, which the library
+    /// never does and review rejects.
     #[cfg_attr(
         not(test),
         expect(
@@ -221,23 +224,23 @@ impl CauseFrame {
             reason = "no layer of this release adds a cause frame; the unit tests reach it"
         )
     )]
-    pub(crate) const fn new(name: &'static str, operand_index: usize) -> Self {
+    pub(crate) fn new(name: &'static str, operand_index: u64) -> Self {
         Self {
-            name,
+            name: String::from(name),
             operand_index,
         }
     }
 
     /// The name of the operation or step.
     #[must_use]
-    pub const fn name(&self) -> &str {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// The index of the operand in which the error arose, counted from 0;
     /// for an operation, 0 is its input.
     #[must_use]
-    pub const fn operand_index(&self) -> usize {
+    pub const fn operand_index(&self) -> u64 {
         self.operand_index
     }
 }
