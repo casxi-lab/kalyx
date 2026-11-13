@@ -107,10 +107,9 @@ The module `kalyx::number` holds:
 The module `kalyx::coefficient` holds `ZeroTest<U>`, the traits
 `CoefficientRing` and `CoefficientField`, `Rationals`, and the prime fields:
 `PrimeField`, with `PrimeField::new(p, context)` and the accessor
-`modulus()`, and `Clone`, `Copy`, `Debug`, `PartialEq`, `Eq` and `Hash`;
-and its element `PrimeResidue`, with the accessor `value()`, and `Clone`,
-`Copy` and `Debug`. Both implement the two coefficient traits through
-`PrimeField`.
+`modulus()`, and `Clone`, `Copy`, `Debug`, `PartialEq`, `Eq` and `Hash`,
+which implements both coefficient traits; and its element `PrimeResidue`,
+with the accessor `value()`, and `Clone`, `Copy` and `Debug`.
 
 Crate-internal: `Rational::literal_at(text, offset, context)`, the literal
 conversion for the parser, whose errors carry spans shifted by `offset`;
