@@ -1359,11 +1359,15 @@ limits.
   `src/command/tests.rs`, which writes the longest `error-at` lines, with
   $d$ nested frames of the longest frame name, under the default limits,
   checks that they have at most $B$ bytes, that this contract states the
-  current values, that $d$ and $N$ are those of `src/command/dispatch.rs`,
-  that $K$ is the longest of the kind names that it reads from the source
-  of the two matches of `src/command/line.rs` that write them, which have
-  no wildcard, and that the lines of the three request failures and of
-  every fault kind have those names, that $Q$ is the longest limit of the
+  current values, that $d$ is `NESTED_FRAMES` of `src/command/dispatch.rs`
+  wherever this contract states it, so that the integration tests read it
+  from here, that $N$ is the longest of the frame names of the list of
+  nested categories, whose category names are those of
+  `src/command/dispatch.rs`, and of the operations of the table, that $K$
+  is the longest of the kind names that it reads from the source of the
+  two matches of `src/command/line.rs` that write them, which have no
+  wildcard, and that the lines of the three request failures and of every
+  fault kind have those names, that $Q$ is the longest limit of the
   fields of `LimitField::ALL`, and that $M$ is the longest escaped message
   that the sources give, which the message of a malformed variable has: of
   the string literals of the code of the library outside its tests and
