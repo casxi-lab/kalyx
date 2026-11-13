@@ -594,9 +594,9 @@ in which nothing else is retained.
   `Fault(VariableMismatch)`, without a span, when it is `false`; its checks
   and charges are those of `same_parent`, and a request failure of
   `same_parent` is returned as it is. For `Rationals` and `PrimeField` it
-  charges nothing, so the element 2 of $\mathbb F_5$ and the element 2 of
-  $\mathbb F_7$, which have the same residue, fail with `VariableMismatch`
-  under a work limit of 0
+  charges nothing, so the pair check of the parents of the element 2 of
+  $\mathbb F_5$ and of the element 2 of $\mathbb F_7$, which have the same
+  residue, fails with `VariableMismatch` under a work limit of 0
   (`elements_of_different_prime_fields_fail_with_variable_mismatch` in
   `src/coefficient/tests.rs`). No layer stores such a pair in this
   release, so the check has no caller outside its unit test.
