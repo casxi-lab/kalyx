@@ -1181,9 +1181,14 @@ squares, each leaving before its loop through no `?` and no `return`, and
 the loop over the bases is an index loop over a constant array. Design rules
 1 and 2 are met as adapted, as for the integer kernel: the domain tests and
 the bound of each step come before its charge and the operands are never
-written, a charge is not undone, and the integers of the test are allocated
-at run time only after the bound that covers them; the arithmetic of the
-residues allocates nothing.
+written, and a charge is not undone. The integers of the test are allocated
+at run time: the operands of each power and squaring, and the residues 1
+and $p - 1$ that the test compares with, are built from the `u32` modulus
+and base, of at most 32 bits each, with no check of `max_integer_bits` of
+their own, the operands before the bound check of `modular_power`, which
+covers every integer that it computes. `from_integer` builds the integer of
+the modulus only after its own check. The arithmetic of the residues
+allocates nothing.
 
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that
