@@ -1272,15 +1272,18 @@ that field and returns no bytes.
 
 **Determinism.** The same outcome is written as the same bytes, whatever
 shares its nodes, the clock and the deadline, and the same request charges
-the same work; a sum or a product of the same operands in another order has
-the same line, and a result depends on the order of the operand table only
-through the indices and the order of a repeatable role.
+the same work; a sum or a product of the same operands in another order is
+the same canonical term, so its value has the same line; and a result
+depends on the order of the operand table only through the indices and the
+order of a repeatable role.
 
 - **Implemented here.** `execute` and `serialize`.
 - **Evidence.** `the_same_outcome_is_written_as_the_same_bytes`, a property
   test of 1,000 cases from the fixed seed `0x5EED_0000_0000_0201`, with
   requests with an operand table and sums and products in both orders of
-  their operands; and `operands_are_read_in_the_order_of_the_signature` in
+  their operands, whose values have the same line and whose errors the same
+  kind, and the same line when neither has a span; and
+  `operands_are_read_in_the_order_of_the_signature` in
   `src/command/tests.rs`.
 
 ### CMD-R10
