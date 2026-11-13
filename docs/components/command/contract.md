@@ -563,7 +563,7 @@ kinds of their lines, their numbers of fields and every field but the
 message are those that `v0.1.0` writes. The messages are not in it: their
 wording is not part of the interface, as
 [the output lines](../../semantics.md#output-lines) state, and no test
-asserts a message of the library. The evidence is
+asserts the wording of a message of the library. The evidence is
 [the replay of the answer vectors](#cmd-r14), which compares canonical
 forms, error kinds and limit fields. Display text and spans are not
 compared byte for byte across releases: the display rules of the term core
@@ -1507,10 +1507,14 @@ baseline.
    fixtures planned for krepi's worker, and 10,000 random requests from a
    fixed seed in four categories of fixed counts, each error with its
    fallback line.
-9. **No message text.** No test asserts the message of an error of the
-   library, but that the message of a missing role ends with the name of
-   the role, which the rule asks; a test that reads the message field of a
-   line compares it with the escaped message of the error.
+9. **No message text.** No test asserts the wording of a message of an
+   error of the library. Two tests check what a rule asks of a message:
+   that the message of a missing role ends with the name of the role, and
+   that the message of a variable that is not a symbol name, the longest
+   message of the library, has the $M$ bytes that
+   [the fallback line](#the-fallback-line) states. A test that reads the
+   message field of a line compares it with the escaped message of the
+   error.
 
 ## Extractability
 
