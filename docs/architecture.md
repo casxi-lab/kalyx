@@ -2077,24 +2077,25 @@ the contract of the command entry defines together with krepi: its
 maps them to `cancelled` and `resource_exhausted`, and the contract states
 the terminal state of a job of several requests.
 
-The classes take in what later releases add (planned). A value of any
-variant of `Answer` has a `value` line for a term and an
+A value of any variant of `Answer` has a `value` line for a term and an
 [`answer` line](#answers-and-output-lines) otherwise, and an error has an
-`error` or `error-at` line. A new variant of `Answer` or of `MathState`,
-and a new `FaultKind` of the class `Input` or `Internal`, fall into an
-existing class and leave Table 1 as it is; Table 1 changes only for a new
-request failure (a new kind of the class `Context`), a new variant of
-`Settled`, a new fault kind of another class or a new terminal state for an
-existing class. An answer whose completeness is unsolved, such as an
+`error` or `error-at` line; these lines are implemented, and every answer
+of this release is a term. The classes take in what later releases add: a
+new variant of `Answer` or of `MathState`, and a new `FaultKind` of the
+class `Input` or `Internal`, fall into an existing class and leave Table 1
+as it is; Table 1 changes only for a new request failure (a new kind of
+the class `Context`), a new variant of `Settled`, a new fault kind of
+another class or a new terminal state for an existing class. An answer whose completeness is unsolved, such as an
 incomplete list of roots, is a value, and its job completes: the terminal
 state says whether the request finished, not whether its answer is
 complete.
 
 In 0.1, function-call syntax, the reserved names `pi`, `i` and `undefined`,
 an unknown operation and a non-default setting fail with `Unsupported`, and
-a missing operand fails with `Syntax`. In 0.2 (planned), calls and the
-constants have a meaning; an unknown head of a call, a wrong number of
-arguments, a second entry of a role that is not repeatable and a missing
-operand, a missing required role included, fail with `Syntax`, and an
-unknown role fails with `Unsupported`, as an unknown operation and a
-non-default setting still do.
+a missing operand fails with `Syntax`. The checks of the operand table are
+implemented: an unknown role fails with `Unsupported`, as an unknown
+operation and a non-default setting still do, and a second entry of a role
+that is not repeatable and a missing required role fail with `Syntax`. In
+0.2 (planned), calls and the constants have a meaning, and an unknown head
+of a call and a wrong number of arguments fail with `Syntax`, as a missing
+operand does.
