@@ -20,10 +20,11 @@ contract). The request context, the only code that constructs request
 failures, returns them from its charge points and checks. The exact numbers
 (`kalyx::number` and `kalyx::coefficient`) are the first entries of the
 library that compute: they return the faults `DivisionByZero`, `Syntax` and
-`Internal` and the request failures of the context, and the integer kernel of
-the exact numbers returns `OutsideDomain` as well. The first public method
-with result states comes with a later release. The crate-internal channel and its boundaries are
-exercised by the unit tests of `src/error.rs`.
+`Internal` and the request failures of the context, and the integer kernel
+and the prime fields of the exact numbers return `OutsideDomain` as well.
+The first public method with result states comes with a later release. The
+crate-internal channel and its boundaries are exercised by the unit tests of
+`src/error.rs`.
 
 ## Interface
 

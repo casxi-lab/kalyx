@@ -219,7 +219,10 @@ documentation states, and the amount of the error does not name the bound.
   [exact numbers](../numbers/contract.md#checks-and-charges) state, and the
   operations of `Integer` and the functions of the integer kernel, which
   check a bound on entry and the bounds of their steps, as the
-  [integer kernel](../numbers/contract.md#the-integer-kernel) states.
+  [integer kernel](../numbers/contract.md#the-integer-kernel) states, and
+  the constructor and the element operations of `PrimeField`, which check
+  bounds computed from the modulus, as the
+  [prime fields](../numbers/contract.md#prime-fields) state.
 - **Evidence.** Positive: `ctx_r07_an_integer_of_max_integer_bits_is_admitted`.
   Negative: `ctx_r07_one_bit_more_is_a_resource_limit`.
 

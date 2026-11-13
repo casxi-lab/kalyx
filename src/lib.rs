@@ -10,7 +10,8 @@
 //! frames and temporaries. The rest of the
 //! context is in the [`context`] module. The [`number`] module holds the
 //! exact integers and rationals, the [`coefficient`] module the
-//! coefficient-field trait with the field of rationals, and the [`term`]
+//! coefficient-field trait with the field of rationals and the prime fields,
+//! and the [`term`]
 //! module the term core: one immutable representation of numbers, symbols,
 //! sums, products and integer powers, kept in canonical form. The [`syntax`]
 //! module holds the one grammar of the library's input, and [`parse`] reads

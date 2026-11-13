@@ -1,10 +1,11 @@
 //! The element and map checks of the tool: the ring axioms and the field
 //! axioms, which are separate, agreement with an independent model, unique
 //! stored forms, the zero test, the errors of zero divisors, the
-//! characteristic, homomorphisms and parallel paths of maps, and the five
-//! families of properties from fixed seeds, of which associativity,
-//! commutativity and distributivity need only the ring layer and inverses
-//! and canonical uniqueness the field layer.
+//! characteristic, zero or a prime $p$ with the additivity of the $p$-th
+//! power, homomorphisms and parallel paths of maps, and the five families of
+//! properties from fixed seeds, of which associativity, commutativity and
+//! distributivity need only the ring layer and inverses and canonical
+//! uniqueness the field layer.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -358,6 +359,113 @@ pub fn characteristic_zero<A: Modelled>(adapter: &A, integers: &[i64]) {
         checked += 1;
     }
     assert!(checked > 0, "a nonzero integer is checked");
+}
+
+/// Characteristic $p \gt 0$: the image $n \cdot 1$ of each of `integers`
+/// is zero exactly when $p$ divides $n$, and agrees with the model;
+/// $p \cdot 1 = 0$, and $-1 \cdot 1$ has the stored form of
+/// $(p - 1) \cdot 1$ and of the negation of 1.
+pub fn characteristic_prime<A: Modelled>(adapter: &A, integers: &[i64]) {
+    let p = adapter.characteristic();
+    assert!(p > 1, "{}: not of a prime characteristic", adapter.label());
+    let ring = Elements(adapter);
+    let wide = i128::from(p);
+    for &n in integers {
+        case(Lazy(|f| write!(f, "{}: {n} * 1", adapter.label())), || {
+            let context = &mut roomy();
+            let image = ring.integer(&Integer::from(n), context);
+            let divides = i128::from(n) % wide == 0;
+            assert_eq!(
+                exact_zero_test(adapter, &image, context),
+                divides,
+                "{n} * 1 is zero exactly when {p} divides {n}"
+            );
+            let expected = adapter.model().integer(i128::from(n));
+            assert_eq!(adapter.value(&image), expected, "{n} * 1");
+        });
+    }
+    let context = &mut roomy();
+    let image = ring.integer(&Integer::from(p), context);
+    assert!(exact_zero_test(adapter, &image, context), "p * 1 = 0");
+    let minus_one = ring.integer(&Integer::from(-1_i64), context);
+    let below = ring.integer(&Integer::from(p - 1), context);
+    assert_same(adapter, &minus_one, &below, "-1 = p - 1");
+    let negated = ring.negate(&ring.one(context), context);
+    assert_same(adapter, &negated, &below, "-(1) = p - 1");
+}
+
+/// $a^n$ by binary powering from the lowest bit of $n$, with the product of
+/// the ring layer; $a^0 = 1$.
+pub fn element_power<A: Inspect>(
+    adapter: &A,
+    a: &Element<A>,
+    n: u64,
+    context: &mut Context,
+) -> Element<A> {
+    let ring = Elements(adapter);
+    let mut result = ring.one(context);
+    let mut base = a.clone();
+    let mut n = n;
+    while n != 0 {
+        if n & 1 != 0 {
+            result = ring.multiply(&result, &base, context);
+        }
+        n >>= 1;
+        if n != 0 {
+            base = ring.multiply(&base, &base, context);
+        }
+    }
+    result
+}
+
+/// $x^n$ in the model by binary powering, with the model's product.
+fn model_power<M: Model>(model: &M, x: &M::Value, n: u64) -> M::Value {
+    let mut result = model.one();
+    let mut base = x.clone();
+    let mut n = n;
+    while n != 0 {
+        if n & 1 != 0 {
+            result = model.multiply(&result, &base);
+        }
+        n >>= 1;
+        if n != 0 {
+            base = model.multiply(&base, &base);
+        }
+    }
+    result
+}
+
+/// In characteristic $p \gt 0$, $(a + b)^p = a^p + b^p$ for each of `pairs`
+/// of small `elements`, with the powers of [`element_power`]: the two sides
+/// have the same stored form, and the value of $(a + b)^p$ in the model,
+/// whose power is computed there.
+pub fn additive_frobenius<A: Modelled>(
+    adapter: &A,
+    elements: &[Element<A>],
+    pairs: &[(usize, usize)],
+) {
+    let p = adapter.characteristic();
+    assert!(p > 1, "{}: not of a prime characteristic", adapter.label());
+    let model = adapter.model();
+    let ring = Elements(adapter);
+    for &(i, j) in pairs {
+        let (a, b) = (&elements[i], &elements[j]);
+        case(
+            Lazy(|f| write!(f, "{}: (a + b)^p for elements {i}, {j}", adapter.label())),
+            || {
+                let context = &mut roomy();
+                let sum = ring.add(a, b, context);
+                let left = element_power(adapter, &sum, p, context);
+                let x = element_power(adapter, a, p, context);
+                let y = element_power(adapter, b, p, context);
+                let right = ring.add(&x, &y, context);
+                assert_same(adapter, &left, &right, "(a + b)^p = a^p + b^p");
+                let value = model.add(&adapter.value(a), &adapter.value(b));
+                let expected = model_power(model, &value, p);
+                assert_eq!(adapter.value(&left), expected, "(a + b)^p");
+            },
+        );
+    }
 }
 
 /// A map from a source value into a target, on a context.

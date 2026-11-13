@@ -447,9 +447,9 @@ proof-target modules. The contract of a component,
 section a fenced block with the info string `paths`, whose lines are
 repository paths of a tracked `.rs` file or of a directory that holds one;
 a line that names no tracked `.rs` file is a problem. The list holds the
-term core, the coefficient-field trait, the polynomials, the errors and
-result states, the accounting core of the context and the function registry,
-as the contracts of the
+term core, the coefficient-field trait with the prime fields, the
+polynomials, the errors and result states, the accounting core of the
+context and the function registry, as the contracts of the
 [terms](components/terms/contract.md#extractability),
 [numbers](components/numbers/contract.md#extractability),
 [polynomials](components/polynomials/contract.md#extractability),
