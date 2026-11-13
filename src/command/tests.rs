@@ -21,7 +21,9 @@ use crate::{
     LimitId, LimitScope, Limits, MathState, Result, Settled, Span,
 };
 
-use super::dispatch::{CATEGORY_NAMES, CommandOperation, NESTED_FRAMES, OPERATIONS, lookup};
+use super::dispatch::{
+    CATEGORY_NAMES, CommandOperation, NESTED_FRAMES, OPERATIONS, lookup, signature,
+};
 use super::line::answer_line;
 use super::operands::{self, Operands, Presence, Role, Signature};
 use super::{Answer, Outcome, Request, check_default, execute, serialize};
@@ -1244,19 +1246,344 @@ fn arm_names(function: &str) -> Vec<&'static str> {
     names
 }
 
+/// A token of Rust source for the scan of the messages: an identifier or a
+/// number, a punctuation character, or the value of a string literal, plain,
+/// byte or raw. Comments, character literals and lifetimes are left out.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Token {
+    Word(String),
+    Punct(char),
+    Text(String),
+}
+
+/// The value of the string literal that starts at `index` of `chars` and the
+/// index after it, or `None` when no string literal starts there.
+fn string_literal(chars: &[char], index: usize) -> Option<(String, usize)> {
+    let mut at = index;
+    if chars.get(at) == Some(&'b') {
+        at += 1;
+    }
+    let raw = chars.get(at) == Some(&'r');
+    let mut hashes = 0;
+    if raw {
+        at += 1;
+        while chars.get(at) == Some(&'#') {
+            hashes += 1;
+            at += 1;
+        }
+    }
+    if chars.get(at) != Some(&'"') {
+        return None;
+    }
+    at += 1;
+    let mut text = String::new();
+    loop {
+        let character = chars[at];
+        if character == '"' && (0..hashes).all(|k| chars.get(at + 1 + k) == Some(&'#')) {
+            return Some((text, at + 1 + hashes));
+        }
+        if raw || character != '\\' {
+            text.push(character);
+            at += 1;
+            continue;
+        }
+        let escaped = chars[at + 1];
+        at += 2;
+        match escaped {
+            'n' => text.push('\n'),
+            't' => text.push('\t'),
+            'r' => text.push('\r'),
+            '0' => text.push('\0'),
+            'x' => {
+                let digits: String = chars[at..at + 2].iter().collect();
+                text.push(char::from(u8::from_str_radix(&digits, 16).unwrap()));
+                at += 2;
+            }
+            'u' => {
+                let end = at + chars[at..].iter().position(|c| *c == '}').unwrap();
+                let digits: String = chars[at + 1..end].iter().collect();
+                text.push(char::from_u32(u32::from_str_radix(&digits, 16).unwrap()).unwrap());
+                at = end + 1;
+            }
+            '\n' => {
+                while chars[at].is_whitespace() {
+                    at += 1;
+                }
+            }
+            other => text.push(other),
+        }
+    }
+}
+
+/// The index after the character literal or the lifetime that starts with
+/// the quote at `index` of `chars`.
+fn quote_end(chars: &[char], index: usize) -> usize {
+    if chars.get(index + 1) == Some(&'\\') {
+        let mut at = index + 3;
+        while chars[at] != '\'' {
+            at += 1;
+        }
+        at + 1
+    } else if chars.get(index + 2) == Some(&'\'') {
+        index + 3
+    } else {
+        let mut at = index + 1;
+        while chars[at] == '_' || chars[at].is_alphanumeric() {
+            at += 1;
+        }
+        at
+    }
+}
+
+/// The tokens of the Rust source `source`.
+fn rust_tokens(source: &str) -> Vec<Token> {
+    let chars: Vec<char> = source.chars().collect();
+    let mut tokens = Vec::new();
+    let mut index = 0;
+    while index < chars.len() {
+        let character = chars[index];
+        let next = chars.get(index + 1).copied();
+        if character.is_whitespace() {
+            index += 1;
+        } else if character == '/' && next == Some('/') {
+            while index < chars.len() && chars[index] != '\n' {
+                index += 1;
+            }
+        } else if character == '/' && next == Some('*') {
+            let mut depth = 0;
+            loop {
+                if chars[index] == '/' && chars[index + 1] == '*' {
+                    depth += 1;
+                    index += 2;
+                } else if chars[index] == '*' && chars[index + 1] == '/' {
+                    depth -= 1;
+                    index += 2;
+                    if depth == 0 {
+                        break;
+                    }
+                } else {
+                    index += 1;
+                }
+            }
+        } else if let Some((text, end)) = string_literal(&chars, index) {
+            tokens.push(Token::Text(text));
+            index = end;
+        } else if character == '\'' {
+            index = quote_end(&chars, index);
+        } else if character == '_' || character.is_alphanumeric() {
+            let start = index;
+            while index < chars.len() && (chars[index] == '_' || chars[index].is_alphanumeric()) {
+                index += 1;
+            }
+            tokens.push(Token::Word(chars[start..index].iter().collect()));
+        } else {
+            tokens.push(Token::Punct(character));
+            index += 1;
+        }
+    }
+    tokens
+}
+
+/// The index after the group of brackets that opens at `open` of `tokens`.
+fn group_end(tokens: &[Token], open: usize) -> usize {
+    let mut depth = 0;
+    let mut index = open;
+    loop {
+        match tokens[index] {
+            Token::Punct('(' | '[' | '{') => depth += 1,
+            Token::Punct(')' | ']' | '}') => depth -= 1,
+            _ => {}
+        }
+        index += 1;
+        if depth == 0 {
+            return index;
+        }
+    }
+}
+
+/// The index after the item that starts at `start` of `tokens`: after its
+/// `;` or after the block that ends it.
+fn item_end(tokens: &[Token], start: usize) -> usize {
+    let mut index = start;
+    loop {
+        match tokens[index] {
+            Token::Punct(';') => return index + 1,
+            Token::Punct('{') => return group_end(tokens, index),
+            Token::Punct('(' | '[') => index = group_end(tokens, index),
+            _ => index += 1,
+        }
+    }
+}
+
+/// What the scan of a Rust file finds outside its attributes: the string
+/// literals of the code outside the items marked `#[cfg(test)]`, the
+/// modules that this code declares as `mod name;`, and the modules that
+/// test code declares in the same way.
+#[derive(Default)]
+struct Scan {
+    literals: Vec<String>,
+    modules: Vec<String>,
+    test_modules: Vec<String>,
+}
+
+/// The scan of the Rust source `source`.
+fn scan(source: &str) -> Scan {
+    let tokens = rust_tokens(source);
+    let mut found = Scan::default();
+    let mut index = 0;
+    while index < tokens.len() {
+        match &tokens[index] {
+            Token::Punct('#') => {
+                let mut open = index + 1;
+                if tokens.get(open) == Some(&Token::Punct('!')) {
+                    open += 1;
+                }
+                if tokens.get(open) != Some(&Token::Punct('[')) {
+                    index += 1;
+                    continue;
+                }
+                let end = group_end(&tokens, open);
+                let cfg_test = [
+                    Token::Word("cfg".to_owned()),
+                    Token::Punct('('),
+                    Token::Word("test".to_owned()),
+                    Token::Punct(')'),
+                ];
+                if tokens[open + 1..end - 1] == cfg_test {
+                    index = item_end(&tokens, end);
+                    if let [Token::Word(word), Token::Word(name), Token::Punct(';')] =
+                        &tokens[index - 3..index]
+                        && word == "mod"
+                    {
+                        found.test_modules.push(name.clone());
+                    }
+                } else {
+                    index = end;
+                }
+            }
+            Token::Text(text) => {
+                found.literals.push(text.clone());
+                index += 1;
+            }
+            Token::Word(word) if word == "mod" => {
+                if let (Some(Token::Word(name)), Some(Token::Punct(';'))) =
+                    (tokens.get(index + 1), tokens.get(index + 2))
+                {
+                    found.modules.push(name.clone());
+                }
+                index += 1;
+            }
+            _ => index += 1,
+        }
+    }
+    found
+}
+
+/// The file of the module `name` that the file `parent` declares.
+fn module_file(parent: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let directory = match parent.file_name().and_then(|file| file.to_str()) {
+        Some("lib.rs" | "mod.rs" | "main.rs") => parent.parent().unwrap().to_path_buf(),
+        _ => parent.with_extension(""),
+    };
+    let file = directory.join(format!("{name}.rs"));
+    if file.exists() {
+        file
+    } else {
+        directory.join(name).join("mod.rs")
+    }
+}
+
+/// The string literals of the code of the library outside its tests and
+/// attributes: of every file that `src/lib.rs` reaches through its `mod
+/// name;` declarations outside test code. Every other Rust file under `src/`
+/// is the program `src/main.rs` or the file of a module that test code
+/// declares, so no file of the library is left out.
+fn library_literals() -> Vec<String> {
+    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut pending = vec![src.join("lib.rs")];
+    let mut reached = Vec::new();
+    let mut tests = Vec::new();
+    let mut literals = Vec::new();
+    while let Some(file) = pending.pop() {
+        let found = scan(&std::fs::read_to_string(&file).unwrap());
+        for name in &found.modules {
+            pending.push(module_file(&file, name));
+        }
+        for name in &found.test_modules {
+            tests.push(module_file(&file, name));
+        }
+        literals.extend(found.literals);
+        reached.push(file);
+    }
+    let mut directories = vec![src.clone()];
+    while let Some(directory) = directories.pop() {
+        for entry in std::fs::read_dir(&directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                directories.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                assert!(
+                    reached.contains(&path) || tests.contains(&path) || path == src.join("main.rs"),
+                    "{} is neither reached nor a test file",
+                    path.display()
+                );
+            }
+        }
+    }
+    assert!(reached.contains(&src.join("command/dispatch.rs")));
+    literals
+}
+
+/// The bytes of the longest escaped message that an error of the library can
+/// have, read from its sources. Every message is a string literal of the
+/// code of the library, or adds a name of the library to one: the message
+/// of a limit adds the name of its field, and that of a missing role the
+/// name of a required role of a signature of the dispatch table. Literals
+/// that are no message, such as names and pieces of display text, are
+/// counted too, so no message is longer.
+fn longest_message() -> u64 {
+    let escaped = |message: &str| {
+        let error = Error::new(FaultKind::Syntax, None, message);
+        let (text, _) = line(&outcome(Err(error)));
+        fields_of(&text)[10].len() as u64
+    };
+    let literals = library_literals();
+    let mut longest = literals
+        .iter()
+        .map(|literal| escaped(literal))
+        .max()
+        .unwrap();
+    for field in LimitField::ALL {
+        let exceeded = LimitExceeded::new(LimitId::Field(*field), None, 0, LimitAmount::Used(1));
+        longest = longest.max(escaped(Error::resource_limit(exceeded, None).message()));
+    }
+    let request = Request::new(PROBE, "", "1");
+    let missing = probe(&ONE_REQUIRED, &request, &mut context(Limits::new())).unwrap_err();
+    let prefix = escaped(missing.message()) - ONE_REQUIRED.roles[0].name.len() as u64;
+    let role = OPERATIONS
+        .iter()
+        .flat_map(|(_, operation)| signature(*operation).roles)
+        .filter(|role| role.presence == Presence::Required)
+        .map(|role| role.name.len() as u64)
+        .max()
+        .unwrap_or(0);
+    longest.max(prefix + role)
+}
+
 // The longest `error-at` lines, with $d$ nested frames of the longest frame
 // name, are written under `Context::new(Limits::new(), CancelFlag::new())`
 // and are at most $B$ bytes, which is at most 65,536, the default
 // `max_output_bytes`. $K$ is the longest name of the matches without a
 // wildcard that write the kind of every request failure and fault kind,
 // which the lines of the kinds have, $Q$ the longest limit of every field,
-// $N$ the longest frame name and $M$ the bytes of the message of a
-// malformed variable, which review keeps the longest message of the
-// library; the contract states these values and $B$.
+// $N$ the longest frame name and $M$ the longest escaped message that the
+// sources of the library give, the bytes of the message of a malformed
+// variable; the contract states these values and $B$.
 #[test]
 fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
     assert_eq!(B, 371);
     const { assert!(B <= 65_536) };
+    assert_eq!(longest_message(), M, "the longest message of the sources");
     assert!(CONTRACT.contains("$B = 371$"), "the contract states B");
     for (quantity, value) in [("K", K), ("Q", Q), ("M", M), ("d", 1), ("N", N)] {
         let stated = format!("${quantity} = {value}$");
