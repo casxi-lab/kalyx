@@ -43,7 +43,7 @@ the outcome under that context, and for an error whose line does not fit,
 the line under a fresh context. The heap peak is the largest number of live
 bytes above the level before the run, and the blocks are those that the run
 allocates. The allocation check measures the same peaks in its 5,800 runs
-and reports the largest, 901,176 bytes.
+of these cases and reports the largest, 901,176 bytes.
 
 **Stack.** The stack is measured without `unsafe` code in the package or in
 the check. The program runs the request again in a child process, on a

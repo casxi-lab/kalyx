@@ -107,8 +107,9 @@ cases in a copy of the tracked files. Add a new file to the index with
 ### Allocation check
 
 The allocation check runs each of the 58 cases of
-[the answer vectors](vectors/README.md) 100 times through the command entry,
-under the limits of the case and under a counting global allocator, and fails
+[the answer vectors](vectors/README.md), and a request with an operand
+table, 100 times through the command entry, under the limits of the case
+and under a counting global allocator, and fails
 unless every run leaves the live bytes of the process at their baseline, as
 the
 [contract of the command entry](docs/components/command/contract.md#the-allocation-check)
