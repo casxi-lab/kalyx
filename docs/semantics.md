@@ -299,7 +299,7 @@ versions:
 | --- | --- |
 | Kind | the name of the kind of the value in the [table of value kinds](#value-kinds): lowercase ASCII letters and `-`, never renamed and never reused |
 | Text | the display text of the value, which the input grammar or the display grammar that the table names for the kind reads |
-| Condition | the condition of the value, written as a condition is written, so that it reads back as a condition; `-` for a kind without a condition part |
+| Condition | the condition of the value, written as a condition is written, so that it reads back as a condition; `true` for a function value whose condition is true, and `-` only for a kind without a condition part |
 | Assumptions | the scope of assumptions of the value, written as the role `scope` of a request is written, such as `x: positive`, so that it reads back as a scope; `-` for a kind without a scope part and for a scope without facts |
 
 The three fields are printable ASCII, so none is escaped.
