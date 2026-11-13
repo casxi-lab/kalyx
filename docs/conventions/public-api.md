@@ -436,7 +436,7 @@ does not name it, and the contract of its component says so at its rule:
 - in the [exact numbers](../components/numbers/contract.md),
   `Integer::divide_with_remainder`, `Integer::bits`, `gcd`, `lcm`,
   `extended_gcd`, `modular_inverse`, `modular_power`, `Congruence::new`,
-  `crt` and `Rational::power`;
+  `crt`, `Rational::power` and `PrimeResidue::value`;
 - in the [context](../components/context/contract.md), the bits that are
   checked against `max_integer_bits`, and the deadline of `with_deadline`
   with the readings of `Clock`;

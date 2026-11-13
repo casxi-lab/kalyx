@@ -2,10 +2,12 @@
 
 This contract states the exact numbers of kalyx, arbitrary-size integers and
 rationals, with the integer kernel, and the coefficient-field trait with its
-first implementation, the field $\mathbb{Q}$ of rational numbers. It applies
-to the module `src/number.rs` with its submodules `src/number/arithmetic.rs`,
+implementations, the field $\mathbb{Q}$ of rational numbers and the prime
+fields $\mathbb F_p$ of the primes $p \lt 2^{32}$. It applies to the module
+`src/number.rs` with its submodules `src/number/arithmetic.rs`,
 `src/number/integer.rs`, `src/number/literal.rs` and `src/number/power.rs`,
-and to the module `src/coefficient.rs`. The [architecture](../../architecture.md#coefficient-field-trait)
+and to the module `src/coefficient.rs` with its submodule
+`src/coefficient/prime.rs`. The [architecture](../../architecture.md#coefficient-field-trait)
 places the component among the foundations and states the design rules of the
 trait, and the [public API conventions](../../conventions/public-api.md)
 state the rules that every public interface follows. The limits and the
@@ -13,16 +15,20 @@ charges belong to the [context](../context/contract.md), and the errors to the
 [errors and result states](../errors/contract.md).
 
 **Status.** Implemented in `src/number.rs` and `src/coefficient.rs`, at tier
-A0 (tested), with the integer kernel in `src/number/integer.rs` at tier A1
-(tested with a written contract); the trait is planned for tier A2 in
-release 0.2. The first caller in the library is the
-[term core](../terms/contract.md), whose numbers, coefficients and constants
-are rationals; the [polynomials](../polynomials/contract.md) over
-$\mathbb{Q}$ reach their coefficients through the coefficient-field trait.
-The integer kernel has no caller in the library yet: its first production
-caller is planned to be the GCD and the factorization of polynomials over
-$\mathbb{Q}$, in release 0.2. Chinese remaindering is planned for tier A2 in
-release 0.4, and the kernel has no A3 upgrade.
+A0 (tested), with the integer kernel in `src/number/integer.rs` and the
+prime fields in `src/coefficient/prime.rs` at tier A1 (tested with a
+written contract); the trait is planned for tier A2 in release 0.2. The
+first caller in the library is the [term core](../terms/contract.md), whose
+numbers, coefficients and constants are rationals; the
+[polynomials](../polynomials/contract.md) over $\mathbb{Q}$ reach their
+coefficients through the coefficient-field trait. The integer kernel has no
+caller in the library yet but the prime fields, which have none themselves:
+its first production caller is planned to be the GCD and the factorization
+of polynomials over $\mathbb{Q}$, in release 0.2, and the first production
+callers of the prime fields are planned to be the multimodular GCD over
+$\mathbb{Q}$ and the Berlekamp factorization, in the same release. Chinese
+remaindering is planned for tier A2 in release 0.4, and the kernel has no
+A3 upgrade.
 
 ## Scope
 
@@ -36,22 +42,33 @@ release 0.4, and the kernel has no A3 upgrade.
   GCD, modular inverse, modular power, congruences and Chinese
   remaindering. The two layers of the coefficient-field trait,
   `CoefficientRing` and `CoefficientField`, the zero test answer
-  `ZeroTest`, and the field of rationals `Rationals`.
+  `ZeroTest`, the field of rationals `Rationals`, and the prime fields
+  `PrimeField` of the primes $p \lt 2^{32}$ with their elements
+  `PrimeResidue`, whose constructor decides that the modulus is prime.
 - **Excluded, with their owners.**
   - The GCDs of the reduction of rationals: the reduction that num-rational
     does inside its own constructor is used, and is not an interface of
     kalyx; the integer kernel takes no part in it.
-  - The prime fields $\mathbb F_p$, the ring $\mathbb{Z}$ as a coefficient
-    ring, $\mathbb{Q}(a)$, the result-state subtraits of rings that are not
-    fields and maps between structures: the coefficient fields of release 0.2.
+  - The ring $\mathbb{Z}$ as a coefficient ring, the residue rings
+    $\mathbb{Z}/n$, $\mathbb{Q}(a)$, the result-state subtraits of rings that
+    are not fields, maps between structures, such as the reduction of
+    integers and rationals into a prime field, and the comparison of the
+    parents of two elements: the coefficient fields of release 0.2. The
+    operations on the polynomials over a prime field beyond those of the
+    [polynomials](../polynomials/contract.md), such as division with
+    remainder, and the Berlekamp factorization: the basic polynomial
+    algorithms over $\mathbb{Q}$, release 0.2. Prime fields of larger primes
+    and extension fields: release 0.4.
   - `PolynomialRing` and `Polynomial`: the
     [polynomials](../polynomials/contract.md).
   - Expressions and symbols: the [term core](../terms/contract.md). Spans
     of parsed expressions and the decimal literal syntax beyond one literal:
     the [parser](../syntax/contract.md), which reads each literal through
     `literal_at`.
-  - Number theory beyond the integer kernel, such as primality,
-    factorization and combinatorics: release 0.4.
+  - Number theory beyond the integer kernel, such as primality tests,
+    factorization and combinatorics: release 0.4. The constructor of a prime
+    field decides the primality of its modulus with a test of its own,
+    which is not a public entry.
 
 ## Interface
 
@@ -86,13 +103,18 @@ The module `kalyx::number` holds:
   `Display` and `StorageCost`; it implements neither `PartialOrd` nor `Ord`.
 
 The module `kalyx::coefficient` holds `ZeroTest<U>`, the traits
-`CoefficientRing` and `CoefficientField`, and `Rationals`.
+`CoefficientRing` and `CoefficientField`, `Rationals`, and the prime fields:
+`PrimeField`, with `PrimeField::new(p, context)` and the accessor
+`modulus()`, and `Clone`, `Copy`, `Debug`, `PartialEq`, `Eq` and `Hash`;
+and its element `PrimeResidue`, with the accessor `value()`, and `Clone`,
+`Copy` and `Debug`. Both implement the two coefficient traits through
+`PrimeField`.
 
 Crate-internal: `Rational::literal_at(text, offset, context)`, the literal
 conversion for the parser, whose errors carry spans shifted by `offset`;
 `Integer::magnitude_u64`, the absolute value of an integer as a `u64`, or
 `None` beyond 64 bits, with which the term core reads an integer exponent for
-the parser;
+the parser and `from_integer` of a prime field reads its remainder;
 `Rational::binary(other, operation, span, context)`, the binary operations
 with the caller's span on the error; `words(bits)`, the machine words
 $\max(1, \lceil \mathit{bits} / 64 \rceil)$ by which the products, the
@@ -109,7 +131,10 @@ exist (`E0599`) and that a num-rational value does not convert into a
 operators (`E0369`). The fields of `Congruence`, `IntegerDivision` and
 `IntegerBezout` are private, and the `compile_fail` documentation test of
 `Congruence` checks that a congruence cannot be built from its fields
-(`E0451`).
+(`E0451`). So are those of `PrimeField` and `PrimeResidue`, whose
+`compile_fail` documentation tests check that a prime field and a residue
+cannot be built from their fields (`E0451`) and that residues have no
+comparison operators (`E0369`).
 
 ## Rules
 
@@ -578,13 +603,157 @@ in which nothing else is retained.
   $\lvert n \rvert + \lvert d \rvert + 3$ bytes for $n/d$, the value of
   `StorageCost` of `Rational`, which `Rational` keeps implementing.
 
+### Prime fields
+
+`PrimeField` is the parent of the prime field $\mathbb F_p$ of a prime
+$p \lt 2^{32}$. It holds the modulus in a private field, which `modulus()`
+reads, and its derived `PartialEq`, `Eq` and `Hash` compare the moduli.
+Its `Element` is `PrimeResidue`, the least nonnegative residue
+$0 \le r \lt p$ of the class in a machine word, which `value()` reads; a
+residue does not repeat its field, has no equality and is built only by the
+methods of its field. The `Undecided` of `PrimeField` is
+`std::convert::Infallible`. `Debug` shows the stored modulus and the stored
+residue.
+
+- **Construction.** `PrimeField::new(p, context)` is the only way to build
+  a prime field. A modulus below 2, and an even modulus other than 2, fails
+  with `Fault(OutsideDomain)` before any check of `max_integer_bits` or any
+  charge, and before any `Integer` is built; the modulus 2 is accepted at
+  once, without a check or a charge. An odd modulus $p \ge 3$ is decided by the
+  strong probable-prime test (Miller–Rabin) to the bases 2, 7 and 61. With
+  $p - 1 = d \cdot 2^s$ and $d$ odd, a base $a$ is passed when
+  $x = a^d \bmod p$ is 1 or $p - 1$, or when one of at most $s - 1$
+  squarings of $x$ modulo $p$ gives $p - 1$; a base equal to $p$, as 7 is
+  for $\mathbb F_7$ and 61 for $\mathbb F_{61}$, is skipped, since its
+  residue 0 never passes. A
+  prime passes every base, and no composite below 4,759,123,141 passes all
+  three (G. Jaeschke, *On strong pseudoprimes to several bases*, Math.
+  Comp. 61 (1993), 915–926), so the test is exact for every `u32`. Each
+  power $a^d \bmod p$ and each squaring is one call of `modular_power` of
+  [the integer kernel](#the-integer-kernel), with its checks and charges:
+  the bound $\max(\lvert a \rvert, \lvert d \rvert, 2 \lvert p \rvert)$
+  of a power is $\max(6, 2 \lvert p \rvert)$, since the base 61 has 6 bits
+  and $\lvert d \rvert \lt \lvert p \rvert$, so $2 \lvert p \rvert$ for
+  $p \ge 5$, and the bound of a squaring is $2 \lvert p \rvert$; under
+  the default limits every `u32` passes them. The test takes the same path
+  for $p$ under every limit, so its work depends only on $p$. A composite
+  modulus fails with `Fault(OutsideDomain)` after the charges of the test,
+  which are kept; no field is built from it and the context retains
+  nothing more. A failed check or charge of the test reports the limit or
+  the request failure of `modular_power`. The test is part of the
+  constructor and is not a public entry.
+- **Element operations.** Every method that takes residues first tests
+  that each is below $p$: a residue at or above $p$ can belong only to
+  another field, and fails with `Fault(OutsideDomain)` before any check or
+  charge; a residue of another field below $p$ is taken as a residue of
+  the receiver, as the receiver rule of
+  [the coefficient-field trait](#the-coefficient-field-trait) assumes
+  (`a_residue_beyond_the_modulus_is_outside_the_domain`).
+  `inverse` and `divide` then test their element or divisor for zero.
+  Every method that builds a residue then checks a bound on its bits
+  against `max_integer_bits`, then charges, and only then computes it with
+  a kernel. The bound of a new residue is $\lvert p \rvert$, the bit length
+  of the modulus, whatever the residue, zero included.
+
+| Method | Domain tests | Bit bound | Charge | Result |
+| --- | --- | --- | --- | --- |
+| `zero`, `one` | none | $\lvert p \rvert$ | 1 | 0, 1 |
+| `from_integer(n)` | none | $\max(\lvert n \rvert, \lvert p \rvert)$ | 1, then $W(n) W(p)$ for the Euclidean division of $n$ by $p$ | $n \bmod p$ |
+| `negate(a)` | $a \ge p$ | $\lvert p \rvert$ | 1 | `sub(0, a)` $= (p - a) \bmod p$ |
+| `add(a, b)`, `subtract(a, b)`, `multiply(a, b)` | $a \ge p$, $b \ge p$ | $\lvert p \rvert$ | 1 | `add(a, b)`, `sub(a, b)`, `mul(a, b)` |
+| `inverse(a)` | $a \ge p$, then $a = 0$ | $\lvert p \rvert$ | 32 | `inverse(a)` $= a^{p - 2} \bmod p$ |
+| `divide(a, b)` | $a \ge p$, $b \ge p$, then $b = 0$ | $\lvert p \rvert$ | 32 | `mul(a, inverse(b))` |
+| `zero_test(a)` | $a \ge p$ | none | none | `Zero` exactly for the residue 0 |
+| `same_parent(other)` | none | none | none | whether the moduli are equal |
+| `measure(a)` | none | none | none, and no context | $(1, \lvert r \rvert + 4)$ for the residue $r$ |
+
+- **The kernels.** The results are computed by four private kernels of
+  `PrimeField`: `fn add(self, a: u32, b: u32) -> u32`, `sub` and `mul` of
+  the same signature, which reduce a sum $a + b$, a difference
+  $a + p - b$ and a product $a b$ modulo $p$ in 64-bit intermediates, and
+  `fn inverse(self, a: u32) -> u32`, which raises $a$ to the power $p - 2$
+  by binary powering over the bits of $p - 2$ from the lowest, at most 32
+  rounds, the inverse of a nonzero $a$ by Fermat's little theorem. They
+  take no context, charge nothing and cannot fail on the residues of their
+  field: the constructor makes $p$ at least 2, so no remainder is taken
+  modulo zero and $p - 2$ does not go below zero; the residues are below
+  $p$, which the methods test, so $a + p - b$ does not go below zero; and
+  $(p - 1)^2 \lt 2^{64}$, so no product overflows. The charge of 32 units
+  of `inverse` and `divide` is the number of rounds for the largest $p$,
+  made once before the kernel whatever $p$ is.
+- **The image of an integer.** `from_integer` checks
+  $\max(\lvert n \rvert, \lvert p \rvert)$, the bound of the Euclidean
+  division by $p$, before its own charge, then divides with
+  `Integer::divide_with_remainder` of the integer kernel, which checks the
+  same bound and passes it, charges the division and admits its result
+  with `check_storage` at `LimitScope::Value`, and reads the remainder.
+- **Zero.** The inverse of zero and every quotient by zero fail with
+  `Fault(DivisionByZero)` before any check and any charge, so under every
+  limit, with no work left and when the request is cancelled, and nothing
+  is charged (`a_prime_field_inverts_zero_to_division_by_zero_without_a_charge`).
+- **Zero tests and parents.** `zero_test` reads the residue and always
+  decides; `same_parent` compares the moduli. Both take constant time,
+  allocate nothing and charge nothing
+  (`prime_fields_decide_every_zero_test_without_a_charge`).
+- **Storage.** `measure` is one node and $\lvert r \rvert + 4$ bytes for
+  the residue $r$, the cost $(1, \lvert r \rvert + 4)$ of the integer $r$
+  in the [storage formulas](../../architecture.md#storage-bytes) of the
+  architecture; the modulus belongs to the parent and is not counted. Zero
+  costs $(1, 4)$, and the residue $p - 1$ of
+  $\mathbb F_{4294967291}$ costs $(1, 36)$
+  (`prime_fields_measure_their_elements_by_the_storage_formula`). It takes
+  constant time.
+- **No frames or temporaries.** The methods open no frame and reserve no
+  temporary, so `Context::retained()` is the same before and after every
+  call; apart from `from_integer`, whose integer division admits its result
+  against the storage limits, they succeed under `max_frames` and
+  `max_storage_bytes` of 0 (`prime_fields_hold_no_frame_or_reservation`).
+- **Representatives.** `PrimeResidue::value` does not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  it states that the residue is the least nonnegative one, $0 \le r \lt p$,
+  so that $-1$ is $p - 1$, only in its documentation, and its result does
+  not name it.
+- **Bits.** The checks of `max_integer_bits` of `PrimeField::new` and of
+  the methods that build a residue do not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions),
+  as [CTX-R07](../context/contract.md#ctx-r07) states for every check of
+  `max_integer_bits`: each compares a bound of its own, computed from the
+  modulus before the result, $\max(6, 2 \lvert p \rvert)$ for a power of
+  the test of an odd $p \ge 3$ and $2 \lvert p \rvert$ for a squaring,
+  $\lvert p \rvert$ for a new residue, and
+  $\max(\lvert n \rvert, \lvert p \rvert)$ for `from_integer`, which only
+  their documentation states, and the amount of the error does not name the
+  bound.
+- **Deviations of the earlier implementation.** Its prime field was built
+  from a modulus whose size alone it checked, contrary to its rule that a
+  parent is built only from validated defining data: its caller decided
+  primality by trial division, at one unit for each divisor up to
+  $\sqrt{p}$, and its inverse would go below zero for $p \lt 2$. The
+  constructor now decides primality itself and rejects every modulus that
+  is not prime, and `a_prime_field_rejects_the_modulus_zero`,
+  `a_prime_field_rejects_the_modulus_one`,
+  `a_prime_field_rejects_the_modulus_four` and
+  `a_prime_field_rejects_the_strong_pseudoprime_3215031751` reject that
+  deviation: $3215031751 = 151 \cdot 751 \cdot 28351$ is a strong
+  pseudoprime to the bases 2, 3, 5 and 7, and of the bases of the test only
+  61 reveals it.
+  `a_prime_field_accepts_the_primes_2_3_and_4294967291` builds the fields
+  of 2, 3, 7, 61, 65537 and 4294967291 under the default limits, and runs
+  the constructor on 4294967291 and on 3215031751 under the work and
+  cancellation checks of the property-testing tool. The earlier
+  implementation failed the inverse of zero with an invariant error of its
+  factorization, and charged its inverse one unit for each bit of $p - 2$
+  inside its loop; the inverse of zero now fails with `DivisionByZero`, as
+  every field's does, and the inverse is charged once, before its kernel
+  (`inverses_charge_a_fixed_amount_and_nothing_for_zero`).
+
 ## Requirements
 
 The requirement identifiers are those of the coefficient fields of the
 earlier implementation of the casξ computer algebra system; they are never
 renumbered or reused. Each entry states the part of the requirement that
-applies to the rationals and to the trait, as kalyx implements it, and the
-tests that are its evidence. Tests are in `tests/numbers.rs`, and those of
+applies to the rationals, the prime fields and the trait, as kalyx
+implements it, and the tests that are its evidence. Tests are in `tests/numbers.rs`, and those of
 FLD-R14 and FLD-R15 in `tests/integers.rs`, unless the entry names
 `tests/coefficient.rs` or a file below `src/number/`. The bit check of
 an integer is [CTX-R07](../context/contract.md#ctx-r07) of the context.
@@ -596,9 +765,14 @@ and a positive denominator, zero being $0/1$. Two canonical forms are equal
 exactly when they denote the same number, and every rational has one; every
 operation returns one.
 
+In a prime field every element is the least nonnegative residue of its
+class, which every method returns.
+
 - **Implemented here.** The private fields of `Rational`, the reduction of
   `new` and of the kernels, and the fast paths, which build a fraction without
-  a reduction only where it is canonical by construction.
+  a reduction only where it is canonical by construction; the private field
+  of `PrimeResidue` and the kernels of `PrimeField`, which reduce every
+  result modulo $p$.
 - **Evidence.** Positive: `rationals_are_canonical_and_displayed_deterministically`.
   Negative: `canonical_values_match_the_general_reduction` in
   `src/number/dyadic_tests.rs`, with unreduced inputs and negative
@@ -618,7 +792,11 @@ operation returns one.
   `ring_operations_match_the_general_reduction`,
   `unreduced_dyadic_operands_still_produce_canonical_values`,
   `division_by_a_signed_power_of_two_matches_the_general_quotient` and
-  `other_operands_use_the_general_path`.
+  `other_operands_use_the_general_path`. For the prime fields,
+  `prime_fields_have_unique_canonical_forms` and
+  `prime_fields_agree_with_the_small_model` in `tests/coefficient.rs`, and
+  `every_residue_triple_below_32_and_every_inverse_modulo_65521_is_exact`
+  in `src/coefficient/prime/tests.rs`, which checks the kernels directly.
 
 ### FLD-R02
 
@@ -629,11 +807,18 @@ the zero test comes before every size check and every charge, so a zero
 divisor is `DivisionByZero` in every state of the context and charges
 nothing.
 
+The earlier requirement made the prime fields an exception, whose inverse of
+zero was an invariant failure; in kalyx it is `DivisionByZero` there too, as
+[prime fields](#prime-fields) states.
+
 - **Implemented here.** `Rational::new`, `divide`, `inverse` and `power`, and
-  `inverse` and `divide` of `Rationals`.
-- **Evidence.** Positive: `rationals_have_inverses_and_zero_has_none` in
-  `tests/coefficient.rs`. Negative: `division_by_zero_fails_before_any_charge`,
-  with no work left and a bit limit of 0. Also
+  `inverse` and `divide` of `Rationals` and of `PrimeField`.
+- **Evidence.** Positive: `rationals_have_inverses_and_zero_has_none` and
+  `prime_fields_have_inverses_and_zero_has_none` in `tests/coefficient.rs`.
+  Negative: `division_by_zero_fails_before_any_charge`, with no work left and
+  a bit limit of 0, and
+  `a_prime_field_inverts_zero_to_division_by_zero_without_a_charge`, under a
+  bit limit of 1 and a cancellation. Also
   `integer_halving_and_zero_divisors_keep_their_results_and_errors` in
   `src/number/dyadic_tests.rs` and
   `integer_paths_still_observe_work_cancellation_and_errors`.
@@ -673,15 +858,17 @@ it.
 
 ### FLD-R04
 
-**Zero tests.** A zero test answers zero, nonzero or undecided; the zero test
-of the rationals is exact and never undecided, which its reason type
-`Infallible` makes impossible.
+**Zero tests.** A zero test answers zero, nonzero or undecided; the zero tests
+of the rationals and of the prime fields are exact and never undecided, which
+their reason type `Infallible` makes impossible.
 
-- **Implemented here.** `zero_test` of `Rationals`.
+- **Implemented here.** `zero_test` of `Rationals` and of `PrimeField`.
 - **Evidence.** Positive: `rationals_decide_every_zero_test_without_a_charge`
-  in `tests/coefficient.rs`. Negative: `rationals_have_inverses_and_zero_has_none`
-  in `tests/coefficient.rs`, which checks that the test answers zero exactly
-  for the zero of the model.
+  and `prime_fields_decide_every_zero_test_without_a_charge` in
+  `tests/coefficient.rs`. Negative: `rationals_have_inverses_and_zero_has_none`
+  and `prime_fields_have_inverses_and_zero_has_none` in
+  `tests/coefficient.rs`, which check that the test answers zero exactly for
+  the zero of the model.
 
 ### FLD-R12
 
@@ -694,7 +881,12 @@ in kalyx it does so before the charge, so the work is unchanged. Under limits
 at or above the bound, with work left and without a deadline or
 cancellation, the value is returned.
 
-- **Implemented here.** Every operation of `Rational` and of `Rationals`.
+The element operations of the prime fields check the bounds of
+[prime fields](#prime-fields) before their charges, which depend only on the
+modulus and, for `from_integer`, on the integer.
+
+- **Implemented here.** Every operation of `Rational`, of `Rationals` and of
+  `PrimeField`.
 - **Evidence.** Positive: `operations_charge_one_unit_and_powers_by_their_exponent`
   and `rational_products_quotients_and_powers_charge_word_products`.
   Negative: `an_addition_beyond_max_integer_bits_is_rejected_before_any_charge`,
@@ -715,8 +907,12 @@ cancellation, the value is returned.
   `terms_with_equal_numbers_beyond_half_the_bit_limit_are_equal` in
   `tests/terms.rs`,
   `the_value_of_rational_sum_1024_equals_its_answer_under_the_default_limits`
-  in `tests/command.rs`, `rationals_check_and_charge_new_elements`
-  and `rationals_measure_their_elements_by_the_storage_formula` in
+  in `tests/command.rs`, `rationals_check_and_charge_new_elements`,
+  `rationals_measure_their_elements_by_the_storage_formula`,
+  `prime_fields_check_and_charge_new_elements`, with one bit and one unit
+  below every amount, `prime_fields_are_charged_exactly_and_roll_back`,
+  `prime_fields_are_cancelled_at_every_charge_point` and
+  `prime_fields_measure_their_elements_by_the_storage_formula` in
   `tests/coefficient.rs`, and in `src/number/positive_compare_tests.rs`
   `the_comparison_takes_the_first_path_that_applies`,
   `positive_comparison_matches_an_independent_small_integer_oracle`,
@@ -866,7 +1062,23 @@ the rule is stated under [decimal literals](#decimal-literals).
    small and larger integers, power-of-two denominators and general
    fractions. The ring axioms fail on a parent of the tests that is not
    commutative, the rational quaternions, at the commutativity of the
-   product (`the_tool_rejects_a_noncommutative_parent`).
+   product (`the_tool_rejects_a_noncommutative_parent`). The same checks
+   run on `PrimeField` of each of the primes 2, 3, 7, 65537 and 4294967291,
+   with a model of $\mathbb F_p$ as `u64` residues with `u128` sums and
+   products and an inverse by the extended Euclidean algorithm, and with
+   characteristic $p$ in place of characteristic zero: the image $n \cdot 1$
+   is zero exactly when $p$ divides $n$, $p \cdot 1 = 0$,
+   $-1 \cdot 1 = (p - 1) \cdot 1$, and $(a + b)^p = a^p + b^p$ with powers
+   by binary powering through the product of the field. The axioms take
+   every residue and every triple for $p \le 7$; the five families keep
+   their seeds and case counts, with small residues, and residues in
+   $[p - 50, p)$ as large operands; the polynomials over $\mathbb F_p$ have
+   residue coefficients, and every pair of the polynomials of degree at most
+   3 over $\mathbb F_2$ and at most 2 over $\mathbb F_3$ is checked
+   (`every_small_polynomial_pair_satisfies_the_laws`). A residue has no
+   public constructor, so the adapter of a prime field builds its inputs
+   through `from_integer`, which the checks of the integer images compare
+   with the model on their own.
 4. **No message text.** No test asserts the message of an error; tests
    compare the kind, the span and the exceeded limit.
 5. **Work.** Tests assert the amounts that this contract fixes, and that a
@@ -937,13 +1149,36 @@ stated:
 
 The kernel is not a proof target, so the module list does not hold it.
 
+The prime fields in `src/coefficient/prime.rs` are written in the provable
+subset of the krepi convention, its constructs R1 to R7, its loop shapes and
+its design rules, and are shaped for a proof of the four kernels; they have
+not been extracted. The kernels `add`, `sub`, `mul` and `inverse` are pure
+functions of the modulus and machine-word residues, which take no context
+and allocate nothing, and `inverse` holds the only loop of the arithmetic,
+with no `?` and no early return. The methods of the coefficient traits have
+no loop: their domain tests, their bound checks and their charges come
+first, and each then computes its result with the kernels;
+`from_integer` reaches the Euclidean division of the integer kernel
+instead. The constructor's test calls
+`modular_power`, whose num-bigint integers would be trusted external
+functions; it is split into a loopless constructor that returns early, a
+helper whose one loop runs over the bases and a helper whose one loop
+squares, each leaving before its loop through no `?` and no `return`, and
+the loop over the bases is an index loop over a constant array. Design
+rules 1 and 2 are met as for the integer kernel: the domain tests and the
+bound of each step come before its charge and the operands are never
+written, a charge is not undone, and the integers of the test are allocated
+at run time only after the bound that covers them; the arithmetic of the
+residues allocates nothing.
+
 The module list of the component, the files that the `subset` step of
 `cargo xtask check` checks against the provable subset and that
 `cargo xtask formal check` inventories, holds the coefficient-field trait
-alone; the numbers are not listed:
+and the prime fields; the numbers are not listed:
 
 ```paths
 src/coefficient.rs
+src/coefficient
 ```
 
 ## Current deviations
