@@ -420,9 +420,9 @@ fn near_the_u64_bound(input: &str) -> bool {
 
 /// Whether `kind` may end a request that has no deadline and no
 /// cancellation: a `ResourceLimit` or a fault of the input. `Internal`, a
-/// defect of the library, may not, and neither may `OutsideDomain`, a fault
-/// of the input that only the integer kernel reports and that no operation
-/// of the command entry reaches.
+/// defect of the library, may not, and neither may `OutsideDomain` or
+/// `VariableMismatch`, faults of the input that no operation of the command
+/// entry reaches.
 fn is_listed(kind: ErrorKind) -> bool {
     matches!(
         kind,

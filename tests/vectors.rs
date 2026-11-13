@@ -18,7 +18,7 @@ use full_vectors::{FILES, File};
 const VECTORS: &str = include_str!("../vectors/r02.tsv");
 
 /// The fixed table of values of the `result` column.
-const RESULTS: [&str; 12] = [
+const RESULTS: [&str; 13] = [
     "ok",
     "ResourceLimit",
     "Cancelled",
@@ -31,6 +31,7 @@ const RESULTS: [&str; 12] = [
     "Unsupported",
     "Internal",
     "OutsideDomain",
+    "VariableMismatch",
 ];
 
 const OPERATIONS: [&str; 3] = ["eval", "expand", "diff"];

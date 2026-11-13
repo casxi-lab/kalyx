@@ -158,11 +158,13 @@ requirement.
 - The foundation faults are `Syntax`, `UnknownSymbol`, `DivisionByZero`,
   `NonIntegerExponent` (the exponent is not an integer constant),
   `NotPolynomial`, `Unsupported` and `Internal`. A feature adds a kind of its
-  own in the release that brings the feature, after the kinds before it: the
-  integer kernel of the exact numbers added `OutsideDomain`, an argument
-  outside the domain of an operation, in release 0.2. `ErrorKind` and `FaultKind` are
-  `#[non_exhaustive]`, so code outside the library matches them with a
-  wildcard arm.
+  own in the release that brings the feature, after the kinds before it: in
+  release 0.2 the integer kernel of the exact numbers added `OutsideDomain`,
+  an argument outside the domain of an operation, and the coefficient fields
+  added `VariableMismatch` after it, values that must belong to the same
+  parent structure and belong to different ones. `ErrorKind` and
+  `FaultKind` are `#[non_exhaustive]`, so code outside the library matches
+  them with a wildcard arm.
 - `class()` sorts every kind into one of three classes: `Context` for the
   request failures, which a larger limit, a later deadline or no cancellation
   may lift; `Internal` for `FaultKind::Internal`, a defect of the library; and
@@ -297,7 +299,8 @@ failures with mathematical outcomes. Each kind has this place in kalyx:
 | `UnsupportedSymbolic`, `UnsupportedValue` | merged into `FaultKind::Unsupported`; collection values may add a finer kind of their own | the term core (reserved names), the parser and the command entry, 0.1 |
 | `NonConstantExponent` | merged into `NonIntegerExponent`, which means that the exponent is not an integer constant | the parser, 0.1, since the powers of the term core take an integer exponent |
 | `OutsideDomain` | `FaultKind::OutsideDomain`, a feature kind appended under the same name | the integer kernel of the exact numbers, 0.2 |
-| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, coefficient fields, and real sets and inequalities, 0.2 |
+| `VariableMismatch` | `FaultKind::VariableMismatch`, a feature kind appended under the same name | the pair check of the coefficient fields, 0.2 |
+| `ContradictoryAssumptions`, `InvalidBinding`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, and real sets and inequalities, 0.2 |
 | `StaleEnvironment`, `DimensionMismatch` | feature kinds, appended under the same names | the computation environment with versioned requests, and the arrays of collection values, 0.3 |
 | `InvalidMatrix`, `SingularMatrix` | feature kinds, appended under the same names | exact rational matrices and linear systems, 0.4 |
 | `FactorizationFailure`, `RootIsolationFailure` | `FaultKind::Internal` when a self-check fails; `MathState::NotApplicable` when the method legitimately gives up | polynomial factorization and real root isolation, 0.2 |

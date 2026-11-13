@@ -652,6 +652,7 @@ fn named(name: &str) -> Option<Named> {
         "Unsupported" => fault(FaultKind::Unsupported),
         "Internal" => fault(FaultKind::Internal),
         "OutsideDomain" => fault(FaultKind::OutsideDomain),
+        "VariableMismatch" => fault(FaultKind::VariableMismatch),
         _ => return None,
     })
 }

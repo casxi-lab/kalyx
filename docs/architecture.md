@@ -1986,11 +1986,12 @@ state to an `Error`, or back.
 - `FaultKind` has seven foundation kinds in 0.1: `Syntax`, `UnknownSymbol`,
   `DivisionByZero`, `NonIntegerExponent` (the exponent is not an integer
   constant), `NotPolynomial`, `Unsupported` and `Internal`. Features append
-  their own kinds in the release that needs them. The integer kernel of the
-  exact numbers has appended `OutsideDomain` in 0.2; the others are planned:
-  `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch` and
-  `InvalidInterval` in 0.2, `StaleEnvironment` and `DimensionMismatch` in
-  0.3, and `InvalidMatrix` and `SingularMatrix` in 0.4.
+  their own kinds in the release that needs them. In 0.2 the integer kernel
+  of the exact numbers has appended `OutsideDomain`, and the pair check of
+  the coefficient fields `VariableMismatch`; the others are planned:
+  `ContradictoryAssumptions`, `InvalidBinding` and `InvalidInterval` in 0.2,
+  `StaleEnvironment` and `DimensionMismatch` in 0.3, and `InvalidMatrix` and
+  `SingularMatrix` in 0.4.
 - Both enums are `#[non_exhaustive]`, and `class()` sorts every kind into
   one of three classes: `Context` for the request failures, `Input` and
   `Internal`.

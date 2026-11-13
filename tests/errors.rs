@@ -4,7 +4,7 @@
 
 use kalyx::{Error, ErrorClass, ErrorKind, FaultKind, LimitField, MathState, Settled, Span};
 
-const FAULTS: [FaultKind; 8] = [
+const FAULTS: [FaultKind; 9] = [
     FaultKind::Syntax,
     FaultKind::UnknownSymbol,
     FaultKind::DivisionByZero,
@@ -13,6 +13,7 @@ const FAULTS: [FaultKind; 8] = [
     FaultKind::Unsupported,
     FaultKind::Internal,
     FaultKind::OutsideDomain,
+    FaultKind::VariableMismatch,
 ];
 
 // Carried over: code outside the library constructs errors of its own, with
