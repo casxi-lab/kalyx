@@ -1758,7 +1758,7 @@ fn assert_tests_exist(cell: &str) {
 fn the_table_of_value_kinds_has_a_row_for_every_answer_variant_and_term_shape() {
     let rows = table_rows(
         SEMANTICS,
-        "| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Encoding |",
+        "| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Value model and encoding |",
     );
     let kinds: Vec<String> = rows.iter().map(|row| row[0].replace('`', "")).collect();
     let answers = [Answer::Term(

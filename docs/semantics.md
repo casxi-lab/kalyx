@@ -442,7 +442,7 @@ The value model of the library and the encoding of its values are planned
 for release 0.3. The reserved call of the term core has no constructor in
 this release and no row.
 
-| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Encoding |
+| Kind | Level | Component | Line | Condition | Scope | Display | Display tests | Reading | Round-trip tests | Value model and encoding |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `term` | the answer `Answer::Term` | [term core](components/terms/contract.md) | `value` | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::constructions_comparisons_and_displays_charge_fixed_amounts`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text`, `tests/command.rs::the_display_of_a_value_is_charged_to_the_context_of_the_line` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
 | `number` | a shape in a term, `TermKind::Number` | [term core](components/terms/contract.md) | `value`, in its answer | none | none | [display](components/terms/contract.md#display) | `tests/terms.rs::display_bytes_are_the_same_in_two_runs`, `tests/terms.rs::construction_order_does_not_change_the_display_bytes`, `tests/terms.rs::a_display_beyond_max_output_bytes_returns_no_text` | the input grammar reads it back | `tests/syntax_properties.rs::display_text_reads_back_as_the_same_term`, `tests/syntax.rs::the_display_of_a_term_reads_back` | release 0.3, planned |
