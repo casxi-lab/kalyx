@@ -836,7 +836,7 @@ fn every_public_enum_is_listed_and_non_exhaustive_but_the_exceptions() {
             .iter()
             .any(|(file, _)| file == "src/number/integer.rs")
     );
-    assert_eq!(compare_enums(&files, ENUMS).unwrap(), 16);
+    assert_eq!(compare_enums(&files, ENUMS).unwrap(), 17);
     let exceptions: Vec<String> = listed_enums(ENUMS)
         .unwrap()
         .into_iter()

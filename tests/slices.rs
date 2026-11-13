@@ -40,6 +40,7 @@ use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 use full_vectors::{CLI_CASES, File, LIBRARY, ROOT_CALLS};
+use kalyx::command::Answer;
 use kalyx::context::CancelFlag;
 use kalyx::{
     Context, ErrorKind, FaultKind, LimitExceeded, LimitField, LimitId, Limits, MathState, Outcome,
@@ -674,7 +675,7 @@ fn wide() -> Context {
 /// The outcome as the vectors write it, for the report of a difference.
 fn observed(outcome: &Outcome) -> String {
     match outcome.result() {
-        Ok(Settled::Value(term)) => match term.display(&mut wide()) {
+        Ok(Settled::Value(Answer::Term(term))) => match term.display(&mut wide()) {
             Ok(text) => format!("ok {text}"),
             Err(error) => format!("ok, whose display failed with {:?}", error.kind()),
         },
@@ -711,7 +712,7 @@ fn compare(
         return Err(differ(", and kalyx has no such outcome"));
     };
     match (named, outcome.result()) {
-        (Named::Answer, Ok(Settled::Value(term))) => {
+        (Named::Answer, Ok(Settled::Value(Answer::Term(term)))) => {
             let Some(answer) = answer else {
                 return Err(differ(", and the row has no answer"));
             };
@@ -731,6 +732,9 @@ fn compare(
                 ))),
             }
         }
+        (Named::Answer, Ok(Settled::Value(_))) => Err(differ(
+            ", and no comparison exists yet for this kind of value",
+        )),
         (Named::State(state), Ok(Settled::State(found))) if state == *found => Ok(()),
         (Named::Error(kind), Err(error)) if error.kind() == kind => match field {
             Some(field)

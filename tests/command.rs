@@ -1,8 +1,10 @@
 //! The command entry, as code outside the library sees it: the three
-//! operations, the rejected requests and their order, the versions that an
-//! outcome echoes, the line bytes of outcomes and their bounded output, the
-//! deadline and cancellation, a property test of the determinism of lines,
-//! and the replay of every case of `vectors/r02.tsv` with its comparison.
+//! operations, the rejected requests and their order, the operand table and
+//! the cause frames of errors, the versions that an outcome echoes, the line
+//! bytes of outcomes and their bounded output, the representative lines at
+//! their limits, the deadline and cancellation, a property test of the
+//! determinism of lines, and the replay of every case of `vectors/r02.tsv`
+//! with its comparison.
 //! The rules are those of `docs/components/command/contract.md` and of the
 //! output lines of `docs/semantics.md`. Errors are compared by kind, span
 //! and exceeded limit, never by message.
@@ -18,7 +20,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use kalyx::coefficient::Rationals;
-use kalyx::command::{Settings, serialize};
+use kalyx::command::{Answer, Settings, serialize};
 use kalyx::context::{CancelFlag, CancelProbe, Clock};
 use kalyx::polynomial::PolynomialRing;
 use kalyx::syntax::parse;
@@ -29,6 +31,9 @@ use kalyx::{
 };
 
 const VECTORS: &str = include_str!("../vectors/r02.tsv");
+
+/// The input syntax and semantics, with the examples of the output lines.
+const SEMANTICS: &str = include_str!("../docs/semantics.md");
 
 /// The operations of the dispatch table.
 const OPERATIONS: [&str; 3] = ["eval", "expand", "diff"];
@@ -154,7 +159,7 @@ fn run(request: &Request, limits: Limits) -> (Outcome, Context) {
 /// The term of the outcome, which must be a value.
 fn value(outcome: &Outcome) -> &Term {
     match outcome.result() {
-        Ok(Settled::Value(term)) => term,
+        Ok(Settled::Value(Answer::Term(term))) => term,
         other => panic!("not a value: {other:?}"),
     }
 }
@@ -197,6 +202,15 @@ fn fields(line: &str) -> Vec<&str> {
 fn assert_fault(error: &Error, fault: FaultKind, span: Option<Span>) {
     assert_eq!(error.kind(), ErrorKind::Fault(fault), "{error}");
     assert_eq!(error.span(), span, "{error}");
+}
+
+/// The cause frames of `error`, each as its name and operand index.
+fn frames(error: &Error) -> Vec<(&str, u64)> {
+    error
+        .frames()
+        .iter()
+        .map(|frame| (frame.name(), frame.operand_index()))
+        .collect()
 }
 
 fn assert_limit(error: &Error, field: LimitField) {
@@ -332,6 +346,152 @@ fn an_operation_without_an_operand_never_falls_back_to_a_result() {
     for (operation, input) in [("simplify", "eval"), ("", "expand"), ("eval x", "")] {
         let (outcome, _) = run(&Request::new(operation, "x", input), Limits::new());
         assert_fault(error(&outcome), FaultKind::Unsupported, None);
+    }
+}
+
+// An entry of the operand table whose role the operation does not read is
+// an unknown role, which every role is for the operations of this release:
+// the entry first charges one unit, then fails with `Unsupported`, without a
+// span, with the frame of the operation at the index of the entry, and its
+// line is an `error-at` line with that index as its location. The table
+// comes before the variable, so a malformed variable is not read.
+#[test]
+fn an_unknown_role_is_unsupported_at_its_index() {
+    for operation in OPERATIONS {
+        for variable in ["x", "1x"] {
+            let request = Request::new(operation, variable, "1")
+                .with_operand("scope", "x: real")
+                .with_operand("scope", "x: positive");
+            let (outcome, c) = run(&request, Limits::new());
+            let error = error(&outcome);
+            assert_fault(error, FaultKind::Unsupported, None);
+            assert_eq!(frames(error), [(operation, 1)], "{request:?}");
+            assert_eq!(c.work_used(), 1, "one unit for the entry: {request:?}");
+            let text = line(&outcome);
+            let found = fields(&text);
+            assert_eq!(found.len(), 12, "{text:?}");
+            assert_eq!(
+                (found[0], found[4], found[5], found[11]),
+                ("error-at", "Unsupported", "-", "1")
+            );
+            assert_shape(&text, &outcome);
+        }
+    }
+    // A role is compared byte for byte, and no role is known.
+    for role in ["", "input", "variable", "Scope", "scope "] {
+        let request = Request::new("eval", "x", "1").with_operand(role, "1");
+        let (outcome, _) = run(&request, Limits::new());
+        assert_eq!(frames(error(&outcome)), [("eval", 1)], "{role:?}");
+    }
+}
+
+// The command entry adds the entry frame, the operation of the request and
+// the index of the operand, to the errors of the entries of the table, of
+// the reading of the input and of the operation itself, whose operand is
+// the input: `eval` of `1/0` has the frame `(eval, 0)` and keeps the error
+// line of release 0.1, and an unknown role the frame `(eval, 1)`. A request
+// failure at a charge has the frame of its step: under a cancelled flag, a
+// request with a table fails at its first entry with `(eval, 1)`, and its
+// fallback line is an `error-at` line with the location 1; without a table
+// it fails in the reading of its input, with `(eval, 0)` and an `error`
+// line, and so does a charge of the parser beyond `max_work`.
+#[test]
+fn the_entry_frame_names_the_operation_and_the_operand() {
+    let (outcome, _) = run(&Request::new("eval", "x", "1/0"), Limits::new());
+    assert_fault(error(&outcome), FaultKind::DivisionByZero, Span::new(0, 3));
+    assert_eq!(frames(error(&outcome)), [("eval", 0)]);
+    let text = line(&outcome);
+    assert_eq!(
+        fields(&text)[..10],
+        [
+            "error",
+            "0",
+            "0",
+            "0",
+            "DivisionByZero",
+            "0..3",
+            "-",
+            "-",
+            "-",
+            "-"
+        ]
+    );
+    assert_eq!(fields(&text).len(), 11);
+    for (operation, input, fault) in [
+        ("eval", "x", FaultKind::UnknownSymbol),
+        ("expand", "x^(-1)", FaultKind::NotPolynomial),
+        ("diff", "y", FaultKind::UnknownSymbol),
+        ("expand", "1 +", FaultKind::Syntax),
+    ] {
+        let (outcome, _) = run(&Request::new(operation, "x", input), Limits::new());
+        assert_eq!(error(&outcome).kind(), ErrorKind::Fault(fault), "{input}");
+        assert_eq!(frames(error(&outcome)), [(operation, 0)], "{input}");
+        assert_eq!(fields(&line(&outcome)).len(), 11, "{input}");
+    }
+    let request = Request::new("eval", "x", "1").with_operand("scope", "x: real");
+    let (outcome, _) = run(&request, Limits::new());
+    assert_eq!(frames(error(&outcome)), [("eval", 1)]);
+
+    let flag = CancelFlag::new();
+    flag.cancel();
+    let own = &mut Context::new(Limits::new(), flag.clone());
+    let outcome = execute(&request, own);
+    assert_eq!(error(&outcome).kind(), ErrorKind::Cancelled);
+    assert_eq!(frames(error(&outcome)), [("eval", 1)]);
+    let text = assert_fallback_line(&outcome, own, ErrorKind::Cancelled);
+    assert_eq!(fields(&text)[0], "error-at");
+    assert_eq!(fields(&text)[11], "1");
+
+    let own = &mut Context::new(Limits::new(), flag);
+    let outcome = execute(&Request::new("eval", "x", "1"), own);
+    assert_eq!(error(&outcome).kind(), ErrorKind::Cancelled);
+    assert_eq!(frames(error(&outcome)), [("eval", 0)]);
+    let text = assert_fallback_line(&outcome, own, ErrorKind::Cancelled);
+    assert_eq!(fields(&text)[..5], ["error", "0", "0", "0", "Cancelled"]);
+    assert_eq!(fields(&text).len(), 11);
+
+    let (outcome, mut own) = run(
+        &Request::new("eval", "x", "1 + 2"),
+        Limits::new().with_max_work(1),
+    );
+    assert_limit(error(&outcome), LimitField::Work);
+    assert_eq!(frames(error(&outcome)), [("eval", 0)]);
+    assert_eq!(fields(&line(&outcome)).len(), 11);
+    assert_eq!(
+        serialize(&outcome, &mut own).unwrap_err().kind(),
+        ErrorKind::ResourceLimit
+    );
+}
+
+// The errors outside the operands have no frame: an unknown operation, a
+// variable that is not a symbol name or is reserved, and the request
+// failures of the charge of the variable, which comes before the input is
+// read. Settings, missing roles and the byte sum of the operands, which no
+// request of this release reaches with a frame either, are checked in
+// `src/command/tests.rs`.
+#[test]
+fn errors_outside_the_operands_have_no_frame() {
+    let flag = CancelFlag::new();
+    flag.cancel();
+    for (request, limits, cancel) in [
+        (Request::new("simplify", "x", "1"), Limits::new(), false),
+        (Request::new("expand", "1x", "x"), Limits::new(), false),
+        (Request::new("diff", "pi", "x"), Limits::new(), false),
+        (
+            Request::new("expand", "x", "x"),
+            Limits::new().with_max_work(0),
+            false,
+        ),
+        (Request::new("diff", "x", "x"), Limits::new(), true),
+    ] {
+        let mut c = if cancel {
+            Context::new(limits, flag.clone())
+        } else {
+            context(limits)
+        };
+        let outcome = execute(&request, &mut c);
+        assert!(error(&outcome).frames().is_empty(), "{request:?}");
+        assert_eq!(fields(&line(&outcome)).len(), 11, "{request:?}");
     }
 }
 
@@ -675,6 +835,7 @@ fn a_line_over_max_output_bytes_fails_with_a_resource_limit_and_no_output() {
     for request in [
         Request::new("expand", "x", "(x+1)^5"),
         Request::new("eval", "x", "1/0"),
+        Request::new("eval", "x", "1").with_operand("scope", "x: real"),
     ] {
         let (outcome, _) = run(&request, Limits::new());
         let full = line(&outcome);
@@ -701,11 +862,173 @@ fn a_line_over_max_output_bytes_fails_with_a_resource_limit_and_no_output() {
     }
 }
 
+/// The location of an error with cause frames, as an `error-at` line
+/// writes it: the operand index of the entry frame, then `>name#index` for
+/// each nested frame; `None` for an error without frames or with only the
+/// entry frame of the input, which an `error` line writes.
+fn location(error: &Error) -> Option<String> {
+    let (entry, nested) = error.frames().split_first()?;
+    if nested.is_empty() && entry.operand_index() == 0 {
+        return None;
+    }
+    let mut text = entry.operand_index().to_string();
+    for frame in nested {
+        text.push_str(&format!(">{}#{}", frame.name(), frame.operand_index()));
+    }
+    Some(text)
+}
+
+/// The representative requests of the serialization, with their limits and
+/// the start of their lines: three values, two errors of release 0.1 and
+/// the unknown role of a request with an operand table.
+fn representative_requests() -> [(Request, Limits, &'static str); 6] {
+    [
+        (
+            Request::new("eval", "x", "1/3 + 1/6"),
+            Limits::new(),
+            "value\t0\t0\t0\t1/2\n",
+        ),
+        (
+            Request::new("expand", "x", "(x+1)^5"),
+            Limits::new(),
+            "value\t0\t0\t0\t1 + 5*x + 10*x^2 + 10*x^3 + 5*x^4 + x^5\n",
+        ),
+        (
+            Request::new("diff", "x", "(x+1)^5"),
+            Limits::new(),
+            "value\t0\t0\t0\t5 + 20*x + 30*x^2 + 20*x^3 + 5*x^4\n",
+        ),
+        (
+            Request::new("eval", "x", "0*(1/0)"),
+            Limits::new(),
+            "error\t0\t0\t0\tDivisionByZero\t3..6\t-\t-\t-\t-\t",
+        ),
+        (
+            Request::new("expand", "x", "x^257"),
+            Limits::new().with_max_exponent(256),
+            "error\t0\t0\t0\tResourceLimit\t2..5\tField(max_exponent)\t-\t256\tRequired(257)\t",
+        ),
+        (
+            Request::new("eval", "x", "1").with_operand("scope", "x: real"),
+            Limits::new(),
+            "error-at\t0\t0\t0\tUnsupported\t-\t-\t-\t-\t-\t",
+        ),
+    ]
+}
+
+/// The charge points of writing the line of `outcome`, with that line.
+fn line_charge_points(outcome: &Outcome) -> (u64, Vec<u8>) {
+    let probe = CountingProbe::never();
+    let bytes = serialize(
+        outcome,
+        &mut observed(Limits::new(), FakeClock::at(0), &probe),
+    )
+    .unwrap();
+    (probe.polls(), bytes)
+}
+
+// The lines of the representative requests, at their limits: under
+// `max_output_bytes` and `max_work` at exactly what the line needs, it is
+// written with the same bytes; one less fails with `ResourceLimit` naming
+// that field and gives no bytes; and the retained storage of the context
+// stays as it was. The errors of release 0.1 keep their `error` lines, with
+// twelve charge points, and the unknown role has an `error-at` line, with
+// thirteen.
+#[test]
+fn representative_lines_pass_at_their_exact_limits_and_fail_one_below() {
+    for (request, limits, start) in representative_requests() {
+        let (outcome, _) = run(&request, limits);
+        let c = &mut context(Limits::new());
+        let bytes = serialize(&outcome, c).unwrap();
+        let text = String::from_utf8(bytes.clone()).unwrap();
+        assert!(text.starts_with(start), "{text:?}");
+        assert_shape(&text, &outcome);
+        let (work, length) = (c.work_used(), bytes.len() as u64);
+        let (points, _) = line_charge_points(&outcome);
+        println!(
+            "{} {:?}: a line of {length} bytes, {work} work units and {points} charge points",
+            request.operation, request.input
+        );
+        match outcome.result() {
+            Ok(_) => assert_eq!(c.output_used(), length),
+            Err(_) => {
+                assert_eq!(work, length, "an error line charges its bytes");
+                let fields = if text.starts_with("error-at") { 12 } else { 11 };
+                assert_eq!(points, fields + 1);
+            }
+        }
+        for (field, at, below) in [
+            (
+                LimitField::OutputBytes,
+                Limits::new().with_max_output_bytes(length),
+                Limits::new().with_max_output_bytes(length - 1),
+            ),
+            (
+                LimitField::Work,
+                Limits::new().with_max_work(work),
+                Limits::new().with_max_work(work - 1),
+            ),
+        ] {
+            assert_eq!(serialize(&outcome, &mut context(at)).unwrap(), bytes);
+            let c = &mut context(below);
+            let retained = c.retained();
+            assert_limit(&serialize(&outcome, c).unwrap_err(), field);
+            assert_eq!(c.retained(), retained);
+            assert!(c.output_used() < length);
+        }
+    }
+}
+
+// The representative requests, cancelled at each charge point of the
+// request and of its line: a cancelled request has no line under its own
+// context and its fallback line is whole, with the frame of the step that
+// charged, and a line cancelled at any of its charge points gives
+// `Cancelled` and no bytes and leaves the retained storage as it was. The
+// unknown role, cancelled at its entry, has the frame `(eval, 1)`, so its
+// fallback line is an `error-at` line.
+#[test]
+fn representative_lines_cancelled_at_every_charge_point_leave_nothing() {
+    for (request, limits, _) in representative_requests() {
+        let probe = CountingProbe::never();
+        let c = &mut observed(limits, FakeClock::at(0), &probe);
+        let outcome = execute(&request, c);
+        let request_points = probe.polls();
+        for k in 0..request_points {
+            let probe = CountingProbe::after(k);
+            let own = &mut observed(limits, FakeClock::at(0), &probe);
+            let cancelled = execute(&request, own);
+            assert_eq!(error(&cancelled).kind(), ErrorKind::Cancelled, "poll {k}");
+            let text = assert_fallback_line(&cancelled, own, ErrorKind::Cancelled);
+            assert_shape(&text, &cancelled);
+            if !request.operands.is_empty() {
+                assert_eq!(frames(error(&cancelled)), [("eval", 1)]);
+                assert_eq!(fields(&text)[11], "1");
+            }
+        }
+        let (line_points, whole) = line_charge_points(&outcome);
+        for k in 0..line_points {
+            let probe = CountingProbe::after(k);
+            let c = &mut observed(Limits::new(), FakeClock::at(0), &probe);
+            let retained = c.retained();
+            let error = serialize(&outcome, c).unwrap_err();
+            assert_eq!(error.kind(), ErrorKind::Cancelled, "charge point {}", k + 1);
+            assert_eq!(probe.polls(), k + 1);
+            assert!(c.output_used() < whole.len() as u64);
+            assert_eq!(c.retained(), retained);
+        }
+        println!(
+            "{} {:?}: {request_points} charge points of the request, {line_points} of its line",
+            request.operation, request.input
+        );
+    }
+}
+
 /// Asserts that `text`, the line of `outcome`, has the documented shape: a
-/// value has 5 fields and an error 11, the line ends with its only line
-/// feed and holds no other control character than the tabs between its
-/// fields, its versions are decimal numbers, the text of a value reads back
-/// as its term, and the fields of an error are those of the error.
+/// value has 5 fields, an error 11 and an error with a location 12, the line
+/// ends with its only line feed and holds no other control character than
+/// the tabs between its fields, its versions are decimal numbers, the text
+/// of a value reads back as its term, and the fields of an error are those
+/// of the error, with its location last.
 fn assert_shape(text: &str, outcome: &Outcome) {
     let found = fields(text);
     let control = text
@@ -720,7 +1043,7 @@ fn assert_shape(text: &str, outcome: &Outcome) {
         );
     }
     match outcome.result() {
-        Ok(Settled::Value(term)) => {
+        Ok(Settled::Value(Answer::Term(term))) => {
             assert_eq!((found[0], found.len()), ("value", 5), "{text:?}");
             let c = &mut context(wide());
             let read = parse(found[4], c).expect(found[4]);
@@ -728,7 +1051,13 @@ fn assert_shape(text: &str, outcome: &Outcome) {
         }
         Ok(other) => panic!("no operation of this release ends in a state: {other:?}"),
         Err(error) => {
-            assert_eq!((found[0], found.len()), ("error", 11), "{text:?}");
+            match location(error) {
+                None => assert_eq!((found[0], found.len()), ("error", 11), "{text:?}"),
+                Some(location) => {
+                    assert_eq!((found[0], found.len()), ("error-at", 12), "{text:?}");
+                    assert_eq!(found[11], location, "{text:?}");
+                }
+            }
             let span = match error.span() {
                 Some(span) => format!("{}..{}", span.start(), span.end()),
                 None => "-".to_owned(),
@@ -823,6 +1152,25 @@ fn expression(random: &mut SplitMix64, depth: u32) -> String {
     }
 }
 
+/// A random operand of a sum or a product whose order the property swaps:
+/// numbers, mostly, the variable `x`, and their sums, products, differences
+/// and small powers, in parentheses, so that every operation reads it.
+fn operand(random: &mut SplitMix64, depth: u32) -> String {
+    if depth == 0 || random.below(3) == 0 {
+        return random
+            .pick(&["x", "1", "2", "3", "1/2", "-4", "0", "x", "7/3"])
+            .to_owned();
+    }
+    let left = operand(random, depth - 1);
+    let right = operand(random, depth - 1);
+    match random.below(4) {
+        0 => format!("({left})^{}", random.pick(&["0", "2", "3"])),
+        1 => format!("({left}) - ({right})"),
+        2 => format!("({left})*({right})"),
+        _ => format!("({left}) + ({right})"),
+    }
+}
+
 /// A request of the property: an operation, mostly of the table, a variable,
 /// mostly valid, an input and random versions.
 fn random_request(random: &mut SplitMix64) -> Request {
@@ -846,6 +1194,17 @@ fn random_request(random: &mut SplitMix64) -> Request {
         .with_settings_version(version(random))
 }
 
+/// `request`, now and then with an entry of the operand table, drawn from
+/// `random`.
+fn with_random_operand(request: Request, random: &mut SplitMix64) -> Request {
+    if random.below(8) == 0 {
+        let role = random.pick(&["scope", "order", "variables", "", "Input"]);
+        request.with_operand(role, &expression(random, 2))
+    } else {
+        request
+    }
+}
+
 /// The limits of a case: the defaults, or the defaults with one small field.
 fn random_limits(random: &mut SplitMix64) -> Limits {
     match random.below(8) {
@@ -864,14 +1223,22 @@ fn random_limits(random: &mut SplitMix64) -> Limits {
 // same request run again in a fresh context, which builds its own nodes;
 // under contexts with and without a deadline, on clocks at different
 // readings. Each writing charges exactly its bytes as output and the same
-// work, and every line has the documented shape. 1,000 cases from a fixed
-// seed; every kind of line and the main kinds of error occur.
+// work, and every line has the documented shape. A sum or a product built in
+// the other order of its operands is the same canonical term, so its value
+// has the same line. 1,000 cases from a fixed seed; every kind of line, an
+// `error-at` line of a request with an operand table included, and the main
+// kinds of error occur.
 #[test]
 fn the_same_outcome_is_written_as_the_same_bytes() {
     let mut random = SplitMix64(DETERMINISM_SEED);
+    // A second stream from the same seed draws the operand tables and the
+    // swapped operands, so the requests of the first stream stay as they
+    // are.
+    let mut extra = SplitMix64(DETERMINISM_SEED.rotate_left(32));
     let mut kinds = std::collections::BTreeSet::new();
+    let mut reordered = 0;
     for index in 0..CASES {
-        let request = random_request(&mut random);
+        let request = with_random_operand(random_request(&mut random), &mut extra);
         let limits = random_limits(&mut random);
         let (first, first_context) = run(&request, limits);
         let (again, again_context) = run(&request, limits);
@@ -912,9 +1279,30 @@ fn the_same_outcome_is_written_as_the_same_bytes() {
         } else {
             found[0].to_owned()
         });
+        let (a, b) = (operand(&mut extra, 3), operand(&mut extra, 3));
+        let operator = extra.pick(&[" + ", "*"]);
+        let operation = extra.pick(&OPERATIONS);
+        let (one, _) = run(
+            &Request::new(operation, "x", &format!("({a}){operator}({b})")),
+            Limits::new(),
+        );
+        let (other, _) = run(
+            &Request::new(operation, "x", &format!("({b}){operator}({a})")),
+            Limits::new(),
+        );
+        if let (Ok(_), Ok(_)) = (one.result(), other.result()) {
+            assert_eq!(
+                line(&one),
+                line(&other),
+                "case {index}: ({a}){operator}({b})"
+            );
+            reordered += 1;
+        }
     }
+    assert!(reordered >= 200, "{reordered} values in both orders");
     for kind in [
         "value",
+        "error-at",
         "Syntax",
         "Unsupported",
         "UnknownSymbol",
@@ -971,6 +1359,27 @@ fn cancellation_is_observed_at_the_next_charge_point() {
         12,
         "a poll at every field and the line feed"
     );
+    // An `error-at` line has twelve fields and a line feed, and a
+    // cancellation at each of these charge points leaves no bytes.
+    let (located, _) = run(
+        &Request::new("eval", "x", "1").with_operand("scope", "x: real"),
+        Limits::new(),
+    );
+    let counted = CountingProbe::never();
+    let whole = serialize(
+        &located,
+        &mut observed(Limits::new(), FakeClock::at(0), &counted),
+    )
+    .unwrap();
+    assert_eq!(counted.polls(), 13);
+    for k in 0..13 {
+        let probe = CountingProbe::after(k);
+        let c = &mut observed(Limits::new(), FakeClock::at(0), &probe);
+        let error = serialize(&located, c).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Cancelled, "poll {k}");
+        assert_eq!(probe.polls(), k + 1);
+        assert!(c.output_used() < whole.len() as u64);
+    }
     for k in 0..polls {
         let probe = CountingProbe::after(k);
         let c = &mut observed(Limits::new(), FakeClock::at(0), &probe);
@@ -1399,7 +1808,10 @@ fn a_job_of_several_requests_ends_by_the_stop_rule() {
 // A request that fails before its first charge point reports that error and
 // not the cancellation of its context: an unknown operation, a malformed
 // variable and an input over `max_input_bytes`. So a host checks
-// cancellation between two requests itself.
+// cancellation between two requests itself. With a nonempty operand table
+// the first charge point is its first entry: an unknown operation still
+// fails before it, while a malformed variable, read after the table, gives
+// `Cancelled` there, with the frame of the entry.
 #[test]
 fn a_request_that_fails_before_its_first_charge_reports_its_own_error() {
     let flag = CancelFlag::new();
@@ -1431,9 +1843,21 @@ fn a_request_that_fails_before_its_first_charge_reports_its_own_error() {
         assert_eq!(error(&outcome).kind(), kind, "{request:?}");
         assert_eq!(c.work_used(), 0);
     }
-    let c = &mut Context::new(Limits::new().with_max_input_bytes(4), flag);
+    let c = &mut Context::new(Limits::new().with_max_input_bytes(4), flag.clone());
     let outcome = execute(&Request::new("eval", "x", "12345"), c);
     assert_limit(error(&outcome), LimitField::InputBytes);
+    let request = Request::new("simplify", "x", "1").with_operand("scope", "x: real");
+    let c = &mut Context::new(Limits::new(), flag.clone());
+    let outcome = execute(&request, c);
+    assert_fault(error(&outcome), FaultKind::Unsupported, None);
+    assert!(error(&outcome).frames().is_empty());
+    assert_eq!(c.work_used(), 0);
+    let request = Request::new("diff", "1x", "x").with_operand("scope", "x: real");
+    let c = &mut Context::new(Limits::new(), flag);
+    let outcome = execute(&request, c);
+    assert_eq!(error(&outcome).kind(), ErrorKind::Cancelled);
+    assert_eq!(frames(error(&outcome)), [("diff", 1)]);
+    assert_eq!(c.work_used(), 0);
 }
 
 // The display of a value is charged to the context of the line: its steps as
@@ -1511,6 +1935,26 @@ fn a_deadline_on_an_injected_clock_ends_the_request() {
     let c = &mut Context::new(Limits::new(), CancelFlag::new()).with_timeout(3_600_000_000_000);
     let outcome = execute(&request, c);
     assert_eq!(line(&outcome), line(&full));
+}
+
+// A deep input adds no frame: nesting inside an operand is shown by the
+// span alone, so an error deep inside 1,000 levels of parentheses, under a
+// `max_depth` raised for them, has the entry frame of the input and no
+// nested frame, at most the bound $d = 1$ of the contract.
+#[test]
+fn a_deep_input_has_no_more_than_d_nested_frames() {
+    let deep = format!("{}1/0{}", "(".repeat(1_000), ")".repeat(1_000));
+    for operation in OPERATIONS {
+        let (outcome, _) = run(
+            &Request::new(operation, "x", &deep),
+            Limits::new().with_max_depth(2_000),
+        );
+        let error = error(&outcome);
+        assert_fault(error, FaultKind::DivisionByZero, Span::new(1_000, 1_003));
+        assert_eq!(frames(error), [(operation, 0)]);
+        assert!(error.frames().len() - 1 <= 1);
+        assert_eq!(fields(&line(&outcome)).len(), 11);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1627,7 +2071,7 @@ fn result_kind(name: &str) -> Option<ErrorKind> {
 fn compare_case(case: &Case<'_>, outcome: &Outcome) -> Result<(), String> {
     let id = case.id;
     match (case.result, outcome.result()) {
-        ("ok", Ok(Settled::Value(term))) => {
+        ("ok", Ok(Settled::Value(Answer::Term(term)))) => {
             let c = &mut context(Limits::new());
             let expected = parse(case.answer, c)
                 .map_err(|error| format!("{id}: the answer does not parse: {error}"))?;
@@ -1763,9 +2207,10 @@ fn a_corrupted_expectation_fails_the_comparison() {
 
 // The examples of the output lines in `docs/semantics.md`, with the requests
 // that they name: every field but the message, whose wording is not part of
-// the interface. The state line of the examples is written by the unit
-// tests in `src/command/tests.rs`, since no operation of this release ends in
-// a state.
+// the interface, and the whole line as the example writes it. The state
+// line, the answer lines and the `error-at` lines of nested and later
+// operations among the examples are written by the unit tests in
+// `src/command/tests.rs`, since no request of this release writes them.
 #[test]
 fn the_examples_of_the_output_lines_hold() {
     let versions = Request::new("expand", "x", "x^257")
@@ -1813,12 +2258,29 @@ fn the_examples_of_the_output_lines_hold() {
             Limits::new(),
             "error\t0\t0\t0\tUnsupported\t-\t-\t-\t-\t-",
         ),
+        (
+            Request::new("eval", "x", "1").with_operand("scope", "x: real"),
+            Limits::new(),
+            "error-at\t0\t0\t0\tUnsupported\t-\t-\t-\t-\t-\t1",
+        ),
     ];
+    let documented: Vec<String> = SEMANTICS
+        .lines()
+        .filter(|line| line.starts_with("value⇥") || line.starts_with("error"))
+        .map(|line| line.replace('⇥', "\t"))
+        .collect();
     for (request, limits, expected) in cases {
         let (outcome, _) = run(&request, limits);
         let text = line(&outcome);
         let found = fields(&text);
-        let length = if found[0] == "error" { 10 } else { found.len() };
-        assert_eq!(found[..length].join("\t"), expected, "{request:?}");
+        let without_message: Vec<&str> = match found[0] {
+            "error" => found[..10].to_vec(),
+            "error-at" => [&found[..10], &found[11..]].concat(),
+            _ => found.clone(),
+        };
+        assert_eq!(without_message.join("\t"), expected, "{request:?}");
+        // The example of the line in `docs/semantics.md` is the whole line.
+        let whole = text.strip_suffix('\n').unwrap();
+        assert!(documented.iter().any(|line| line == whole), "{whole:?}");
     }
 }

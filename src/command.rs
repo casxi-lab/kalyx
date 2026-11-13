@@ -2,15 +2,15 @@
 //! the outcome.
 //!
 //! A [`Request`] names an operation, the variable of the operation, the input
-//! text and the versions that its outcome echoes, with the [`Settings`] of
-//! the request. [`execute`] runs it under the caller's [`Context`], which
-//! carries the limits, the deadline and the cancellation probe of the
-//! request, and returns an [`Outcome`]: the versions of the request and its
-//! structured result, a term or a mathematical state, or the [`Error`] that
-//! ended it. The entry never chooses a process exit code. [`serialize`]
-//! writes an outcome as one line of bytes, charging every byte to the
-//! context before it is written; it is the only output format of the
-//! library.
+//! text, its table of further [`Operand`]s and the versions that its outcome
+//! echoes, with the [`Settings`] of the request. [`execute`] runs it under the
+//! caller's [`Context`], which carries the limits, the deadline and the
+//! cancellation probe of the request, and returns an [`Outcome`]: the
+//! versions of the request and its structured result, an [`Answer`] or a
+//! mathematical state, or the [`Error`] that ended it. The entry never
+//! chooses a process exit code. [`serialize`] writes an outcome as one line
+//! of bytes, charging every byte to the context before it is written; it is
+//! the only output format of the library.
 //!
 //! The operations are found by name in one dispatch table:
 //!
@@ -19,7 +19,9 @@
 //!   request and returns it as a term;
 //! - `diff` returns the derivative of that polynomial by the variable.
 //!
-//! An unknown operation and settings other than the default fail with
+//! The three operations read the input alone and no role of the operand
+//! table. An unknown operation, settings other than the default and an entry
+//! of the table with a role that the operation does not read fail with
 //! `Unsupported`, and a missing operand, an input that is empty or holds
 //! only whitespace, fails with `Syntax` at the end of the input.
 //!
@@ -50,6 +52,7 @@
 
 mod dispatch;
 mod line;
+mod operands;
 #[cfg(test)]
 mod tests;
 
@@ -98,7 +101,9 @@ impl Settings {
 /// the input, and change the versions and the settings with the `with_`
 /// methods. The versions are numbers that the caller chooses and that the
 /// outcome echoes, so that the caller can tell which input, context and
-/// settings a result belongs to.
+/// settings a result belongs to. [`Request::with_operand`] appends an entry
+/// to the operand table, for an operation whose signature reads roles of the
+/// table; the operations of this release read none.
 ///
 /// ```
 /// use kalyx::Request;
@@ -111,6 +116,22 @@ impl Settings {
 ///     .with_settings_version(1);
 /// assert_eq!(request.operation, "diff");
 /// assert_eq!((request.input_version, request.context_version), (4, 2));
+/// assert!(request.operands.is_empty());
+/// ```
+///
+/// Code outside the library builds a request only with [`Request::new`]:
+///
+/// ```compile_fail,E0639
+/// let request = kalyx::Request {
+///     operation: String::from("eval"),
+///     variable: String::new(),
+///     input: String::from("1"),
+///     operands: Vec::new(),
+///     input_version: 0,
+///     context_version: 0,
+///     settings: kalyx::command::Settings::new(),
+///     settings_version: 0,
+/// };
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -120,8 +141,13 @@ pub struct Request {
     /// The variable of `expand` and `diff`, a symbol name; `eval` does not
     /// read it.
     pub variable: String,
-    /// The input text, in the input syntax of `docs/semantics.md`.
+    /// The input text, in the input syntax of `docs/semantics.md`: the
+    /// operand of index 0.
     pub input: String,
+    /// The operand table: the operands after the input, in their order, so
+    /// that the entry `operands[k-1]` is the operand of index `k`. Empty for
+    /// a request of [`Request::new`].
+    pub operands: Vec<Operand>,
     /// The version of the input, such as the revision of the text of a
     /// cell; echoed by the outcome.
     pub input_version: u64,
@@ -138,18 +164,35 @@ pub struct Request {
 
 impl Request {
     /// The request for `operation` on `input`, in the variable `variable`,
-    /// with the versions 0 and the default settings.
+    /// with an empty operand table, the versions 0 and the default settings.
     #[must_use]
     pub fn new(operation: &str, variable: &str, input: &str) -> Self {
         Self {
             operation: String::from(operation),
             variable: String::from(variable),
             input: String::from(input),
+            operands: Vec::new(),
             input_version: 0,
             context_version: 0,
             settings: Settings::new(),
             settings_version: 0,
         }
+    }
+
+    /// This request with the entry of the role `role` and the text `text`
+    /// appended to its operand table.
+    ///
+    /// ```
+    /// use kalyx::Request;
+    /// use kalyx::command::Operand;
+    ///
+    /// let request = Request::new("eval", "x", "1").with_operand("scope", "x: real");
+    /// assert_eq!(request.operands, [Operand::new("scope", "x: real")]);
+    /// ```
+    #[must_use]
+    pub fn with_operand(mut self, role: &str, text: &str) -> Self {
+        self.operands.push(Operand::new(role, text));
+        self
     }
 
     /// This request with the input version `version`.
@@ -181,19 +224,95 @@ impl Request {
     }
 }
 
+/// An entry of the operand table of a [`Request`]: the role of an operand
+/// and its text.
+///
+/// The signature of an operation, which its component contract states,
+/// names the roles that it reads, whether each is required, optional or
+/// repeatable, and the start symbol of the input syntax that reads each.
+/// The operations of this release read no role of the table, so every entry
+/// of a request to them is an unknown role.
+///
+/// ```
+/// use kalyx::command::Operand;
+///
+/// let operand = Operand::new("scope", "x: positive");
+/// assert_eq!((operand.role.as_str(), operand.text.as_str()), ("scope", "x: positive"));
+/// ```
+///
+/// Code outside the library builds an entry only with [`Operand::new`]:
+///
+/// ```compile_fail,E0639
+/// let operand = kalyx::command::Operand {
+///     role: String::from("scope"),
+///     text: String::from("x: real"),
+/// };
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Operand {
+    /// The role of the operand, a name of the signature of the operation.
+    pub role: String,
+    /// The text of the operand, read with the start symbol of its role.
+    pub text: String,
+}
+
+impl Operand {
+    /// The entry of the role `role` with the text `text`.
+    #[must_use]
+    pub fn new(role: &str, text: &str) -> Self {
+        Self {
+            role: String::from(role),
+            text: String::from(text),
+        }
+    }
+}
+
+/// The value of a result, one variant for each kind of value that an
+/// operation returns.
+///
+/// Each variant is a value kind of the table of value kinds in
+/// `docs/semantics.md`. A term, the only kind of this release, is written as
+/// a value line; a later kind is written as an answer line. Code that reads
+/// an answer matches its variants with a wildcard arm, since later releases
+/// add variants.
+///
+/// ```
+/// use kalyx::command::Answer;
+/// use kalyx::context::CancelFlag;
+/// use kalyx::{Context, Limits, Request, Settled, execute};
+///
+/// let mut context = Context::new(Limits::new(), CancelFlag::new());
+/// let outcome = execute(&Request::new("diff", "x", "x^2"), &mut context);
+/// let text = match outcome.result() {
+///     Ok(Settled::Value(Answer::Term(term))) => term.display(&mut context)?,
+///     // Later releases add kinds of values and states.
+///     Ok(_) => String::from("another value or a state"),
+///     Err(error) => String::from(error.message()),
+/// };
+/// assert_eq!(text, "2*x");
+/// # Ok::<(), kalyx::Error>(())
+/// ```
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum Answer {
+    /// A term of the term core.
+    Term(Term),
+}
+
 /// The outcome of a request: the versions of the request and its result.
 ///
-/// The result is a [`Settled`] term, a value or a mathematical state, or the
-/// [`Error`] that ended the request, as every method with states returns it.
-/// No operation of this release ends in a state. Only [`execute`] builds an
-/// outcome, and [`serialize`] writes it as a line.
+/// The result is a [`Settled`] answer, a value or a mathematical state, or
+/// the [`Error`] that ended the request, as every method with states returns
+/// it. No operation of this release ends in a state. Only [`execute`] builds
+/// an outcome, and [`serialize`] writes it as a line.
 #[derive(Clone, Debug)]
 #[must_use = "an outcome holds the result or the error of its request"]
 pub struct Outcome {
     input_version: u64,
     context_version: u64,
     settings_version: u64,
-    result: Result<Settled<Term>>,
+    result: Result<Settled<Answer>>,
 }
 
 impl Outcome {
@@ -215,14 +334,15 @@ impl Outcome {
         self.settings_version
     }
 
-    /// The result: a term or a state, or the error that ended the request.
+    /// The result: an answer or a state, or the error that ended the
+    /// request.
     #[must_use]
-    pub const fn result(&self) -> &Result<Settled<Term>> {
+    pub const fn result(&self) -> &Result<Settled<Answer>> {
         &self.result
     }
 
     /// The result, consuming the outcome.
-    pub fn into_result(self) -> Result<Settled<Term>> {
+    pub fn into_result(self) -> Result<Settled<Answer>> {
         self.result
     }
 }
@@ -231,12 +351,16 @@ impl Outcome {
 /// versions of the request.
 ///
 /// The entry checks the settings, then finds the operation in the dispatch
-/// table, and only then runs it: `eval` parses the input, `expand` and
-/// `diff` check the variable, then parse the input and work on the
-/// polynomial of the term. The first failure ends the request. Every step of
-/// the work is charged to `context`, which the caller creates with the limits,
-/// the deadline and the cancellation probe of the request; the entry never
-/// creates a context and never charges output.
+/// table; then it checks each entry of the operand table, which charges one
+/// unit before it looks up the role in the signature of the operation, and
+/// each required role of the signature, and only then runs the operation:
+/// `eval` parses the input, `expand` and `diff` check the variable, then
+/// parse the input and work on the polynomial of the term. The first failure
+/// ends the request. Every step of the work is charged to `context`, which
+/// the caller creates with the limits, the deadline and the cancellation
+/// probe of the request; the entry never creates a context and never charges
+/// output. An error of an operand carries the entry frame of the operation
+/// and the index of the operand as its first [cause frame](Error::frames).
 ///
 /// A host that runs the requests of a job one after another creates a
 /// context for each, on one clock of the job and with the deadline of the
@@ -370,10 +494,18 @@ impl Outcome {
 ///
 /// The outcome holds the error that ended the request:
 ///
-/// - `Fault(Unsupported)`, without a span, for settings other than the
-///   default and for an unknown operation; `Fault(Syntax)` or
-///   `Fault(Unsupported)`, without a span, for a variable of `expand` or
-///   `diff` that is not a symbol name or is reserved;
+/// - `Fault(Unsupported)`, without a span and without a frame, for settings
+///   other than the default and for an unknown operation;
+/// - `Fault(Unsupported)`, without a span, for an entry of the operand table
+///   whose role the operation does not read, which every role is for the
+///   operations of this release, with the frame of the operation at the
+///   index of the entry;
+/// - `Fault(Syntax)` or `Fault(Unsupported)`, without a span and without a
+///   frame, for a variable of `expand` or `diff` that is not a symbol name or
+///   is reserved;
+/// - `ResourceLimit` naming `max_input_bytes`, without a span and without a
+///   frame, when the operand table is not empty and the bytes of the input
+///   and of every entry exceed that limit;
 /// - the errors of `parse`, each with a span into the input: among them
 ///   `Fault(Syntax)` with the empty span at the end of the input when the
 ///   operand is missing;
@@ -381,6 +513,10 @@ impl Outcome {
 ///   errors of the expansion, the derivative and the conversion back to a
 ///   term for `expand` and `diff`, all without a span;
 /// - the request failures of the charges.
+///
+/// The errors of `parse` and of the operation itself have the frame of the
+/// operation at the index 0, the input, and the request failures of a charge
+/// have the frame of the step that charged, if that step has one.
 pub fn execute(request: &Request, context: &mut Context) -> Outcome {
     Outcome {
         input_version: request.input_version,
@@ -390,11 +526,12 @@ pub fn execute(request: &Request, context: &mut Context) -> Outcome {
     }
 }
 
-/// The result of `request`: the checks of the request, then its operation.
-fn result_of(request: &Request, context: &mut Context) -> Result<Settled<Term>> {
+/// The result of `request`: steps 1 and 2 of its order, the settings and
+/// the operation, then the steps of the operation.
+fn result_of(request: &Request, context: &mut Context) -> Result<Settled<Answer>> {
     check_default(&request.settings)?;
-    let operation = dispatch::lookup(&request.operation)?;
-    dispatch::run(operation, request, context)
+    let (name, operation) = dispatch::lookup(&request.operation)?;
+    dispatch::run(name, operation, request, context)
 }
 
 /// Checks that `settings` is the default, the only settings that this

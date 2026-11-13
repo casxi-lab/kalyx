@@ -195,10 +195,14 @@ pub struct Error {
 /// of the request context, so it does not count against `max_frames`. The
 /// name is a name that the library defines, never text of a request, and has
 /// the form `[a-z][a-z0-9-]*`. The index counts the operands of that
-/// operation or step from 0; for an operation, 0 is its input. Only the
-/// library builds frames, and no layer of this release adds one, so every
-/// error that the library returns has none. Code outside the library reads
-/// frames but cannot build them:
+/// operation or step from 0; for an operation, 0 is its input. For the
+/// entry frame, the first, an index $k \ge 1$ is the entry `operands[k-1]`
+/// of the operand table of the request, and for a nested frame, the operand
+/// $k$ of the signature of its operation or of its step. Only the library
+/// builds frames: the command entry adds the entry frame, the operation of
+/// the request and the index of the operand in which an error arose, and no
+/// operation of this release enters a fixed step that adds a nested frame.
+/// Code outside the library reads frames but cannot build them:
 ///
 /// ```compile_fail,E0624
 /// let frame = kalyx::CauseFrame::new("eval", 0);
@@ -217,13 +221,6 @@ impl CauseFrame {
     /// proved returns no string literal. Text of a request could reach it
     /// only by leaking a string into a `&'static str`, which the library
     /// never does and review rejects.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "no layer of this release adds a cause frame; the unit tests reach it"
-        )
-    )]
     pub(crate) fn new(name: &'static str, operand_index: u64) -> Self {
         Self {
             name: String::from(name),
@@ -341,13 +338,6 @@ impl Error {
     /// that it has; its kind, span, message and exceeded limit stay the same.
     /// A frame is a record only: adding it charges nothing and does not count
     /// against `max_frames`.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "no layer of this release adds a cause frame; the unit tests reach it"
-        )
-    )]
     pub(crate) fn with_outer_frame(mut self, frame: CauseFrame) -> Self {
         let mut frames = self.frames.into_vec();
         frames.insert(0, frame);
@@ -379,17 +369,34 @@ impl Error {
         self.span
     }
 
-    /// The cause frames of the error, outer first: the outermost frame names
-    /// the operation of the request, and each later frame an operation or a
-    /// fixed step that the one before it entered. No layer of this release
-    /// adds a frame, so the list is empty for every error that the library
-    /// returns, and for every error that [`Error::new`] builds.
+    /// The cause frames of the error, outer first: the outermost frame, the
+    /// entry frame, names the operation of the request and the operand in
+    /// which the error arose, and each later frame, a nested frame, an
+    /// operation or a fixed step that the one before it entered, with the
+    /// operand there. An operand index counts from 0: 0 is the input, and
+    /// an index $k \ge 1$ is the entry `operands[k-1]` of the operand table
+    /// of the request for the entry frame, and the operand $k$ of the
+    /// signature of its operation or of its step for a nested frame. The
+    /// command entry adds the entry frame to an error of an operand of a
+    /// request and to an error of the operation itself; an error of the
+    /// settings, of the operation name, of a missing role, of the byte sum
+    /// of the operands or of the variable has no frame, and neither has an
+    /// error of a library function that is called directly, or one that
+    /// [`Error::new`] builds. No operation of this release adds a nested
+    /// frame.
     ///
     /// ```
-    /// use kalyx::{Error, FaultKind, Span};
+    /// use kalyx::context::CancelFlag;
+    /// use kalyx::{Context, Error, FaultKind, Limits, Request, Span, execute};
     ///
     /// let error = Error::new(FaultKind::Syntax, Span::new(0, 1), "unexpected character");
     /// assert!(error.frames().is_empty());
+    ///
+    /// let mut context = Context::new(Limits::new(), CancelFlag::new());
+    /// let outcome = execute(&Request::new("eval", "x", "1/0"), &mut context);
+    /// let frames = outcome.result().as_ref().unwrap_err().frames();
+    /// assert_eq!(frames.len(), 1);
+    /// assert_eq!((frames[0].name(), frames[0].operand_index()), ("eval", 0));
     /// ```
     #[must_use]
     pub fn frames(&self) -> &[CauseFrame] {
@@ -520,7 +527,11 @@ impl LimitId {
 pub enum LimitField {
     /// `max_work`: the work units charged by the request.
     Work,
-    /// `max_input_bytes`: the bytes of the request's input.
+    /// `max_input_bytes`: the bytes of the request's input; for a request
+    /// with a nonempty operand table, the sum of the bytes of every text
+    /// operand, the input and each entry of the table, which the command
+    /// entry adds with checked addition and reports as `Bound(u64::MAX)`
+    /// when it does not fit in a `u64`.
     InputBytes,
     /// `max_output_bytes`: the bytes of all display and serialization of the
     /// request, cumulative.

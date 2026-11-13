@@ -4,8 +4,10 @@ This contract states the term core of kalyx: the one representation of
 numbers, symbols, integer powers, products and sums that parsing,
 canonicalization, expansion and differentiation produce; the canonical forms
 that its constructors keep; the total order and the equality of terms; their
-display text; and their cost in storage and in work. It applies to the module
-`src/term.rs` with its submodules in `src/term/`. The
+display text; their cost in storage and in work; and the operation `eval` of
+the command entry, which evaluates the canonical term of its input. It
+applies to the module `src/term.rs` with its submodules in `src/term/`, and,
+for `eval`, to its function in `src/command/dispatch.rs`. The
 [architecture](../../architecture.md#term-representation) places the
 component among the foundations and states its design rules, which this
 contract writes out as invariants, and the
@@ -23,7 +25,9 @@ implementation, so [PORTING](../../../PORTING.md) has no row for it. Its
 first caller in the library is the [parser](../syntax/contract.md), which
 builds the term of every input through its constructors; the
 [command entry](../command/contract.md) reads the terms of its results and
-writes their display text.
+writes their display text, and its operation `eval`, which
+[evaluation of a request](#evaluation-of-a-request) states, gives the number
+of a canonical term.
 
 ## Scope
 
@@ -33,8 +37,9 @@ writes their display text.
   numbers, the primitive parts of sums, the strict evaluation of numbers and
   the witnesses of negative exponents; the total order and
   equality; the set $N(t)$ of the bases that occur with a negative exponent;
-  the display text; the accessors of the structure; the storage cost; and
-  drop.
+  the display text; the accessors of the structure; the storage cost;
+  drop; and what the operation `eval` of the command entry reads, its steps
+  and its result.
 - **Excluded, with their owners.**
   - Reading input text into terms, with the input syntax, its spans,
     function-call syntax and the reserved names in input: the
@@ -42,8 +47,10 @@ writes their display text.
     [the input syntax](../../semantics.md).
   - Expansion, differentiation and the conversion between terms and
     polynomials: the [polynomials](../polynomials/contract.md).
-  - The serialization of outcomes as output lines: the
-    [command entry](../command/contract.md).
+  - The request of `eval`, the order of its checks, its operand table and
+    the serialization of its outcome as an output line: the
+    [command entry](../command/contract.md), whose operation index links
+    the section of `eval` here.
   - Function calls (their constructor and their simplification), the
     constants $\pi$, $i$ and `undefined` of rank 1, assumptions, and the
     explicit operation that removes negative exponents under conditions: the
@@ -668,6 +675,48 @@ $(x + y) + (x + y)$ and $(2x + y) + y$ are all written `2*x + 2*y`. As
 `display()` takes the context, charges one unit per step and charges each
 piece of text with `charge_output` before it writes it; when a charge fails,
 it returns the error and no text. There is no `impl Display` for a term.
+`display` checks every number that it writes against `max_integer_bits` by
+the larger bit length of its numerator and its denominator, the actual size
+of the number and not a bound of it. This check does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+only the documentation of the term core states the measure, and the amount
+of the error does not name it.
+
+### Evaluation of a request
+
+The operation `eval` of the [command entry](../command/contract.md#the-dispatch-table)
+evaluates its input to its exact number. Its signature reads no role of the
+operand table: it reads `input`, which is required, with the start symbol
+`input`, and does not read the variable of the request. It returns
+`Answer::Term` and has been an operation since `v0.1.0`.
+
+1. **Reading.** The entry reads `input` with `parse`, as its order of a
+   request states; an error of the parser fails `eval` with that error,
+   with its span into the input and the entry frame of the index 0.
+2. **The number.** A canonical term that is a number is the result,
+   `Settled::Value` of `Answer::Term` of that number. A term that is not a
+   number fails with `Fault(UnknownSymbol)`, without a span and with the
+   entry frame of the index 0: the term core evaluates every numeric
+   subterm strictly, so in this release a term that is not a number holds a
+   symbol, and no symbol has a value in an evaluation.
+
+Since the canonical form decides, `x - x` and `0*x` are 0, while `x/x` and
+`0*x^(-1)` keep their witness of $x^{-1}$ and `(x+1)^2 - x^2 - 2*x - 1`,
+whose power of a sum the term core does not expand, holds $x$; all three
+fail. `eval` of `0^0` is 1, since `parse` reads every power with the
+exponent 0 as 1, as the [command entry](../command/contract.md#the-dispatch-table)
+states with its exponent 0. The earlier implementation evaluated the syntax
+of the input and failed at its first symbol with the span of the symbol; a
+term has no span.
+
+When the grammar reads constants and calls (planned for release 0.2),
+`eval` keeps this rule: an input that holds a free symbol fails with
+`UnknownSymbol`, and any other input gives its canonical term, which need not
+be a number. So `eval` of `i*i` is planned to give `-1`, of `i^3` `-i`, of
+`(1+i)^2` the term `(1 + i)^2`, whose power of a sum is not expanded, and of
+`sqrt(2)` and `sin(1)` those terms; `piecewise(true, 7, 1/0)` is to give
+`7`, `log(0)` to fail with `OutsideDomain` and `true` with
+`UnknownSymbol`.
 
 ## Requirements
 
@@ -866,6 +915,17 @@ state.
 - **Implemented here.** `src/term/symbol.rs`.
 - **Evidence.** `reserved_names_are_unsupported` and
   `symbol_names_are_identifiers`.
+
+### Evaluation reads the canonical term
+
+`eval` gives the number of its input and fails with `UnknownSymbol` for a
+term that is not a number, as [evaluation of a request](#evaluation-of-a-request)
+states.
+
+- **Implemented here.** `eval` in `src/command/dispatch.rs`.
+- **Evidence.** Positive: `eval_gives_the_exact_number_of_the_input`.
+  Negative: `eval_of_a_term_with_a_symbol_is_an_unknown_symbol`. Both are in
+  `tests/command.rs`.
 
 ## Defects of the earlier implementation
 

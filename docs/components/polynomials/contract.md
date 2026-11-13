@@ -5,8 +5,11 @@ one variable over a coefficient ring $K$ and its polynomials; their
 representation, operations, limits, storage cost and charges; and over
 $\mathbb{Q}$ the expansion of a term into a polynomial, the conversion of a
 polynomial back into a term and differentiation by the variable, with the
-order of their failures and their tests. It applies to the module
-`src/polynomial.rs` with its submodules in `src/polynomial/`. The
+order of their failures and their tests; and the operations `expand` and
+`diff` of the command entry, which expand and differentiate the input of a
+request. It applies to the module `src/polynomial.rs` with its submodules in
+`src/polynomial/`, and, for `expand` and `diff`, to their functions in
+`src/command/dispatch.rs`. The
 [architecture](../../architecture.md#coefficient-field-trait) places the
 component among the components of release 0.1 and states the design rules of
 the coefficient-field trait that the polynomials are built on, and the
@@ -23,7 +26,9 @@ anew for kalyx after the design rules of the architecture: no code and no test
 is taken over from the earlier implementation, which served as a reference, so
 [PORTING](../../../PORTING.md) has no row for them. Their first caller in the
 library is the [command entry](../command/contract.md), with its operations
-`expand` and `diff`.
+`expand` and `diff`, which
+[expansion and differentiation of a request](#expansion-and-differentiation-of-a-request)
+states.
 
 ## Scope
 
@@ -55,10 +60,12 @@ library is the [command entry](../command/contract.md), with its operations
     extensions: release 0.4.
   - Fast multiplication: the fast arithmetic of release 0.4.
   - The output of a polynomial: the component has no display of a
-    polynomial, and a result is shown through its term. The serialization of
-    outcomes, the one output format of the library, and the replay of all the
-    [answer vectors](../../../vectors/README.md) through it belong to the
-    [command entry](../command/contract.md).
+    polynomial, and a result is shown through its term. The request of
+    `expand` and `diff`, the order of its checks and its operand table, the
+    serialization of outcomes, the one output format of the library, and the
+    replay of all the [answer vectors](../../../vectors/README.md) through it
+    belong to the [command entry](../command/contract.md), whose operation
+    index links the section of `expand` and `diff` here.
   - Reading input text and the canonical forms of terms: the
     [parser](../syntax/contract.md) and the [term core](../terms/contract.md).
 
@@ -441,6 +448,54 @@ not charged.
   retained against the limits, as the work lists of the term core are not;
   each was checked when it was built.
 
+### Expansion and differentiation of a request
+
+The operations `expand` and `diff` of the
+[command entry](../command/contract.md#the-dispatch-table) expand the input
+of a request as a polynomial in the variable of the request and return it,
+or its derivative by the variable, as a term. The signature of each reads no
+role of the operand table: it reads `input`, which is required, with the
+start symbol `input`, and the typed field `variable`. Each returns
+`Answer::Term` and has been an operation since `v0.1.0`.
+
+1. **The variable**, step 5 of the order of a request, is checked by
+   `PolynomialRing::new` with the rule of symbol names of the term core
+   before the input is read: a name that is not an ASCII letter or `_`
+   followed by ASCII letters, digits and `_`, the empty name included, fails
+   with `Fault(Syntax)`, and a name reserved for a constant, `pi`, `i` or
+   `undefined`, with `Fault(Unsupported)`, both without a span, without a
+   cause frame and before any charge. Then the ring $\mathbb{Q}[x]$ of the
+   variable charges one unit and one per byte of the name. Names are
+   case-sensitive, so `X` is not the variable `x`.
+2. **Reading.** The entry reads `input` with `parse`; an error of the parser
+   fails the operation with that error, with its span into the input and the
+   entry frame of the index 0.
+3. **`expand`** expands the term in the ring and converts the polynomial back
+   to a term with the same ring; the result is the canonical term of the
+   polynomial. **`diff`** calls `differentiate`: the expansion, the
+   derivative by the variable and the conversion back to a term; the result
+   is the canonical term of the derivative. Both fail as the
+   [expansion](#expansion) states, in its order of failures:
+   `Fault(UnknownSymbol)` for a symbol other than the variable,
+   `Fault(NotPolynomial)` for a negative power, and the limits of the degree
+   and of the storage of every polynomial; all without a span and with the
+   entry frame of the index 0.
+
+The result is `Settled::Value` of `Answer::Term`; neither operation ends in
+a state.
+
+### Parents and elements
+
+`expand` and `diff` build their ring from the variable of the request and
+convert the polynomial that the ring returns back to a term with that same
+ring, before the operation returns; no polynomial outlives its operation,
+and an outcome holds terms only. So the command entry stores no parent
+together with an element, and no check of parents applies in this release.
+A later release that stores such a pair, such as a polynomial in a session,
+checks it there with the pair check of the
+[coefficient fields](../numbers/contract.md#the-coefficient-field-trait),
+which fails with `VariableMismatch` when the parents differ.
+
 ## Requirements
 
 The requirement identifiers are those of the coefficient fields of the
@@ -528,6 +583,18 @@ charges nothing.
 - **Implemented here.** `PolynomialRing::new` in `src/polynomial.rs`, with
   `check_name` of the term core.
 - **Evidence.** `the_variable_follows_the_rule_of_symbol_names`.
+
+### The variable of a request
+
+The variable of `expand` and `diff` follows the rule of symbol names and is
+checked before the input; `eval` does not read it.
+
+- **Implemented here.** `ring` and `variable_error` in
+  `src/command/dispatch.rs`.
+- **Evidence.** `the_variable_of_expand_and_diff_follows_the_rule_of_symbol_names`,
+  `names_are_case_sensitive` and
+  `the_charge_of_the_variable_fails_as_a_resource_limit`, in
+  `tests/command.rs`.
 
 ### Limits of the degree and of the number of terms
 

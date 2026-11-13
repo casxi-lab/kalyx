@@ -66,7 +66,7 @@ A3 upgrade.
   - The layers that store a parent together with an element and call the
     pair check: with the first such layer; neither the
     [polynomials](../polynomials/contract.md#the-two-types-and-the-receiver-rule)
-    nor the [command entry](../command/contract.md#parents-and-elements)
+    nor the [command entry](../polynomials/contract.md#parents-and-elements)
     stores such a pair in this release.
   - `PolynomialRing` and `Polynomial`: the
     [polynomials](../polynomials/contract.md).
