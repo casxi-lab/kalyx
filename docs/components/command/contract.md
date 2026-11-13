@@ -1087,11 +1087,11 @@ process to their baseline after every run.
   program prints nothing before the last run, since the first print keeps a
   buffer for the rest of the process, and exits with 1 when a run fails.
 - **The resource profile.** Run with `profile`, the same program measures
-  the heap peak and the native stack of every case and of deep inputs at
-  several values of `max_depth`, the stack in child processes without
-  `unsafe` code; the [resource profile](../../resource-profile.md) records
-  the figures, the host and the method. The profile is run by hand and is
-  not a step of `cargo xtask check`.
+  the heap peak and the native stack of every case of the vector file and of
+  deep inputs at several values of `max_depth`, the stack in child processes
+  without `unsafe` code; the [resource profile](../../resource-profile.md)
+  records the figures, the host and the method. The profile is run by hand
+  and is not a step of `cargo xtask check`.
 - **`unsafe` code.** The allocator wrapper, an `unsafe impl GlobalAlloc` with
   two unsafe blocks that call the system allocator, is the only `unsafe` code
   of the crate. Its manifest denies `unsafe` code and undocumented unsafe

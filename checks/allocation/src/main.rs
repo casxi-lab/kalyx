@@ -31,17 +31,17 @@
 //! and a job that frees all that it allocates must leave 0, so that a
 //! measurement that always gives 0 fails the check instead of passing it.
 //!
-//! `profile` prints, for each case, the peak of the live bytes above the
-//! baseline during one run, the blocks that the run allocates and the stack
-//! that the run uses; and the same for deep inputs at several values of
-//! `max_depth`. The stack is measured without any `unsafe` code. The
-//! program runs the request again in a child process, `probe`, on a thread
-//! with a stack of 1 MiB, below a number of padding frames that fill the
-//! stack before the request runs, and searches for the most padding frames
-//! under which the child still exits normally; a stack overflow ends the
-//! child with a signal. The padding frames that the request displaces,
-//! compared with a thread that runs nothing, times the bytes of one frame,
-//! are the stack that it uses, to within one frame.
+//! `profile` prints, for each case of the vector file, the peak of the live
+//! bytes above the baseline during one run, the blocks that the run
+//! allocates and the stack that the run uses; and the same for deep inputs
+//! at several values of `max_depth`. The stack is measured without any
+//! `unsafe` code. The program runs the request again in a child process,
+//! `probe`, on a thread with a stack of 1 MiB, below a number of padding
+//! frames that fill the stack before the request runs, and searches for the
+//! most padding frames under which the child still exits normally; a stack
+//! overflow ends the child with a signal. The padding frames that the
+//! request displaces, compared with a thread that runs nothing, times the
+//! bytes of one frame, are the stack that it uses, to within one frame.
 //!
 //! This crate is not part of the kalyx package: the package forbids `unsafe`
 //! code in every target, and a global allocator implements an unsafe trait.
@@ -799,9 +799,9 @@ fn stack_use(probe: &Probe, empty: u64, stride: u64) -> Result<(u64, Report), St
     Ok((empty.saturating_sub(frames).saturating_mul(stride), report))
 }
 
-/// The profile: the heap peak, the blocks and the stack of every case, then
-/// the heap peak and the stack of the deep inputs at each value of
-/// `DEPTHS`, printed as the Markdown tables of the resource profile.
+/// The profile: the heap peak, the blocks and the stack of every case of the
+/// vector file, then the heap peak and the stack of the deep inputs at each
+/// value of `DEPTHS`, printed as the Markdown tables of the resource profile.
 fn profile() -> Result<(), String> {
     let cases = cases(VECTORS)?;
     let (empty, report) = headroom(&Probe::Empty)?;
