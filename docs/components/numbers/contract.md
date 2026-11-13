@@ -633,11 +633,15 @@ residue.
   power $a^d \bmod p$ and each squaring is one call of `modular_power` of
   [the integer kernel](#the-integer-kernel), with its checks and charges:
   the bound $\max(\lvert a \rvert, \lvert d \rvert, 2 \lvert p \rvert)$
-  of a power is $\max(6, 2 \lvert p \rvert)$, since the base 61 has 6 bits
-  and $\lvert d \rvert \lt \lvert p \rvert$, so $2 \lvert p \rvert$ for
-  $p \ge 5$, and the bound of a squaring is $2 \lvert p \rvert$; under
-  the default limits every `u32` passes them. The test takes the same path
-  for $p$ under every limit, so its work depends only on $p$. A composite
+  of the power to the base $a$ is
+  $\max(\lvert a \rvert, 2 \lvert p \rvert)$, since
+  $\lvert d \rvert \lt \lvert p \rvert$: it is $2 \lvert p \rvert$ for
+  $p \ge 5$, and for $p = 3$ it is 4 for the bases 2 and 7 and 6 for the
+  base 61, so the largest bound of the test is
+  $\max(6, 2 \lvert p \rvert)$. The bound of a squaring is
+  $2 \lvert p \rvert$. Under the default limits every `u32` passes them.
+  The test takes the same path for $p$ under every limit, so its work
+  depends only on $p$. A composite
   modulus fails with `Fault(OutsideDomain)` after the charges of the test,
   which are kept; no field is built from it and the context retains
   nothing more. A failed check or charge of the test reports the limit or
@@ -719,12 +723,14 @@ residue.
   [convention 17](../../conventions/public-api.md#17-no-implicit-conventions),
   as [CTX-R07](../context/contract.md#ctx-r07) states for every check of
   `max_integer_bits`: each compares a bound of its own, computed from the
-  modulus before the result, $\max(6, 2 \lvert p \rvert)$ for a power of
-  the test of an odd $p \ge 3$ and $2 \lvert p \rvert$ for a squaring,
-  $\lvert p \rvert$ for a new residue, and
-  $\max(\lvert n \rvert, \lvert p \rvert)$ for `from_integer`, which only
-  their documentation states, and the amount of the error does not name the
-  bound.
+  modulus before the result, which only their documentation states. In the
+  test of an odd $p \ge 3$ the power to the base $a$ checks
+  $\max(\lvert a \rvert, 2 \lvert p \rvert)$, at most
+  $\max(6, 2 \lvert p \rvert)$, which for $p = 3$ only the base 61
+  reaches, and a squaring checks $2 \lvert p \rvert$; a new residue checks
+  $\lvert p \rvert$, and `from_integer` checks
+  $\max(\lvert n \rvert, \lvert p \rvert)$. The amount of the error does
+  not name the bound.
 - **Deviations of the earlier implementation.** Its prime field was built
   from a modulus whose size alone it checked, contrary to its rule that a
   parent is built only from validated defining data: its caller decided

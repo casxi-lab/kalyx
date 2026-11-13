@@ -155,10 +155,12 @@ impl PrimeField {
     /// least composite that passes the three bases, fails one, so the test
     /// is exact for every `u32`. Each power and each squaring is a call of
     /// [`modular_power`](crate::number::modular_power), with its checks of
-    /// `max_integer_bits`, $\max(6, 2 \lvert p \rvert)$ bits for a power
-    /// and $2 \lvert p \rvert$ for a squaring, and its charges, so the
-    /// constructor's work depends only on $p$. A composite modulus fails
-    /// after those charges, and no field is built from it.
+    /// `max_integer_bits` and its charges, so the constructor's work depends
+    /// only on $p$: the power to the base $a$ checks
+    /// $\max(\lvert a \rvert, 2 \lvert p \rvert)$ bits, at most
+    /// $\max(6, 2 \lvert p \rvert)$, which for $p = 3$ only the base 61
+    /// reaches, and a squaring $2 \lvert p \rvert$. A composite modulus
+    /// fails after those charges, and no field is built from it.
     ///
     /// # Errors
     ///
