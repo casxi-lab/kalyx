@@ -4,8 +4,8 @@
 this contract twice: for release 0.1 on 2026-11-07, and for the changes of
 release 0.2 on 2026-11-11, the operand table of a request, its answer and
 the cause frames of its errors, the `answer` and `error-at` lines, and the
-rules below that they change. A change to any part of this list needs
-krepi's co-signature and the owner's approval:
+rules below that they change. A change to any part of this list is reviewed
+as a change of a contract, co-signed by krepi and approved by the owner:
 
 - **The shapes and the order.** The fields of `Request` and `Operand`; the
   accessors of `Outcome`; the classes of a result, a value, a state or an
@@ -79,7 +79,12 @@ does not know which tag krepi will lock, so the rule applies to the first
 tag that holds the change.
 
 **Changes without co-signature.** These changes need no co-signature of
-krepi, under the constraints that follow them:
+krepi, under the constraints that follow them. The review of a change of a
+contract is the closer review that a change of a public interface at a
+boundary of the library gets, such as a change of this contract, of the
+error kinds, of the charges of the context or of the parser; the review of
+an ordinary change is the review of a tested change that leaves those
+interfaces as they are, a new row of the operation index aside:
 
 - With the review of an ordinary change, without the owner's approval: a
   new operation, which adds a row to the
