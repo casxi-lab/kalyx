@@ -406,8 +406,9 @@ does not enter $u$ in `derivative(u, x, n)`.
 
 ### Rules of the call constructor
 
-**Status:** planned for release 0.2, with the function registry; no
-constructor builds a call yet. The contract of the term core fixes the rules
+**Status:** planned for release 0.2; the
+[function registry](components/registry/contract.md) that it reads is
+implemented, and no constructor builds a call yet. The contract of the term core fixes the rules
 below once, with their charges.
 
 A rule $L \to R$ is eligible for the call constructor, or for the term core
