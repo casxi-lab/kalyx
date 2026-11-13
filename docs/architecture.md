@@ -1170,7 +1170,9 @@ number other than 0, as the [constants](#constants) need.
 
 ## Requests and results
 
-**Status:** planned for release 0.2; not implemented. In release 0.1 the
+**Status:** planned for release 0.2; not implemented, apart from the
+[cause frames](#locations-and-cause-frames) of an error, which the errors
+component holds and to which no layer adds a frame yet. In release 0.1 the
 grammar reads only values, a request has no operand table, and every value
 that an operation returns is a term. The rules below are those that the
 parser, the command entry and the operations of release 0.2 follow when
@@ -1979,8 +1981,9 @@ state to an `Error`, or back.
 ### Request failures and faults
 
 `Error` has private fields and the accessors `kind()`, `span()`,
-`message()` and `exceeded()`; `exceeded()` is `Some` exactly when the kind is
-`ResourceLimit`.
+`message()`, `frames()` and `exceeded()`; `exceeded()` is `Some` exactly when
+the kind is `ResourceLimit`, and `frames()` lists the
+[cause frames](#locations-and-cause-frames), which no layer adds yet.
 
 - `ErrorKind` is `ResourceLimit`, `Cancelled`, `DeadlineExceeded` or
   `Fault(FaultKind)`. The first three are request failures, and only the
@@ -2002,8 +2005,8 @@ state to an `Error`, or back.
   `Error::new(ErrorKind::Cancelled, ..)` does not compile; a `compile_fail`
   documentation test with the expected error code checks this.
 - `Error` does not derive `PartialEq`, `Eq` or `Hash`, because it carries
-  message text. Tests compare `kind()`, `span()` and `exceeded()`, never the
-  message.
+  message text. Tests compare `kind()`, `span()`, `frames()` and
+  `exceeded()`, never the message.
 
 ### Limit identifiers
 

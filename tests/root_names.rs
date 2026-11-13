@@ -14,6 +14,15 @@
 //! module defines it, so a second test reads every Rust file under `src/`
 //! and fails when one of them exports a macro. A public name that a macro of
 //! `src/lib.rs` generates is not seen; the crate root has no such macro.
+//!
+//! The same scan reads every Rust file under `src/` for its public enums:
+//! each `pub enum`, at any depth of the file and without a restricted
+//! visibility such as `pub(crate)`, with the attributes before it. The enums
+//! and the files that declare them must be exactly those that
+//! `api/public-enums.txt` lists, and each must be `#[non_exhaustive]`
+//! unless the list marks it as one of the exceptions that the public API
+//! conventions name, of which `ZeroTest` is the only one. An enum that a
+//! macro generates is not seen; no file under `src/` has such a macro.
 
 #![allow(
     clippy::expect_used,
@@ -22,13 +31,19 @@
     reason = "the helpers of the tests unwrap their results, as the tests do"
 )]
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
 const LIB: &str = include_str!("../src/lib.rs");
 
 const LIST: &str = include_str!("../api/root-names.txt");
+
+const ENUMS: &str = include_str!("../api/public-enums.txt");
+
+/// The public enums that may be exhaustive: the closed case analyses that
+/// convention 3 of the public API conventions lists with their reasons.
+const EXCEPTIONS: [&str; 1] = ["ZeroTest"];
 
 /// A token of Rust source: an identifier or a punctuation character.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -484,6 +499,172 @@ fn listed_names(list: &str) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
+/// The Rust files under `src/`, each by its path from the root of the
+/// package, such as `src/number/integer.rs`, with its source, in byte order
+/// of the paths.
+fn source_files() -> Vec<(String, String)> {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    let mut stack = vec![root.join("src")];
+    while let Some(directory) = stack.pop() {
+        for entry in fs::read_dir(&directory).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|extension| extension == "rs") {
+                let relative: Vec<&str> = path
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .components()
+                    .map(|component| component.as_os_str().to_str().unwrap())
+                    .collect();
+                files.push((relative.join("/"), fs::read_to_string(&path).unwrap()));
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
+/// The public enums that `source` declares, at any depth, each with whether
+/// an outer attribute `#[non_exhaustive]` marks it; an enum with a
+/// restricted visibility, such as `pub(crate)`, is not public.
+fn public_enums(source: &str) -> Result<Vec<(String, bool)>, String> {
+    let mut reader = Reader {
+        tokens: tokens(source)?,
+        index: 0,
+    };
+    let marker = [Token::Identifier("non_exhaustive".to_owned())];
+    let mut enums = Vec::new();
+    // Whether an attribute since the end of the last item marks the next.
+    let mut non_exhaustive = false;
+    while let Some(token) = reader.next() {
+        if token == Token::Punct('#') {
+            let inner = reader.is_punct('!');
+            if inner {
+                reader.next();
+            }
+            if reader.is_punct('[') {
+                let attribute = reader.group()?;
+                non_exhaustive |= !inner && attribute == marker;
+                continue;
+            }
+        } else if token == Token::Identifier("pub".to_owned()) && reader.is_word("enum") {
+            reader.next();
+            enums.push((reader.identifier()?, non_exhaustive));
+        }
+        non_exhaustive = false;
+    }
+    Ok(enums)
+}
+
+/// The entries of the list of public enums, by name and file, each with
+/// whether the list marks it as exhaustive: one per line, the name and the
+/// file and an optional `exhaustive`, separated by single spaces, in byte
+/// order of the name and then of the file and without repetitions.
+fn listed_enums(list: &str) -> Result<BTreeMap<(String, String), bool>, String> {
+    let mut entries = BTreeMap::new();
+    let mut last: Option<(String, String)> = None;
+    for (index, line) in list.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let fields: Vec<&str> = line.split(' ').collect();
+        let (name, file, exhaustive) = match fields.as_slice() {
+            [name, file] => (*name, *file, false),
+            [name, file, "exhaustive"] => (*name, *file, true),
+            _ => {
+                return Err(format!(
+                    "line {}: `{line}` is not a name and a file with an optional `exhaustive`",
+                    index + 1
+                ));
+            }
+        };
+        let valid = name.starts_with(|c: char| c.is_ascii_alphabetic())
+            && name.chars().all(|c| c == '_' || c.is_ascii_alphanumeric());
+        if !valid {
+            return Err(format!("line {}: `{name}` is not a name", index + 1));
+        }
+        if !(file.starts_with("src/") && file.ends_with(".rs")) {
+            return Err(format!(
+                "line {}: `{file}` is not a Rust file under src/",
+                index + 1
+            ));
+        }
+        let key = (name.to_owned(), file.to_owned());
+        if let Some(last) = &last
+            && *last >= key
+        {
+            return Err(format!(
+                "line {}: `{line}` is not after `{} {}` in byte order",
+                index + 1,
+                last.0,
+                last.1
+            ));
+        }
+        last = Some(key.clone());
+        entries.insert(key, exhaustive);
+    }
+    Ok(entries)
+}
+
+/// Compares the public enums of `files` with `list`, names every
+/// difference and returns the number of enums: an enum that the list does
+/// not name, a listed enum that no file declares, a listed enum that is not
+/// `#[non_exhaustive]`, an enum listed as exhaustive that is, and one that
+/// is not among the exceptions.
+fn compare_enums(files: &[(String, String)], list: &str) -> Result<usize, String> {
+    let mut found = BTreeMap::new();
+    for (file, source) in files {
+        let enums = public_enums(source).map_err(|error| format!("{file}: {error}"))?;
+        for (name, non_exhaustive) in enums {
+            if found
+                .insert((name.clone(), file.clone()), non_exhaustive)
+                .is_some()
+            {
+                return Err(format!("{file} declares two public enums `{name}`"));
+            }
+        }
+    }
+    let listed = listed_enums(list)?;
+    let unlisted: Vec<&(String, String)> = found
+        .keys()
+        .filter(|key| !listed.contains_key(*key))
+        .collect();
+    let missing: Vec<&(String, String)> = listed
+        .keys()
+        .filter(|key| !found.contains_key(*key))
+        .collect();
+    if !unlisted.is_empty() || !missing.is_empty() {
+        return Err(format!(
+            "public enums under src/ but not in api/public-enums.txt: {unlisted:?}; listed but not declared: {missing:?}"
+        ));
+    }
+    let mut problems = Vec::new();
+    for ((name, file), &exhaustive) in &listed {
+        let non_exhaustive = found[&(name.clone(), file.clone())];
+        if !exhaustive && !non_exhaustive {
+            problems.push(format!("`{name}` in {file} is not #[non_exhaustive]"));
+        }
+        if exhaustive && non_exhaustive {
+            problems.push(format!(
+                "`{name}` in {file} is listed as exhaustive but is #[non_exhaustive]"
+            ));
+        }
+        if exhaustive && !EXCEPTIONS.contains(&name.as_str()) {
+            problems.push(format!(
+                "`{name}` in {file} is listed as exhaustive but is not an exception"
+            ));
+        }
+    }
+    if problems.is_empty() {
+        Ok(listed.len())
+    } else {
+        Err(problems.join("; "))
+    }
+}
+
 /// Compares the public names of the crate root in `source` with `list`, and
 /// names every difference.
 fn compare(source: &str, list: &str) -> Result<(), String> {
@@ -504,7 +685,7 @@ fn compare(source: &str, list: &str) -> Result<(), String> {
 #[test]
 fn the_crate_root_has_exactly_the_listed_public_names() {
     compare(LIB, LIST).unwrap();
-    assert_eq!(root_names(LIB).unwrap().len(), 28);
+    assert_eq!(root_names(LIB).unwrap().len(), 29);
 }
 
 // A public name added to the crate root without the list changing fails the
@@ -550,25 +731,18 @@ fn a_public_name_added_without_the_list_changing_fails() {
 #[test]
 fn no_file_under_src_exports_a_macro() {
     let export = Token::Identifier("macro_export".to_owned());
-    let mut files = 0;
-    let mut stack = vec![PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/src"))];
-    while let Some(directory) = stack.pop() {
-        for entry in fs::read_dir(&directory).unwrap() {
-            let path = entry.unwrap().path();
-            if path.is_dir() {
-                stack.push(path);
-            } else if path.extension().is_some_and(|extension| extension == "rs") {
-                let source = fs::read_to_string(&path).unwrap();
-                assert!(
-                    !tokens(&source).unwrap().contains(&export),
-                    "{} exports a macro into the crate root",
-                    path.display()
-                );
-                files += 1;
-            }
-        }
+    let files = source_files();
+    for (file, source) in &files {
+        assert!(
+            !tokens(source).unwrap().contains(&export),
+            "{file} exports a macro into the crate root"
+        );
     }
-    assert!(files > 1, "the scan reads the files under src/: {files}");
+    assert!(
+        files.len() > 1,
+        "the scan reads the files under src/: {}",
+        files.len()
+    );
     let exported = "mod inner {\n    #[macro_export]\n    macro_rules! shown { () => {}; }\n}\n";
     assert!(tokens(exported).unwrap().contains(&export));
 }
@@ -649,4 +823,161 @@ fn the_list_holds_names_in_byte_order() {
     assert!(listed_names("a\na\n").unwrap_err().contains("byte order"));
     assert!(listed_names("a b\n").unwrap_err().contains("not a name"));
     assert!(listed_names("1a\n").unwrap_err().contains("not a name"));
+}
+
+// Every public enum under `src/` is listed with the file that declares it,
+// and each is `#[non_exhaustive]` except the closed case analyses that the
+// public API conventions list, which are `ZeroTest` alone.
+#[test]
+fn every_public_enum_is_listed_and_non_exhaustive_but_the_exceptions() {
+    let files = source_files();
+    assert!(
+        files
+            .iter()
+            .any(|(file, _)| file == "src/number/integer.rs")
+    );
+    assert_eq!(compare_enums(&files, ENUMS).unwrap(), 16);
+    let exceptions: Vec<String> = listed_enums(ENUMS)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, exhaustive)| *exhaustive)
+        .map(|((name, _), _)| name)
+        .collect();
+    assert_eq!(exceptions, EXCEPTIONS);
+}
+
+// A public enum that the list does not name fails the comparison, and so do
+// a listed enum that is no longer public, a listed enum without
+// `#[non_exhaustive]`, an exception that is marked and an exhaustive enum
+// that is not an exception.
+#[test]
+fn an_unlisted_public_enum_fails_the_comparison() {
+    let files = source_files();
+    let changed = |file: &str, from: &str, to: &str| -> Vec<(String, String)> {
+        let mut changed = files.clone();
+        let (_, source) = changed.iter_mut().find(|(path, _)| path == file).unwrap();
+        assert_eq!(source.matches(from).count(), 1, "{file}: {from}");
+        *source = source.replace(from, to);
+        changed
+    };
+    let truth = "#[non_exhaustive]\npub enum Truth {";
+
+    let added = changed(
+        "src/shared.rs",
+        truth,
+        "#[non_exhaustive]\npub enum Extra {\n    One,\n}\n\n#[non_exhaustive]\npub enum Truth {",
+    );
+    let error = compare_enums(&added, ENUMS).unwrap_err();
+    assert!(
+        error.contains("not in api/public-enums.txt: [(\"Extra\", \"src/shared.rs\")];"),
+        "{error}"
+    );
+    assert!(error.ends_with("listed but not declared: []"), "{error}");
+
+    let restricted = changed(
+        "src/shared.rs",
+        truth,
+        "#[non_exhaustive]\npub(crate) enum Truth {",
+    );
+    let error = compare_enums(&restricted, ENUMS).unwrap_err();
+    assert!(
+        error.ends_with("listed but not declared: [(\"Truth\", \"src/shared.rs\")]"),
+        "{error}"
+    );
+
+    let exhaustive = changed("src/shared.rs", truth, "pub enum Truth {");
+    let error = compare_enums(&exhaustive, ENUMS).unwrap_err();
+    assert_eq!(error, "`Truth` in src/shared.rs is not #[non_exhaustive]");
+
+    let marked = changed(
+        "src/coefficient.rs",
+        "pub enum ZeroTest<U> {",
+        "#[non_exhaustive]\npub enum ZeroTest<U> {",
+    );
+    let error = compare_enums(&marked, ENUMS).unwrap_err();
+    assert_eq!(
+        error,
+        "`ZeroTest` in src/coefficient.rs is listed as exhaustive but is #[non_exhaustive]"
+    );
+
+    let list = ENUMS.replace(
+        "\nTruth src/shared.rs\n",
+        "\nTruth src/shared.rs exhaustive\n",
+    );
+    assert_ne!(list, ENUMS);
+    let error = compare_enums(&exhaustive, &list).unwrap_err();
+    assert_eq!(
+        error,
+        "`Truth` in src/shared.rs is listed as exhaustive but is not an exception"
+    );
+}
+
+// The enum scan finds public enums at any depth with the attributes before
+// them, and skips restricted enums, inner attributes, other items, comments
+// and literals; the list holds entries in byte order without repetitions.
+#[test]
+fn the_enum_scan_reads_every_public_enum_and_its_attributes() {
+    let source = r##"
+#![non_exhaustive]
+pub enum Open {}
+// pub enum InAComment {}
+/* pub enum InABlockComment {} */
+const TEXT: &str = "pub enum InAString {}";
+#[derive(Clone)]
+#[non_exhaustive]
+#[doc = "pub enum InAnAttribute"]
+pub enum Marked<T> { Value(T) }
+#[non_exhaustive]
+pub struct Record;
+pub enum AfterARecord {}
+#[cfg_attr(test, non_exhaustive)]
+pub enum Conditional {}
+#[non_exhaustive]
+pub(crate) enum Restricted {}
+pub(super) enum Other {}
+mod inner {
+    #[non_exhaustive]
+    pub enum Nested {}
+}
+fn body() { let r#type = 1; }
+"##;
+    assert_eq!(
+        public_enums(source).unwrap(),
+        [
+            ("Open".to_owned(), false),
+            ("Marked".to_owned(), true),
+            ("AfterARecord".to_owned(), false),
+            ("Conditional".to_owned(), false),
+            ("Nested".to_owned(), true),
+        ]
+    );
+    assert!(
+        listed_enums("# A comment.\n\nA src/a.rs\nA src/b.rs\nB src/a.rs exhaustive\n").is_ok()
+    );
+    assert!(
+        listed_enums("B src/a.rs\nA src/a.rs\n")
+            .unwrap_err()
+            .contains("byte order")
+    );
+    assert!(
+        listed_enums("A src/a.rs\nA src/a.rs\n")
+            .unwrap_err()
+            .contains("byte order")
+    );
+    assert!(
+        listed_enums("A src/a.rs closed\n")
+            .unwrap_err()
+            .contains("optional")
+    );
+    assert!(listed_enums("A\n").unwrap_err().contains("optional"));
+    assert!(
+        listed_enums("1A src/a.rs\n")
+            .unwrap_err()
+            .contains("not a name")
+    );
+    assert!(
+        listed_enums("A tests/a.rs\n")
+            .unwrap_err()
+            .contains("under src/")
+    );
 }

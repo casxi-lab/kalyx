@@ -19,11 +19,11 @@ polynomials and the command entry, which follow these conventions, apart
 from the entries that
 [convention 17](#17-no-implicit-conventions) lists. They are the rules that
 each further component follows when it lands, and review holds every change
-to them. `Error`, `Settled<T>`, `LimitId`, `MathState`, `Evidence`, `Truth`,
-`Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`, `CoefficientRing`,
-`CoefficientField`, `Rationals`, `Term`, `TermKind`, `parse`,
-`PolynomialRing`, `Polynomial`, `Request`, `Settings`, `Outcome`, `execute`
-and `serialize` exist today;
+to them. `Error`, `CauseFrame`, `Settled<T>`, `LimitId`, `MathState`,
+`Evidence`, `Truth`, `Context`, `Limits`, `Integer`, `Rational`, `ZeroTest`,
+`CoefficientRing`, `CoefficientField`, `Rationals`, `Term`, `TermKind`,
+`parse`, `PolynomialRing`, `Polynomial`, `Request`, `Settings`, `Outcome`,
+`execute` and `serialize` exist today;
 other names used here are the names that the code is planned to use. Their
 full rules are in [the architecture](../architecture.md). `cargo xtask check`
 already enforces the parts that it can check mechanically, as each convention
@@ -113,8 +113,14 @@ conclusion, which needs another method.
 Every public enum is `#[non_exhaustive]` unless it is a closed case analysis
 listed here with its reason. The one listed exception is `ZeroTest` (zero,
 nonzero or undecided) of the coefficient-field trait, whose three cases are
-mathematically complete. Every public record with public fields is
-`#[non_exhaustive]`; other structs keep their fields private.
+mathematically complete. The tracked file `api/public-enums.txt` lists every
+public enum with the file that declares it and marks the exception, and the
+test `every_public_enum_is_listed_and_non_exhaustive_but_the_exceptions` in
+`tests/root_names.rs` fails when a `pub enum` in a file under `src/` is not
+listed, a listed enum is not declared, or an enum lacks
+`#[non_exhaustive]` without being the listed exception. Every public record
+with public fields is `#[non_exhaustive]`; other structs keep their fields
+private.
 
 The crate root re-exports only request-level items: the context and its
 limits, errors and result states, the shared result types, the request and
@@ -358,7 +364,8 @@ algebraic-number or root certificates, do not derive equality; they are
 compared by a method that takes the context. Values are normalized before
 they are encoded or hashed, and equality and ordering never use pointer
 identity. `Error` does not derive equality either, since it carries message
-text: tests compare its kind, span and exceeded limit, never the message.
+text: tests compare its kind, span, cause frames and exceeded limit, never
+the message.
 
 **Counterexample in the earlier implementation.**
 `cas-project@f2d2fba26cbf09474e6df8e59650014ae58dec78:src/numerical/interval.rs:6-12`.
@@ -440,8 +447,10 @@ does not name it, and the contract of its component says so at its rule:
 - in the [context](../components/context/contract.md), the bits that are
   checked against `max_integer_bits`, and the deadline of `with_deadline`
   with the readings of `Clock`;
-- in the [errors](../components/errors/contract.md), `Span` and the
-  `allowed` value of a bound that a machine width sets;
+- in the [errors](../components/errors/contract.md), `Span`, the origin of
+  the span of an error with cause frames, `Error::frames` with
+  `CauseFrame`, for the base of the operand index and the order of the
+  frames, and the `allowed` value of a bound that a machine width sets;
 - in the [shared result types](../components/shared-results/contract.md#combinations),
   `Evidence::and` and `Truth::and`;
 - in the [term core](../components/terms/contract.md), `Term::power`,

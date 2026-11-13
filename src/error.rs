@@ -172,16 +172,77 @@ pub enum ErrorClass {
 /// The error that ends a request without an answer.
 ///
 /// An error has a [kind](Error::kind), an optional [span](Error::span) of the
-/// source text, an English [message](Error::message) for people and, for a
-/// [`ErrorKind::ResourceLimit`], the [limit that was exceeded](Error::exceeded).
-/// Programs act on the kind, the span and the exceeded limit; the message is
-/// not part of the interface. `Error` therefore does not implement
-/// `PartialEq`: compare those parts instead.
+/// source text, an English [message](Error::message) for people, its
+/// [cause frames](Error::frames) and, for a [`ErrorKind::ResourceLimit`], the
+/// [limit that was exceeded](Error::exceeded). Programs act on the kind, the
+/// span, the cause frames and the exceeded limit; the message is not part of
+/// the interface. `Error` therefore does not implement `PartialEq`: compare
+/// those parts instead.
 #[derive(Clone, Debug)]
 pub struct Error {
     cause: ErrorCause,
     span: Option<Span>,
     message: String,
+    frames: Box<[CauseFrame]>,
+}
+
+/// A cause frame of an [`Error`]: the name of an operation, or of a fixed
+/// step of the library that an operation enters, and the index of the
+/// operand of that operation or step in which the error arose.
+///
+/// [`Error::frames`] lists the frames of an error outer first. A frame is a
+/// record on the error only: adding one charges nothing and opens no frame
+/// of the request context, so it does not count against `max_frames`. The
+/// name is a name that the library defines, never text of a request, and has
+/// the form `[a-z][a-z0-9-]*`. The index counts the operands of that
+/// operation or step from 0; for an operation, 0 is its input. Only the
+/// library builds frames, and no layer of this release adds one, so every
+/// error that the library returns has none. Code outside the library reads
+/// frames but cannot build them:
+///
+/// ```compile_fail,E0624
+/// let frame = kalyx::CauseFrame::new("eval", 0);
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct CauseFrame {
+    name: String,
+    operand_index: u64,
+}
+
+impl CauseFrame {
+    /// The frame of the operation or step `name` at its operand
+    /// `operand_index`. The name is taken as a `&'static str`, a static name
+    /// of the library, and stored as an owned string, since code meant to be
+    /// proved returns no string literal. Text of a request could reach it
+    /// only by leaking a string into a `&'static str`, which the library
+    /// never does and review rejects.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "no layer of this release adds a cause frame; the unit tests reach it"
+        )
+    )]
+    pub(crate) fn new(name: &'static str, operand_index: u64) -> Self {
+        Self {
+            name: String::from(name),
+            operand_index,
+        }
+    }
+
+    /// The name of the operation or step.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The index of the operand in which the error arose, counted from 0;
+    /// for an operation, 0 is its input.
+    #[must_use]
+    pub const fn operand_index(&self) -> u64 {
+        self.operand_index
+    }
 }
 
 /// What an [`Error`] reports. Keeping the exceeded limit in the
@@ -226,6 +287,7 @@ impl Error {
             cause: ErrorCause::Fault(kind),
             span,
             message: message.into(),
+            frames: Box::new([]),
         }
     }
 
@@ -238,6 +300,7 @@ impl Error {
             cause: ErrorCause::ResourceLimit(exceeded),
             span,
             message,
+            frames: Box::new([]),
         }
     }
 
@@ -248,6 +311,7 @@ impl Error {
             cause: ErrorCause::Cancelled,
             span,
             message: String::from("computation cancelled"),
+            frames: Box::new([]),
         }
     }
 
@@ -258,6 +322,7 @@ impl Error {
             cause: ErrorCause::DeadlineExceeded,
             span,
             message: String::from("deadline exceeded"),
+            frames: Box::new([]),
         }
     }
 
@@ -269,6 +334,24 @@ impl Error {
         if self.span.is_none() {
             self.span = span;
         }
+        self
+    }
+
+    /// The error with `frame` as its outermost cause frame, before the frames
+    /// that it has; its kind, span, message and exceeded limit stay the same.
+    /// A frame is a record only: adding it charges nothing and does not count
+    /// against `max_frames`.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "no layer of this release adds a cause frame; the unit tests reach it"
+        )
+    )]
+    pub(crate) fn with_outer_frame(mut self, frame: CauseFrame) -> Self {
+        let mut frames = self.frames.into_vec();
+        frames.insert(0, frame);
+        self.frames = frames.into_boxed_slice();
         self
     }
 
@@ -285,14 +368,38 @@ impl Error {
 
     /// The byte range of the source text that the error refers to, or `None`
     /// when no single range applies.
+    ///
+    /// The range counts bytes of the text of the operand that the innermost
+    /// [cause frame](Error::frames) names. With no frame, or with only an
+    /// outer frame of the operand index 0, it counts bytes of the text that
+    /// the entry was given: the input of a request, or the source text of a
+    /// library function that is called directly.
     #[must_use]
     pub const fn span(&self) -> Option<Span> {
         self.span
     }
 
+    /// The cause frames of the error, outer first: the outermost frame names
+    /// the operation of the request, and each later frame an operation or a
+    /// fixed step that the one before it entered. No layer of this release
+    /// adds a frame, so the list is empty for every error that the library
+    /// returns, and for every error that [`Error::new`] builds.
+    ///
+    /// ```
+    /// use kalyx::{Error, FaultKind, Span};
+    ///
+    /// let error = Error::new(FaultKind::Syntax, Span::new(0, 1), "unexpected character");
+    /// assert!(error.frames().is_empty());
+    /// ```
+    #[must_use]
+    pub fn frames(&self) -> &[CauseFrame] {
+        &self.frames
+    }
+
     /// The English message of the error. It is text for people and not part
     /// of the interface; programs use [`kind`](Error::kind),
-    /// [`span`](Error::span) and [`exceeded`](Error::exceeded).
+    /// [`span`](Error::span), [`frames`](Error::frames) and
+    /// [`exceeded`](Error::exceeded).
     #[must_use]
     pub fn message(&self) -> &str {
         &self.message
@@ -704,6 +811,7 @@ pub(crate) fn evaluation_stop<S>(run: Run<S>, capped: S) -> Result<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::context::{CancelFlag, Context, Limits};
 
     const STATES: [MathState; 5] = [
         MathState::NotConverged,
@@ -751,11 +859,12 @@ mod tests {
         ]
     }
 
-    /// Whether two errors agree in kind, span and exceeded limit, the parts of
-    /// an error that programs act on.
+    /// Whether two errors agree in kind, span, cause frames and exceeded
+    /// limit, the parts of an error that programs act on.
     fn same(left: &Error, right: &Error) -> bool {
         left.kind() == right.kind()
             && left.span() == right.span()
+            && left.frames() == right.frames()
             && left.exceeded() == right.exceeded()
     }
 
@@ -1001,6 +1110,77 @@ mod tests {
             assert_eq!(placed.kind(), error.kind());
             assert_eq!(placed.exceeded(), error.exceeded());
             assert_eq!(error.clone().with_default_span(None).span(), None);
+        }
+    }
+
+    // Cause frames are records only. Every constructor gives an error without
+    // frames; adding a frame puts it before the frames that the error has and
+    // keeps the kind, the span and the exceeded limit, charges nothing, opens
+    // no frame of the request context and is not bounded by `max_frames`; the
+    // span stays the span in the text of the innermost frame's operand; and
+    // clones, default spans and the boundaries keep the frames. `CauseFrame`
+    // has a constructor and accessors only.
+    #[test]
+    fn causal_frames_are_records_without_charges() {
+        for error in failures() {
+            assert!(error.frames().is_empty(), "{error:?}");
+        }
+        let frame = CauseFrame::new("ineq", 0);
+        assert_eq!((frame.name(), frame.operand_index()), ("ineq", 0));
+        assert_eq!(frame.clone(), frame);
+        assert_ne!(frame, CauseFrame::new("ineq", 1));
+        assert_ne!(frame, CauseFrame::new("membership", 0));
+
+        // A request failure of a context whose work and frames are exhausted.
+        let limits = Limits::new().with_max_work(1).with_max_frames(0);
+        let mut context = Context::new(limits, CancelFlag::new());
+        let failure = context.charge(2).unwrap_err();
+        let counters = |context: &Context| {
+            (
+                context.work_used(),
+                context.output_used(),
+                context.open_frames(),
+                context.retained(),
+            )
+        };
+        let before = counters(&context);
+        let framed = failure
+            .clone()
+            .with_outer_frame(CauseFrame::new("algebraic-evaluation", 2))
+            .with_outer_frame(CauseFrame::new("alg-at", 1));
+        assert_eq!(counters(&context), before);
+        assert_eq!(
+            framed.frames(),
+            [
+                CauseFrame::new("alg-at", 1),
+                CauseFrame::new("algebraic-evaluation", 2)
+            ]
+        );
+        assert_eq!(framed.kind(), failure.kind());
+        assert_eq!(framed.span(), failure.span());
+        assert_eq!(framed.exceeded(), failure.exceeded());
+        assert!(context.enter_frame().is_err());
+
+        // The span of an error that arose in the operand of the innermost
+        // frame stays the span in that operand's text.
+        let nested = Error::new(FaultKind::OutsideDomain, span(3, 5), "outside the domain")
+            .with_outer_frame(CauseFrame::new("ineq", 0))
+            .with_outer_frame(CauseFrame::new("rel-and", 0));
+        assert_eq!(nested.span(), span(3, 5));
+        assert_eq!(nested.frames().last(), Some(&CauseFrame::new("ineq", 0)));
+        assert_eq!(nested.frames().len(), 2);
+
+        let unplaced = Error::new(FaultKind::Unsupported, None, "unknown role")
+            .with_outer_frame(CauseFrame::new("eval", 1));
+        let placed = unplaced.clone().with_default_span(span(0, 1));
+        assert_eq!(placed.span(), span(0, 1));
+        assert_eq!(placed.frames(), unplaced.frames());
+        for error in [framed, nested, unplaced] {
+            assert!(same(&error.clone(), &error), "{error:?}");
+            let settled = settle::<u8>(Err(error.clone().into())).unwrap_err();
+            assert!(same(&settled, &error), "{error:?}");
+            let stopped = evaluation_stop(Err(error.clone().into()), 0_u8).unwrap_err();
+            assert!(same(&stopped, &error), "{error:?}");
         }
     }
 }
