@@ -1,12 +1,14 @@
 //! The coefficient-field trait: the element operations of the rings and
-//! fields whose elements are the coefficients of polynomials, and the field
-//! of rational numbers $\mathbb{Q}$, [`Rationals`].
+//! fields whose elements are the coefficients of polynomials, with the field
+//! of rational numbers $\mathbb{Q}$, [`Rationals`], and the prime fields
+//! $\mathbb F_p$ of the primes $p \lt 2^{32}$, [`PrimeField`].
 //!
 //! A trait is implemented by a value that describes the ring or field, its
 //! *parent structure*, and the elements are its associated type: [`Rationals`]
-//! is a zero-sized parent whose elements are [`Rational`]s. Fields defined by
-//! data known only at run time, such as a prime modulus, take the same shape,
-//! and their elements do not repeat the parent.
+//! is a zero-sized parent whose elements are [`Rational`]s. A field defined
+//! by data known only at run time takes the same shape, and its elements do
+//! not repeat the parent: a [`PrimeField`] holds its prime modulus, and its
+//! elements are the [`PrimeResidue`]s $0 \le r \lt p$.
 //!
 //! There are two layers. [`CoefficientRing`] holds the ring operations and the
 //! zero test; [`CoefficientField`] adds the inverse and the quotient, so a
@@ -46,6 +48,10 @@ use std::convert::Infallible;
 use crate::context::{Storage, StorageCost};
 use crate::number::{Integer, Rational};
 use crate::{Context, LimitField, Result};
+
+mod prime;
+
+pub use prime::{PrimeField, PrimeResidue};
 
 mod sealed {
     /// The seal of the coefficient traits: implemented only in this library.
