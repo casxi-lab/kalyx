@@ -207,7 +207,11 @@ charge point polls it and fails with `Cancelled`. A reservation is not a charge 
 
 **Integer bits.** An integer of $b$ bits is admitted when $b$ is at most
 `max_integer_bits` and otherwise rejected with `ResourceLimit` naming
-`max_integer_bits`.
+`max_integer_bits`. The checks of `max_integer_bits` do not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+each entry compares a bound of its own on the bits of its result, such as
+$\max(\lvert a \rvert, \lvert b \rvert) + 1$ for a sum, which only its
+documentation states, and the amount of the error does not name the bound.
 
 - **Implemented here.** `Context::check(LimitField::IntegerBits, b)`. Its
   callers are the operations of `Rational` and the new elements of
@@ -404,7 +408,13 @@ field or by a machine width that no field names.
   place with shared state.
 - `with_deadline(at)` takes a reading of the context's own clock;
   `with_timeout(nanos)` reads the clock once and sets the deadline `nanos`
-  later, stopping at `u64::MAX`.
+  later, stopping at `u64::MAX`. `with_deadline` and `Clock::now` do not
+  follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  they state only in their documentation that a reading counts nanoseconds
+  from an origin of the clock's own choosing and that a deadline is reached
+  when a reading is at least `at`, and neither `at` nor a reading names its
+  unit.
 - Tests that depend on when the deadline passes or on the count of polls
   inject a fake clock and a fake probe through `Context::with_observers`. The
   tests of the default flag, the two host tests and the carried-over examples

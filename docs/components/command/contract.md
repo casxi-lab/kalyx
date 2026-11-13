@@ -154,7 +154,11 @@ name gives runs it. These are the operations of this release:
 | `diff` | the variable, then the input | the ring of the variable; `parse` of the input; `differentiate`: the expansion, the derivative by the variable and the conversion back to a term | the canonical term of the derivative |
 
 Every operation of this release returns a value, `Settled::Value` of a term;
-none ends in a state.
+none ends in a state. `execute` does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions)
+for the exponent 0: every operation reads its input with `parse`, so `eval`
+of `0^0` is 1 and `expand` of `x^0` is 1, which only the documentation
+states, and neither the outcome nor its line names the convention.
 
 - **`eval`** reads the canonical term of the input. A number is the result. A
   term that is not a number fails with `Fault(UnknownSymbol)`, without a

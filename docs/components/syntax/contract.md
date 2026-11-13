@@ -156,7 +156,11 @@ makes against the same `max_depth`, `max_nodes` and `max_storage_bytes`, with
 its own measures. A term can be deeper than its syntax: `x/y + 1` has the
 syntax depth 2, and its product $x y^{-1}$ the depth 3. Depth tests therefore
 set `max_depth` to at least the depth that they test, as
-[convention 15](../../conventions/public-api.md#15-depth) asks.
+[convention 15](../../conventions/public-api.md#15-depth) asks. The syntax
+depth and the syntax nodes do not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+`parse` states how it counts levels and nodes only in its documentation, and
+the amount of its error names neither measure.
 
 ### Charges
 
@@ -189,7 +193,11 @@ reserved name charges only its own token.
 ### Spans
 
 Every error of `parse` carries a span: a half-open range of byte offsets into
-the source, on character boundaries.
+the source, on character boundaries. These spans do not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions),
+as the [errors](../errors/contract.md#interface) state for `Span`: only the
+documentation says that they count bytes from 0 and exclude their end, and a
+span does not name its unit.
 
 | Error | Span |
 | --- | --- |
@@ -297,7 +305,12 @@ are in `tests/syntax.rs` unless the entry names `src/syntax/tests.rs`,
 
 `parse` reads exactly the grammar of [the input syntax](../../semantics.md):
 its productions, the precedence and associativity of its operators, unary
-minus in front of every operand and after `^`, and its whitespace.
+minus in front of every operand and after `^`, and its whitespace. `parse`
+does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions)
+here: only the documentation of the input syntax states the precedence and
+associativity under which `-2^2` is $-4$ and `2^3^2` is 512, and that names
+are case-sensitive, and the term that it returns does not name the grammar.
 
 - **Implemented here.** `src/syntax/lexer.rs` and `src/syntax/parser.rs`.
 - **Evidence.** `the_first_five_eval_vectors_parse_to_their_answers`,
@@ -364,7 +377,11 @@ words are not part of the grammar.
 The term of an input is built through the constructors of the term core as
 the [mapping](../../semantics.md#from-syntax-to-terms) states, operands
 before operations, from left to right; exponents are integer constants; and
-numbers are evaluated strictly.
+numbers are evaluated strictly. `parse` does not follow
+[convention 17](../../conventions/public-api.md#17-no-implicit-conventions)
+for the exponent 0: through `Term::power` it reads `0^0`, `(x-x)^0` and
+`x^0` as 1, which only the documentation states, and the term that it
+returns does not name the convention.
 
 - **Implemented here.** `src/syntax/build.rs`, with `integer_exponent` of the
   term core.

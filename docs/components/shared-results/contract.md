@@ -85,7 +85,11 @@ The types have these three operations:
   `Refuted` exactly when an operand is `Refuted`. The truth value of a
   conjunction of evidence is therefore the conjunction of the truth values
   of its operands: `a.and(b).truth()` equals `a.truth().and(b.truth())` for
-  every `a` and `b`.
+  every `a` and `b`. `Truth::and` and `Evidence::and` do not follow
+  [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
+  they state the strong Kleene conjunction, and the conjunction of evidence
+  that agrees with it, only in their documentation, and their results do not
+  name it.
 - **Numerical evidence is never a proof.** `NumericEvidence` never becomes
   `Proved` or `True`: its truth value is `Unknown`, and its conjunction with
   any evidence is `NumericEvidence`, `Unknown` or `Refuted`.
