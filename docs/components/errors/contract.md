@@ -68,8 +68,8 @@ The crate root re-exports every public item of the component:
   `state()`, `is_value()` and `is_state()`;
 - `Result<T>`, which is `std::result::Result<T, Error>`.
 
-Crate-internal, for the request context, for the parser and for methods with
-states:
+Crate-internal, for the request context, for the parser, for the layers that
+add cause frames and for methods with states:
 
 - the constructors of the three request failures, `Error::resource_limit`,
   `Error::cancelled` and `Error::deadline_exceeded`, and
