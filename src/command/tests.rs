@@ -1223,9 +1223,11 @@ fn longest_fallback_lines() -> Vec<Outcome> {
 // The longest `error-at` lines, with $d$ nested frames of the longest frame
 // name, are written under `Context::new(Limits::new(), CancelFlag::new())`
 // and are at most $B$ bytes, which is at most 65,536, the default
-// `max_output_bytes`. $K$ and $Q$ are the longest kind and limit of the
-// lines of this release, $N$ the longest frame name, and the contract states
-// these values and $B$.
+// `max_output_bytes`. $K$ is the longest kind of the lines of every fault
+// kind and request failure, $Q$ the longest limit of every field, $N$ the
+// longest frame name and $M$ the bytes of the message of a malformed
+// variable, which review keeps the longest message of the library; the
+// contract states these values and $B$.
 #[test]
 fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
     assert_eq!(B, 371);
@@ -1254,7 +1256,22 @@ fn a_fallback_line_with_d_nested_frames_fits_its_bound() {
         FaultKind::VariableMismatch,
     ]
     .into_iter()
-    .map(|fault| line(&outcome(Err(Error::new(fault, None, "fault")))).0)
+    .map(|fault| {
+        // No arm takes every other kind, so a new kind fails to compile here
+        // until the list above holds it.
+        match fault {
+            FaultKind::Syntax
+            | FaultKind::UnknownSymbol
+            | FaultKind::DivisionByZero
+            | FaultKind::NonIntegerExponent
+            | FaultKind::NotPolynomial
+            | FaultKind::Unsupported
+            | FaultKind::Internal
+            | FaultKind::OutsideDomain
+            | FaultKind::VariableMismatch => {}
+        }
+        line(&outcome(Err(Error::new(fault, None, "fault")))).0
+    })
     .collect::<Vec<_>>();
     for error in [
         context(Limits::new()).charge(u64::MAX).unwrap_err(),
