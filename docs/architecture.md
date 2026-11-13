@@ -22,14 +22,17 @@ program `kalyx` and the repository checks. The errors and result
 states, the context and limits, the exact numbers with the integer kernel,
 the two layers of the coefficient-field trait and `Rationals`, the term core
 with its canonical forms, the parser of the [input syntax](semantics.md), the
-univariate polynomials with expansion and differentiation and the command
-entry with the [output lines](semantics.md#output-lines) are implemented, each with its
+univariate polynomials with expansion and differentiation, the
+crate-internal function registry with the records of the eleven functions of
+function expressions and the command entry with the
+[output lines](semantics.md#output-lines) are implemented, each with its
 contract ([errors](components/errors/contract.md),
 [context](components/context/contract.md),
 [numbers](components/numbers/contract.md),
 [terms](components/terms/contract.md),
 [syntax](components/syntax/contract.md),
 [polynomials](components/polynomials/contract.md),
+[function registry](components/registry/contract.md),
 [command entry](components/command/contract.md), co-signed with
 krepi); no other library component below is implemented
 yet. For the other components, the tables are
@@ -88,9 +91,15 @@ The first production caller is the first code outside the component that
 uses it in a release: another kalyx component, or the job of the casξ
 operating system, krepi, that runs kalyx. A foundation part that has no
 caller in the planned releases is not delivered early; foundation modules
-land as a public interface with contract tests. Exceptions are listed here.
-The one listed exception is the function registry, which fixes all its slots
-at once in 0.2.
+land as a public or a crate-internal interface with contract tests. The
+exceptions are listed here:
+
+- **The function registry fixes all its slots at once.** Its record schema
+  holds every slot of the eleven functions from release 0.2 on, also the
+  slots that no part of 0.2 reads; those are empty and listed in the
+  exemption list of its
+  [contract](components/registry/contract.md#exemption-list), each with the
+  release that is to fill it.
 
 ### Release 0.1
 
@@ -118,7 +127,7 @@ when each release is planned, except where the plan already fixes them.
 | Integer kernel: the arithmetic of `Integer`, GCD, LCM, extended GCD, modular inverse, modular power and Chinese remaindering (`number`; implemented, [contract](components/numbers/contract.md#the-integer-kernel)) | 0.2 | A1; Chinese remaindering is planned for A2 in 0.4, with the fast arithmetic; no A3 upgrade | the GCD and the factorization of polynomials over $\mathbb{Q}$, 0.2 |
 | Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Elimination skeleton: Gauss–Jordan elimination over a coefficient field | 0.2 | set when planned | basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
-| Function registry | 0.2 | A3 upgrade in 0.2 | the function-expression baseline, Taylor series and derivatives of function expressions, 0.2 |
+| Function registry: the records of the eleven functions of function expressions and the identity list (`registry`, crate-internal; implemented, [contract](components/registry/contract.md)) | 0.2 | A1; A3 upgrade in 0.3 | the function-expression baseline, with the derivatives and the Taylor series of function expressions, 0.2; the call constructor of the term core reads the records in the same release and is not counted as the first caller |
 | Shared result types: `Completeness`, `Evidence`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | set when planned | root lists and real sets (`Completeness`), zero tests of algebraic numbers and assumption queries (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
 | Numerical kernel and evaluation framework: rational-endpoint intervals, complex balls, summation, elementary kernels, one precision driver | 0.3 | A2 for inclusion; A1 for the framework; A3 upgrade in 0.3 for the series summer | the numerical evaluation entries `precision`, `ball`, `round` and `approx`, 0.3 |
 | Collection values and controlled iteration | 0.3 | A3 upgrade in 0.3 for the collection tree and text | user functions, programs and the session, 0.3 |
@@ -397,8 +406,9 @@ does not enter $u$ in `derivative(u, x, n)`.
 
 ### Rules of the call constructor
 
-**Status:** planned for release 0.2, with the function registry; no
-constructor builds a call yet. The contract of the term core fixes the rules
+**Status:** planned for release 0.2; the
+[function registry](components/registry/contract.md) that it reads is
+implemented, and no constructor builds a call yet. The contract of the term core fixes the rules
 below once, with their charges.
 
 A rule $L \to R$ is eligible for the call constructor, or for the term core
@@ -479,6 +489,25 @@ constructors of release 0.2 do not apply.
   $\sqrt{8} = 2\sqrt{2}$; general powers $u^v$; $\arcsin(\sin u) = u$ and the
   other inverse compositions; arithmetic between algebraic constants; and
   $0 \cdot \mathrm{piecewise}(c, a, b) = \mathrm{piecewise}(c, 0 \cdot a, 0 \cdot b)$.
+
+### Function knowledge
+
+Function knowledge lives only in the function registry. What the library
+knows about one of the eleven registered functions, such as its domain, its
+cut, its special values and symmetries, its derivative and its series, is a
+slot of its record, and what relates calls of several of them, or nested
+calls, is an entry of the identity list of the registry, as its
+[contract](components/registry/contract.md) states; the registry is
+implemented. Its readers are planned for release 0.2: the call table of the
+parser, the call constructor, the builder of function values, the scoped
+rewriting `f-refine`, differentiation, the series of function expressions
+and the assumption system are to read the records and the entries, and none
+of them is to keep a table or a rule of a registered function of its own,
+so a function added later brings its knowledge as a record. The rules of
+the term core that a head name or a constant triggers are no knowledge of a
+registered function, as the rule on registered calls above states; the
+powers of roots are to read their identity, the entry `root_pow`, from the
+registry.
 
 ### Conditions
 

@@ -44,11 +44,12 @@ writes their display text.
     polynomials: the [polynomials](../polynomials/contract.md).
   - The serialization of outcomes as output lines: the
     [command entry](../command/contract.md).
-  - Function calls (their constructor, their simplification and the function
-    registry), the constants $\pi$, $i$ and `undefined` of rank 1,
-    assumptions, and the explicit operation that removes negative exponents
-    under conditions: the term core extension and the function-expression
-    baseline, release 0.2.
+  - Function calls (their constructor and their simplification), the
+    constants $\pi$, $i$ and `undefined` of rank 1, assumptions, and the
+    explicit operation that removes negative exponents under conditions: the
+    term core extension and the function-expression baseline, release 0.2.
+  - The records of the functions: the
+    [function registry](../registry/contract.md).
   - Simplification beyond the canonical forms: the rewriting engine, release
     0.5.
   - The executable specification of the canonical forms (tier A2): release

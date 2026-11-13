@@ -265,7 +265,8 @@ domains, and natural-language input.
   error kinds. Of the library components, only the errors and result
   states, the context and limits, the exact numbers with the
   coefficient-field trait, the term core, the parser, the univariate
-  polynomials and the command entry are implemented yet.
+  polynomials, the function registry and the command entry are implemented
+  yet.
 - [Input syntax and semantics](docs/semantics.md): the one grammar of the
   library's input, its precedence and lexical rules, how an expression
   becomes a term, the output lines and the forms of the command-line
