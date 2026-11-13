@@ -7,9 +7,11 @@
 //! the serialization at their limits and under cancellation, the bound of
 //! the fallback line and the table of value kinds. Errors are compared by
 //! kind, span, cause frames and exceeded limit, never by the wording of a
-//! message, but for the two rules that the message of a missing role ends
-//! with its role and that the message of a malformed variable, the longest,
-//! has the bytes that the bound of the fallback line counts.
+//! message, but for the three rules that the message of a missing role ends
+//! with its role, that the message of an unknown operation lists the
+//! operations of the dispatch table and that the longest message, that of a
+//! malformed variable, has the bytes that the bound of the fallback line
+//! counts.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -85,6 +87,9 @@ fn table_rows<'a>(text: &'a str, header: &str) -> Vec<Vec<&'a str>> {
 // and a lookup finds each by its name, byte for byte, and nothing else. The
 // operation index of the contract names the same operations in the same
 // order: the table is the one place that registers an operation, by name.
+// The message of an unknown operation lists the operations of the table, in
+// its order, and no other name after the first of them, so it changes with
+// the table.
 #[test]
 fn the_dispatch_table_holds_eval_expand_and_diff() {
     assert_eq!(
@@ -120,6 +125,26 @@ fn the_dispatch_table_holds_eval_expand_and_diff() {
         assert_eq!(row[3], "`Answer::Term`", "{row:?}");
         assert_eq!(row[4], "`v0.1.0`", "{row:?}");
     }
+    let unknown = lookup("simplify").unwrap_err();
+    let message = unknown.message();
+    let words: Vec<&str> = message
+        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '-'))
+        .filter(|word| !word.is_empty())
+        .collect();
+    let first = words
+        .iter()
+        .position(|word| *word == registered[0])
+        .unwrap_or_else(|| panic!("{message:?}"));
+    assert!(
+        words[..first].iter().all(|word| !registered.contains(word)),
+        "{message:?}"
+    );
+    let listed: Vec<&str> = words[first..]
+        .iter()
+        .copied()
+        .filter(|word| *word != "and")
+        .collect();
+    assert_eq!(listed, registered, "the message lists the table");
 }
 
 /// A settings record with one setting, standing in for a later release: its
