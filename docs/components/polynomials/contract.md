@@ -29,18 +29,21 @@ library is the [command entry](../command/contract.md), with its operations
 
 - **Included.** The parent structure `PolynomialRing<K>` and the polynomial
   `Polynomial<K>`, generic over the coefficient ring, with `Rationals`, the
-  field $\mathbb{Q}$, as the default and the only coefficient ring of this
-  release; the constructor of a ring and its accessors; zero, one, the
-  variable $x$, constants, negation, sums, differences, products, powers by
-  repeated squaring and the derivative, generic over the coefficient ring;
+  field $\mathbb{Q}$, as the default, and the prime fields `PrimeField` of
+  the [exact numbers](../numbers/contract.md#prime-fields) as the other
+  coefficient fields of the library; the constructor of a ring and its
+  accessors; zero, one, the variable $x$, constants, negation, sums,
+  differences, products, powers by repeated squaring and the derivative,
+  generic over the coefficient ring;
   the degree and the terms of a polynomial; the storage cost; and over
   $\mathbb{Q}$ the expansion of a term into a polynomial, including
   coefficients that cancel to 0, the conversion back to a term and the
   derivative of a term.
 - **Excluded, with their owners.**
-  - Multivariate rings, monomial orders, the other coefficient rings and
-    fields, the implementation of `CoefficientRing` for `PolynomialRing<K>`,
-    the comparison of parents with `same_parent` and the fault
+  - Multivariate rings, monomial orders, the coefficient rings and fields
+    other than $\mathbb{Q}$ and $\mathbb F_p$, the implementation of
+    `CoefficientRing` for `PolynomialRing<K>`, the comparison of parents
+    with `same_parent` and the fault
     `VariableMismatch`: the coefficient fields of release 0.2.
   - Division with remainder, GCD and factorization: the basic polynomial
     algorithms over $\mathbb{Q}$, release 0.2. Evaluation at a point and

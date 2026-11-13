@@ -127,7 +127,7 @@ when each release is planned, except where the plan already fixes them.
 | --- | --- | --- | --- |
 | Term core extension: constants, function-call nodes, conditions and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, conditions and `piecewise`), 0.2 |
 | Integer kernel: the arithmetic of `Integer`, GCD, LCM, extended GCD, modular inverse, modular power and Chinese remaindering (`number`; implemented, [contract](components/numbers/contract.md#the-integer-kernel)) | 0.2 | A1; Chinese remaindering is planned for A2 in 0.4, with the fast arithmetic; no A3 upgrade | the GCD and the factorization of polynomials over $\mathbb{Q}$, 0.2 |
-| Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$, $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
+| Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$ (`PrimeField` in `coefficient`; implemented, [contract](components/numbers/contract.md#prime-fields)), $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | $\mathbb F_p$: the multimodular GCD over $\mathbb{Q}$ and the Berlekamp factorization, 0.2; the others: real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Elimination skeleton: Gauss–Jordan elimination over a coefficient field | 0.2 | set when planned | basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Function registry: the records of the eleven functions of function expressions and the identity list (`registry`, crate-internal; implemented, [contract](components/registry/contract.md)) | 0.2 | A1; A3 upgrade in 0.3 | the function-expression baseline, with the derivatives and the Taylor series of function expressions, 0.2; the call constructor of the term core reads the records in the same release and is not counted as the first caller |
 | Shared result types: `Evidence` and `Truth` (implemented, [contract](components/shared-results/contract.md)), `Completeness`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | A1; no A3 upgrade; the tier of `Guarantee` is set when 0.3 is planned | the assumption queries of function expressions (`Evidence`, `Truth`; the assumption system of the same release answers them through these types and is not counted), root lists and real sets (`Completeness`), zero tests of algebraic numbers (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
@@ -902,11 +902,14 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   `PolynomialRing<Rationals>`. So a parent parametrized at runtime, such as
   $\mathbb F_p$, needs no change of signature, and polynomial operations do
   not compare parents.
+- **The prime fields** have this shape: `PrimeField` holds its prime
+  modulus $p \lt 2^{32}$, its constructor decides that the modulus is
+  prime, and its elements, the residues $0 \le r \lt p$, do not repeat
+  it ([contract](components/numbers/contract.md#prime-fields)).
 - **Later structures** take the same shape, and each implements `measure`
-  with a formula of its own: a prime field
-  `PrimeField { modulus }` whose constructor checks primality; number fields,
-  including $\mathbb{Q}(a)$, whose `same_parent` compares the defining data
-  and is charged; `FractionField<K>` with
+  with a formula of its own: number fields, including $\mathbb{Q}(a)$,
+  whose `same_parent` compares the defining data and is charged;
+  `FractionField<K>` with
   `K: CoefficientField<Undecided = Infallible>`; `MultivariateRing<K>`; and
   polynomial rings, which implement `CoefficientRing` with
   `Element = Polynomial<K>`. Maps between structures form a separate trait
@@ -1794,6 +1797,10 @@ symbol name.
   quotient that is not exact, costs $(1, 4)$. The
   [numbers](components/numbers/contract.md#storage) list the results of the
   integer kernel.
+- An element of a prime field $\mathbb F_p$, a residue $0 \le r \lt p$,
+  costs $(1, \lvert r \rvert + 4)$, the cost of the integer $r$; the
+  modulus belongs to the parent and is not counted. This is the `measure`
+  of `PrimeField`.
 - An element of a number field $\mathbb{Q}(a)$ costs its representative: the
   univariate polynomial over $\mathbb{Q}$ in the generator, of degree below
   that of the minimal polynomial, by the formula of univariate polynomials
