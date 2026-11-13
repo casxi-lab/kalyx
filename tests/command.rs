@@ -1364,10 +1364,11 @@ fn cancellation_is_observed_at_the_next_charge_point() {
     let polls = probe.polls();
     assert!(polls >= 6, "a poll at every field: {polls}");
     // An error line has eleven fields and a line feed, each its own charge
-    // point.
+    // point, and a cancellation at each of these charge points leaves no
+    // bytes.
     let (failed, _) = run(&Request::new("eval", "x", "1/0"), Limits::new());
     let counted = CountingProbe::never();
-    serialize(
+    let plain = serialize(
         &failed,
         &mut observed(Limits::new(), FakeClock::at(0), &counted),
     )
@@ -1377,6 +1378,14 @@ fn cancellation_is_observed_at_the_next_charge_point() {
         12,
         "a poll at every field and the line feed"
     );
+    for k in 0..12 {
+        let probe = CountingProbe::after(k);
+        let c = &mut observed(Limits::new(), FakeClock::at(0), &probe);
+        let error = serialize(&failed, c).unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::Cancelled, "poll {k}");
+        assert_eq!(probe.polls(), k + 1);
+        assert!(c.output_used() < plain.len() as u64);
+    }
     // An `error-at` line has twelve fields and a line feed, and a
     // cancellation at each of these charge points leaves no bytes.
     let (located, _) = run(
