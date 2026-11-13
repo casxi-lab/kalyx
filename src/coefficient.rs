@@ -47,9 +47,11 @@ use std::convert::Infallible;
 
 use crate::context::{Storage, StorageCost};
 use crate::number::{Integer, Rational};
-use crate::{Context, LimitField, Result};
+use crate::{Context, Error, FaultKind, LimitField, Result};
 
 mod prime;
+#[cfg(test)]
+mod tests;
 
 pub use prime::{PrimeField, PrimeResidue};
 
@@ -257,6 +259,45 @@ pub trait CoefficientField: CoefficientRing {
         b: &Self::Element,
         context: &mut Context,
     ) -> Result<Self::Element>;
+}
+
+/// The pair check: succeeds when `left` and `right` are the same parent by
+/// [`same_parent`](CoefficientRing::same_parent), and fails with
+/// `Fault(VariableMismatch)` when they are not.
+///
+/// A layer that stores a parent together with an element calls it before it
+/// combines the elements of two such pairs, so that elements of different
+/// parents, such as residues modulo two different primes, never meet in an
+/// operation; the methods of the traits assume that their elements belong
+/// to `self` and do not call it. Its checks and charges are those of
+/// `same_parent`, which for [`Rationals`] and [`PrimeField`] charges
+/// nothing.
+///
+/// # Errors
+///
+/// `Fault(VariableMismatch)` when the parents differ; the request failures
+/// of `same_parent`, for a ring whose comparison is charged.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "no layer stores a parent together with an element yet; its unit test calls it"
+    )
+)]
+pub(crate) fn require_same_parent<K: CoefficientRing>(
+    left: &K,
+    right: &K,
+    context: &mut Context,
+) -> Result<()> {
+    if left.same_parent(right, context)? {
+        Ok(())
+    } else {
+        Err(Error::new(
+            FaultKind::VariableMismatch,
+            None,
+            "the values belong to different parent structures",
+        ))
+    }
 }
 
 /// The field $\mathbb{Q}$ of rational numbers, whose elements are the

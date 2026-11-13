@@ -127,7 +127,7 @@ when each release is planned, except where the plan already fixes them.
 | --- | --- | --- | --- |
 | Term core extension: constants, function-call nodes, conditions and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, conditions and `piecewise`), 0.2 |
 | Integer kernel: the arithmetic of `Integer`, GCD, LCM, extended GCD, modular inverse, modular power and Chinese remaindering (`number`; implemented, [contract](components/numbers/contract.md#the-integer-kernel)) | 0.2 | A1; Chinese remaindering is planned for A2 in 0.4, with the fast arithmetic; no A3 upgrade | the GCD and the factorization of polynomials over $\mathbb{Q}$, 0.2 |
-| Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$ (`PrimeField` in `coefficient`; implemented, [contract](components/numbers/contract.md#prime-fields)), $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A3 upgrades in 0.2 for prime fields and monomial orders | $\mathbb F_p$: the multimodular GCD over $\mathbb{Q}$ and the Berlekamp factorization, 0.2; the others: real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
+| Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$ (`PrimeField` in `coefficient`; implemented, [contract](components/numbers/contract.md#prime-fields)), $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A1 for $\mathbb F_p$; A3 upgrades in 0.2 for prime fields and monomial orders | $\mathbb F_p$: the multimodular GCD over $\mathbb{Q}$ and the Berlekamp factorization, 0.2; the others: real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Elimination skeleton: Gauss–Jordan elimination over a coefficient field | 0.2 | set when planned | basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
 | Function registry: the records of the eleven functions of function expressions and the identity list (`registry`, crate-internal; implemented, [contract](components/registry/contract.md)) | 0.2 | A1; A3 upgrade in 0.3 | the function-expression baseline, with the derivatives and the Taylor series of function expressions, 0.2; the call constructor of the term core reads the records in the same release and is not counted as the first caller |
 | Shared result types: `Evidence` and `Truth` (implemented, [contract](components/shared-results/contract.md)), `Completeness`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | A1; no A3 upgrade; the tier of `Guarantee` is set when 0.3 is planned | the assumption queries of function expressions (`Evidence`, `Truth`; the assumption system of the same release answers them through these types and is not counted), root lists and real sets (`Completeness`), zero tests of algebraic numbers (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
@@ -886,7 +886,7 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   charge only for their own loop steps. Every amount depends only on the
   operands.
 - **Division by zero.** In every field, `inverse` and `divide` fail with
-  `DivisionByZero` on zero. A field with a structural zero test checks the
+  `DivisionByZero` on the zero of the field. A field with a structural zero test checks the
   divisor before any charge of the operation, and a field whose zero test is
   charged pays for the test first.
 - **One shared implementation.** Differentiation, evaluation, powers and
@@ -899,16 +899,18 @@ pub struct Polynomial<K: CoefficientRing = Rationals> {
   variable, as `&self`. A `Polynomial<K>` stores neither, and its type is
   opaque: polynomials are produced only by methods of their ring, and these
   methods assume that their arguments belong to `self`. Whether two parents
-  match is checked with `same_parent` only where a parent and an element are
-  stored as a pair: when converting between terms and polynomials, in the
-  command entry where it stores such a pair (in this release it stores none:
-  it converts every polynomial back to a term with the ring that built it),
-  and later in typed collection columns; a mismatch fails with
-  `VariableMismatch`, a fault kind that arrives in 0.2 together with the
-  first parents that can differ; in 0.1 the only parent is
-  `PolynomialRing<Rationals>`. So a parent parametrized at runtime, such as
-  $\mathbb F_p$, needs no change of signature, and polynomial operations do
-  not compare parents.
+  match is checked only where a parent and an element are stored as a pair,
+  as later in the command entry where it stores such a pair and in typed
+  collection columns. In this release no layer stores one: the conversions
+  between terms and polynomials take the ring as their receiver, and the
+  command entry converts every polynomial back to a term with the ring that
+  built it. A layer that stores such a pair calls the crate-internal pair
+  check `require_same_parent` of `src/coefficient.rs`, which compares the
+  two parents with `same_parent` and fails with `VariableMismatch` when they
+  differ. The fault kind was appended in 0.2 together with the prime
+  fields, the first parents that can differ, and no layer calls the check
+  yet. So a parent parametrized at runtime, such as $\mathbb F_p$, needs no
+  change of signature, and polynomial operations do not compare parents.
 - **The prime fields** have this shape: `PrimeField` holds its prime
   modulus $p \lt 2^{32}$, its constructor decides that the modulus is
   prime, and its elements, the residues $0 \le r \lt p$, do not repeat
@@ -1986,11 +1988,12 @@ state to an `Error`, or back.
 - `FaultKind` has seven foundation kinds in 0.1: `Syntax`, `UnknownSymbol`,
   `DivisionByZero`, `NonIntegerExponent` (the exponent is not an integer
   constant), `NotPolynomial`, `Unsupported` and `Internal`. Features append
-  their own kinds in the release that needs them. The integer kernel of the
-  exact numbers has appended `OutsideDomain` in 0.2; the others are planned:
-  `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch` and
-  `InvalidInterval` in 0.2, `StaleEnvironment` and `DimensionMismatch` in
-  0.3, and `InvalidMatrix` and `SingularMatrix` in 0.4.
+  their own kinds in the release that needs them. In 0.2 the integer kernel
+  of the exact numbers has appended `OutsideDomain`, and the pair check of
+  the coefficient fields `VariableMismatch`; the others are planned:
+  `ContradictoryAssumptions`, `InvalidBinding` and `InvalidInterval` in 0.2,
+  `StaleEnvironment` and `DimensionMismatch` in 0.3, and `InvalidMatrix` and
+  `SingularMatrix` in 0.4.
 - Both enums are `#[non_exhaustive]`, and `class()` sorts every kind into
   one of three classes: `Context` for the request failures, `Input` and
   `Internal`.

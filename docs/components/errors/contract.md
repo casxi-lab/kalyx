@@ -22,8 +22,10 @@ failures, returns them from its charge points and checks. The exact numbers
 library that compute: they return the faults `DivisionByZero`, `Syntax` and
 `Internal` and the request failures of the context, and the integer kernel
 and the prime fields of the exact numbers return `OutsideDomain` as well.
-The first public method with result states comes with a later release. The
-crate-internal channel and its boundaries are exercised by the unit tests of
+The crate-internal pair check of the coefficient fields returns
+`VariableMismatch`; no layer of the library calls it yet. The first public
+method with result states comes with a later release. The crate-internal
+channel and its boundaries are exercised by the unit tests of
 `src/error.rs`.
 
 ## Interface
@@ -158,11 +160,13 @@ requirement.
 - The foundation faults are `Syntax`, `UnknownSymbol`, `DivisionByZero`,
   `NonIntegerExponent` (the exponent is not an integer constant),
   `NotPolynomial`, `Unsupported` and `Internal`. A feature adds a kind of its
-  own in the release that brings the feature, after the kinds before it: the
-  integer kernel of the exact numbers added `OutsideDomain`, an argument
-  outside the domain of an operation, in release 0.2. `ErrorKind` and `FaultKind` are
-  `#[non_exhaustive]`, so code outside the library matches them with a
-  wildcard arm.
+  own in the release that brings the feature, after the kinds before it: in
+  release 0.2 the integer kernel of the exact numbers added `OutsideDomain`,
+  an argument outside the domain of an operation, and the coefficient fields
+  added `VariableMismatch` after it, values that must belong to the same
+  parent structure and belong to different ones. `ErrorKind` and
+  `FaultKind` are `#[non_exhaustive]`, so code outside the library matches
+  them with a wildcard arm.
 - `class()` sorts every kind into one of three classes: `Context` for the
   request failures, which a larger limit, a later deadline or no cancellation
   may lift; `Internal` for `FaultKind::Internal`, a defect of the library; and
@@ -297,7 +301,8 @@ failures with mathematical outcomes. Each kind has this place in kalyx:
 | `UnsupportedSymbolic`, `UnsupportedValue` | merged into `FaultKind::Unsupported`; collection values may add a finer kind of their own | the term core (reserved names), the parser and the command entry, 0.1 |
 | `NonConstantExponent` | merged into `NonIntegerExponent`, which means that the exponent is not an integer constant | the parser, 0.1, since the powers of the term core take an integer exponent |
 | `OutsideDomain` | `FaultKind::OutsideDomain`, a feature kind appended under the same name | the integer kernel of the exact numbers, 0.2 |
-| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, coefficient fields, and real sets and inequalities, 0.2 |
+| `VariableMismatch` | `FaultKind::VariableMismatch`, a feature kind appended under the same name | the pair check of the coefficient fields, 0.2 |
+| `ContradictoryAssumptions`, `InvalidBinding`, `InvalidInterval` | feature kinds, appended under the same names | the term core extension with assumptions, the function-expression baseline, and real sets and inequalities, 0.2 |
 | `StaleEnvironment`, `DimensionMismatch` | feature kinds, appended under the same names | the computation environment with versioned requests, and the arrays of collection values, 0.3 |
 | `InvalidMatrix`, `SingularMatrix` | feature kinds, appended under the same names | exact rational matrices and linear systems, 0.4 |
 | `FactorizationFailure`, `RootIsolationFailure` | `FaultKind::Internal` when a self-check fails; `MathState::NotApplicable` when the method legitimately gives up | polynomial factorization and real root isolation, 0.2 |
@@ -313,7 +318,7 @@ the mapping above is fixed, so each difference is accepted by its row.
 1. **Boundaries.** The unit tests in `src/error.rs` check that `settle` keeps
    values, turns a stop in each of the five states into that state and keeps
    every request failure, a domain error and an invalid input with its kind,
-   span and exceeded limit, and that no foundation fault becomes a state;
+   span and exceeded limit, and that no fault kind becomes a state;
    that `evaluation_stop` keeps stops and errors and turns every stop into the
    given stop; the fixed text of the cap; the accessors of `Settled`; and
    that `with_default_span` fills only a missing span

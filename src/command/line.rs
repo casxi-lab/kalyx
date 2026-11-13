@@ -169,6 +169,7 @@ fn fault_name(fault: FaultKind) -> &'static [u8] {
         FaultKind::Unsupported => b"Unsupported",
         FaultKind::Internal => b"Internal",
         FaultKind::OutsideDomain => b"OutsideDomain",
+        FaultKind::VariableMismatch => b"VariableMismatch",
     }
 }
 

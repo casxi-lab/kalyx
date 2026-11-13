@@ -85,7 +85,7 @@ The `result` column takes one value from this fixed table:
 | --- | --- |
 | `ok` | The request returns an answer. |
 | `ResourceLimit`, `Cancelled`, `DeadlineExceeded` | Request failures raised by the context. |
-| `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal`, `OutsideDomain` | Faults of the input or of the library; no case of `r02.tsv` names `OutsideDomain`, which the integer kernel reports and no operation of these cases reaches. |
+| `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal`, `OutsideDomain`, `VariableMismatch` | Faults of the input or of the library; no case of `r02.tsv` names `OutsideDomain`, which the integer kernel and the prime fields report, or `VariableMismatch`, which the pair check of the coefficient fields reports, since no operation of these cases reaches them. |
 
 The error kinds of the earlier implementation that occur in these cases keep
 their names: `Syntax`, `UnknownSymbol`, `DivisionByZero`,
@@ -405,7 +405,8 @@ fixes it:
 | `UnsupportedSymbolic`, `UnsupportedValue` | `Unsupported` |
 | `NonConstantExponent` | `NonIntegerExponent` |
 | `OutsideDomain` | the same name, a kind of kalyx since the integer kernel |
-| `ContradictoryAssumptions`, `InvalidBinding`, `VariableMismatch`, `InvalidInterval` | the same names |
+| `VariableMismatch` | the same name, a kind of kalyx since the pair check of the coefficient fields |
+| `ContradictoryAssumptions`, `InvalidBinding`, `InvalidInterval` | the same names |
 | `StaleEnvironment`, `DimensionMismatch` | the same names |
 | `InvalidMatrix`, `SingularMatrix` | the same names |
 | `FactorizationFailure`, `RootIsolationFailure` | `Internal`: every constructor of these kinds in the earlier implementation reports a failed self-check, so the state `NotApplicable` of a method that legitimately gives up does not occur |

@@ -126,6 +126,13 @@ pub enum FaultKind {
     /// that is not positive, or a negative power modulo $m$ of a residue
     /// that has no inverse.
     OutsideDomain,
+    /// Values that must belong to the same parent structure belong to
+    /// different ones: two parents stored with their elements differ, such
+    /// as the prime fields of two different moduli. No operation of this
+    /// release reports it, since none stores a parent together with an
+    /// element; the methods of a coefficient field assume that their
+    /// elements belong to the receiver and do not report it.
+    VariableMismatch,
 }
 
 impl FaultKind {
@@ -142,7 +149,8 @@ impl FaultKind {
             | Self::NonIntegerExponent
             | Self::NotPolynomial
             | Self::Unsupported
-            | Self::OutsideDomain => ErrorClass::Input,
+            | Self::OutsideDomain
+            | Self::VariableMismatch => ErrorClass::Input,
         }
     }
 }
@@ -705,7 +713,7 @@ mod tests {
         MathState::IterationLimit,
     ];
 
-    const FAULTS: [FaultKind; 8] = [
+    const FAULTS: [FaultKind; 9] = [
         FaultKind::Syntax,
         FaultKind::UnknownSymbol,
         FaultKind::DivisionByZero,
@@ -714,6 +722,7 @@ mod tests {
         FaultKind::Unsupported,
         FaultKind::Internal,
         FaultKind::OutsideDomain,
+        FaultKind::VariableMismatch,
     ];
 
     fn span(start: usize, end: usize) -> Option<Span> {

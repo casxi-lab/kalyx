@@ -1613,6 +1613,7 @@ fn result_kind(name: &str) -> Option<ErrorKind> {
         "Unsupported" => ErrorKind::Fault(FaultKind::Unsupported),
         "Internal" => ErrorKind::Fault(FaultKind::Internal),
         "OutsideDomain" => ErrorKind::Fault(FaultKind::OutsideDomain),
+        "VariableMismatch" => ErrorKind::Fault(FaultKind::VariableMismatch),
         _ => return None,
     })
 }

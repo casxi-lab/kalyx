@@ -282,7 +282,7 @@ canonical terms, never by this text.
 
 | Field | Bytes |
 | --- | --- |
-| Kind | `ResourceLimit`, `Cancelled` or `DeadlineExceeded` for a request failure; for a fault, the name of its kind: `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal` or `OutsideDomain` |
+| Kind | `ResourceLimit`, `Cancelled` or `DeadlineExceeded` for a request failure; for a fault, the name of its kind: `Syntax`, `UnknownSymbol`, `DivisionByZero`, `NonIntegerExponent`, `NotPolynomial`, `Unsupported`, `Internal`, `OutsideDomain` or `VariableMismatch` |
 | Span | `start..end`, the half-open range of byte offsets into the input of the request; `-` when the error has no span |
 | Limit | for `ResourceLimit`, `Field(name)` with the name of a field of `Limits`, such as `Field(max_work)`, or `Parameter(name)` with the escaped name of a parameter of the request; otherwise `-` |
 | Scope | for `ResourceLimit` on `max_nodes` or `max_storage_bytes`, where the limit was reached: `Value`, `Frame` or `Temporary`; otherwise `-` |

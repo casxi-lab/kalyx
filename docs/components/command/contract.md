@@ -61,9 +61,11 @@ built from a pinned commit of the library.
   - Streaming entries with a progress receiver
     ([convention 13](../../conventions/public-api.md#13-request-inputs-and-progress)):
     with their first streaming operation.
-  - The comparison of parents with `same_parent` and the fault
-    `VariableMismatch`: the coefficient fields of release 0.2, with the first
-    parents that can differ.
+  - A parent stored together with an element, and the call of the pair
+    check of the
+    [coefficient fields](../numbers/contract.md#the-coefficient-field-trait)
+    that such a pair needs, which fails with `VariableMismatch` when two
+    parents differ: with the first command that stores such a pair.
   - The job service of krepi: its states and their transitions, its worker,
     its resource scope, which bounds real memory, CPU time and the time of a
     job, the forced stop of a job after a grace period, and the race of
@@ -209,9 +211,11 @@ states, and neither the outcome nor its line names the convention.
 convert the polynomial that the ring returns back to a term with that same
 ring, before the operation returns; no polynomial outlives its operation,
 and an outcome holds terms only. So the entry stores no parent together with
-an element, and no check with `same_parent` applies in this release. A
-later release that stores such a pair, such as a polynomial in a session,
-checks it there, and a mismatch fails with `VariableMismatch`.
+an element, and no check of parents applies in this release. A later
+release that stores such a pair, such as a polynomial in a session, checks
+it there with the pair check of the
+[coefficient fields](../numbers/contract.md#the-coefficient-field-trait),
+which fails with `VariableMismatch` when the parents differ.
 
 ### The outcome
 
