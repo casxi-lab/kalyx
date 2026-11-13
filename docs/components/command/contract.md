@@ -270,13 +270,14 @@ request come back with every result and every error; the outcome holds the
 [convention 2](../../conventions/public-api.md#2-errors-separate-from-result-states).
 Both functions take the context last
 ([convention 1](../../conventions/public-api.md#1-request-context-last)), and
-neither creates one. The component uses only public interfaces of the other
-components, and of the errors also the crate-internal constructor of a
-cause frame and `Error::with_outer_frame`, which adds one: `parse`,
-`PolynomialRing` over `Rationals`, the accessors and `display` of `Term`,
-`charge` and `charge_output` of the context and the crate-internal check of
-an amount that may not fit a `u64`, and the accessors of `Error` and
-`LimitExceeded`.
+neither creates one. The component uses public interfaces of the other
+components, `parse`, `PolynomialRing` over `Rationals`, the accessors and
+`display` of `Term`, `charge` and `charge_output` of the context, and the
+accessors of `Error` and `LimitExceeded`, and three crate-internal ones:
+`CauseFrame::new` and `Error::with_outer_frame` of the errors, which build
+and add the entry frame of an error, and the check of the context for an
+amount that may not fit in a `u64`, which checks the byte sum of the
+operands.
 
 ## Rules
 

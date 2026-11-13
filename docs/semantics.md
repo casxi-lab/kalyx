@@ -299,8 +299,8 @@ versions:
 | --- | --- |
 | Kind | the name of the kind of the value in the [table of value kinds](#value-kinds): lowercase ASCII letters and `-`, never renamed and never reused |
 | Text | the display text of the value, which the input grammar or the display grammar that the table names for the kind reads |
-| Condition | the condition of the value, written as a condition is written; `-` for a kind without a condition part |
-| Assumptions | the scope of assumptions of the value, written as the role `scope` of a request is written, such as `x: positive`; `-` for a kind without a scope part and for a scope without facts |
+| Condition | the condition of the value, written as a condition is written, so that it reads back as a condition; `-` for a kind without a condition part |
+| Assumptions | the scope of assumptions of the value, written as the role `scope` of a request is written, such as `x: positive`, so that it reads back as a scope; `-` for a kind without a scope part and for a scope without facts |
 
 The three fields are printable ASCII, so none is escaped.
 
@@ -338,8 +338,7 @@ and in fields 5 to 11 of an `error-at` line:
 - **Messages.** The message is text for people. Its bytes depend only on the
   error, so they are the same in every run, but its wording is not part of
   the interface and may change in a later release; programs read the other
-  fields. A message holds no text of the caller: no operation name,
-  variable, role or text of an operand.
+  fields.
 
 **Locations.** The location of an `error-at` line names the operand in which
 the error arose, by the [cause frames](components/errors/contract.md#cause-frames)
