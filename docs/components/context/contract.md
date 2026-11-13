@@ -291,9 +291,9 @@ operand, the input and each entry of the table, which the
 checked addition and reports as `Bound(u64::MAX)` when it does not fit in a
 `u64`. This measure does not follow
 [convention 17](../../conventions/public-api.md#17-no-implicit-conventions):
-only the documentation of the command entry and of
-`LimitField::InputBytes` states it, and the amount of the error does not
-name it.
+only the documentation states it, such as that of the command entry, of
+`Limits::max_input_bytes` and of `LimitField::InputBytes`, and the amount
+of the error does not name it.
 
 - **The number of fields.** `LimitField` has one variant per field.
   Compile-time assertions in `src/context/limits.rs` fix that its list
