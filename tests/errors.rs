@@ -1,6 +1,6 @@
 //! The public interface of errors and result states, as code outside the
-//! library sees it. Errors are compared by kind, span and exceeded limit,
-//! never by message.
+//! library sees it. Errors are compared by kind, span, cause frames and
+//! exceeded limit, never by message.
 
 use kalyx::{
     CauseFrame, Error, ErrorClass, ErrorKind, FaultKind, LimitField, MathState, Settled, Span,

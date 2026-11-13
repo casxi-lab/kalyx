@@ -397,7 +397,8 @@ impl Error {
 
     /// The English message of the error. It is text for people and not part
     /// of the interface; programs use [`kind`](Error::kind),
-    /// [`span`](Error::span) and [`exceeded`](Error::exceeded).
+    /// [`span`](Error::span), [`frames`](Error::frames) and
+    /// [`exceeded`](Error::exceeded).
     #[must_use]
     pub fn message(&self) -> &str {
         &self.message
