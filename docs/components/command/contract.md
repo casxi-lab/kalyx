@@ -206,8 +206,9 @@ the unit tests of `src/command/tests.rs`.
     ([the command-line program](../../semantics.md#the-command-line-program)).
     It builds no operand table in this release.
   - The operations beyond the three of this release, with the roles of their
-    signatures and the start symbols that read them, and the nested
-    categories that they enter: the releases that add them.
+    signatures and the start symbols that read them, and the steps by which
+    they enter the nested categories of the
+    [fallback step](#the-fallback-line): the releases that add them.
   - Sessions, bindings, a context version that is checked against a
     session, the fault `StaleEnvironment` and nested commands: the session
     and command layer, release 0.3.
