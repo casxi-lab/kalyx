@@ -1364,8 +1364,13 @@ limits.
   of the two matches of `src/command/line.rs` that write them, which have
   no wildcard, and that the lines of the three request failures and of
   every fault kind have those names, that $Q$ is the longest limit of the
-  fields of `LimitField::ALL`, and that the message of a malformed variable
-  has $M$ bytes, which review keeps the longest message of the library;
+  fields of `LimitField::ALL`, and that $M$ is the longest escaped message
+  that the sources give, which the message of a malformed variable has: of
+  the string literals of the code of the library outside its tests and
+  attributes, which the test reads from `src/lib.rs` through the
+  declarations of its modules, and of the messages of a limit and of a
+  missing role with the longest name of a field and of a required role of
+  the dispatch table;
   `a_deep_input_has_no_more_than_d_nested_frames`,
   with 1,000 levels of parentheses; `ten_thousand_random_requests_never_panic`,
   which writes the fallback line of every error; and review, which checks
