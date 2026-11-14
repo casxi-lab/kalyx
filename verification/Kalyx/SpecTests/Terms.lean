@@ -15,8 +15,8 @@ canonical term, without assumptions. Each input is written as an input tree
 `E`, unnormalized, and `E.canon` builds its canonical term through the
 constructors, an operator at a time, as a parse builds it. The answer is read
 back the same way, so an answer is compared with the input by canonical form,
-the two terms by structure, as the vectors compare them; an error is compared
-by its kind.
+the two terms by structure, as the vectors compare them, and the input must
+build a term; an error is compared by its kind.
 
 The parser is not part of the replay: an input tree is written in Lean, whose
 operators have the precedence of kalyx's grammar, so `-2^2` is the negation of
@@ -110,14 +110,22 @@ meta def E.canonAt (maxExponent : ℕ) : E → Result Term
 /-- The canonical term of an input tree under the default limit. -/
 meta def E.canon (e : E) : Result Term := e.canonAt defaultMaxExponent
 
-/-- The input and the answer have the same canonical term. -/
-meta def same (input answer : E) : Bool := input.canon == answer.canon
+/-- The input builds a canonical term, and the answer builds the same one; a
+fault on both sides is no match. -/
+meta def same (input answer : E) : Bool :=
+  match input.canon with
+  | .value t => answer.canon == .value t
+  | _ => false
 
 /-- `eval` of the canonical term of an input. -/
 meta def evalOf (input : E) : Result EvalAnswer := input.canon.bind (Term.eval .asIs)
 
-/-- `eval` of the input gives the canonical term of the answer as its value. -/
-meta def evals (input answer : E) : Bool := evalOf input == answer.canon.map EvalAnswer.value
+/-- `eval` of the input gives a value, the canonical term of the answer; a
+fault on both sides is no match. -/
+meta def evals (input answer : E) : Bool :=
+  match evalOf input with
+  | .value a => answer.canon.map EvalAnswer.value == .value a
+  | _ => false
 
 /-- The sum of `n` numbers that run through 1 to 7 in turn, added from the
 left: `1+2+3+…`. -/
