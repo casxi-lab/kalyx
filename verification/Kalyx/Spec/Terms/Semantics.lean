@@ -37,10 +37,9 @@ The laws that the statements assume of an interpretation are separate
 propositions: the truth values (`Interp.CondLaw`), the identities of the
 function registry that the term core reads for the powers of roots
 (`Interp.RootLaw`), and nonzero values of the valid constants
-(`Interp.ConstantsNonzero`). Two relations of meanings name what the
-statements compare: the same meaning at every assignment (`Term.SameMeaning`),
-and the one direction in which a result is defined only where an input is,
-with the same value there (`DefinedWithin`).
+(`Interp.ConstantsNonzero`). `Term.SameMeaning` names the same meaning at
+every assignment, the criterion of the rules that the term core and the
+call constructor may apply.
 
 This module is not computable, and the computable modules of the
 specification do not import it.
@@ -175,14 +174,6 @@ or both are defined with the same value. This is the criterion of the rules
 that the term core and the call constructor may apply (architecture, "Rules
 of the call constructor"). -/
 def Term.SameMeaning (I : Interp) (s t : Term) : Prop := ∀ ρ, s.denote I ρ = t.denote I ρ
-
-/-- `g` is defined only where `f` is, with the same value there: wherever `g`
-is `some v`, `f` is `some v`. Of the meaning `g` of the result of a
-construction and the strict meaning `f` of its input, it says that the result
-gives no value where the input is undefined and no other value where it is
-defined, while it may be undefined where the input is defined. -/
-def DefinedWithin (g f : Assignment → Option ℂ) : Prop :=
-  ∀ ρ v, g ρ = some v → f ρ = some v
 
 end Kalyx.Spec.Terms
 

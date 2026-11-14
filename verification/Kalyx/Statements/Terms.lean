@@ -71,24 +71,27 @@ def iPower (k : ℤ) : Term :=
 arguments. -/
 def NoPiecewise (ts : List Term) : Prop := ∀ t ∈ ts, ∀ args, Term.call Head.piecewise args ∉ t.nodes
 
-/-- The truth of every condition is defined wherever the meanings of its
-operands are: `I.cond` gives `none` only for an operand that is undefined.
-The conditions of kalyx do not all satisfy this law, since an ordered
-comparison of values that are not real is undefined; a `piecewise` call
-whose condition is undefined at a point where its operands are defined is
-undefined there, and a construction that cancels such a call can be defined
-at that point. -/
-def CondDefined (I : Interp) : Prop :=
-  ∀ s ms, (∀ m ∈ ms, m ≠ .value none ∧ m ≠ .truth none) → I.cond s ms ≠ none
+/-- At the assignment `ρ`, every node that is a value of every call of
+`piecewise` in the terms `ts`, of any number of arguments, the call itself
+included, is defined. -/
+def PiecewiseDefinedAt (I : Interp) (ρ : Assignment) (ts : List Term) : Prop :=
+  ∀ t ∈ ts, ∀ args s, Term.call Head.piecewise args ∈ t.nodes →
+    s ∈ (Term.call Head.piecewise args).nodes → s.isCondition = false → s.denote I ρ ≠ none
 
 /-- The meaning of the result `u` of a construction against the strict meaning
 `f` of its input, whose operands are `ts`: when no operand holds `piecewise`,
-the two are equal at every assignment; and under an interpretation whose
-conditions are defined wherever their operands are, `u` is defined only where
-`f` is, with the same value there (`DefinedWithin`). -/
+the two are equal at every assignment; wherever both are defined, they have
+the same value; and at an assignment where every value inside the calls of
+`piecewise` of the operands is defined (`PiecewiseDefinedAt`), `u` is defined
+only where `f` is. Elsewhere `u` can be defined where `f` is not: the
+witnesses of the term core keep neither a point where a `piecewise` is
+undefined, by its condition or by its number of arguments, nor a point where
+a base is 0 that a witness keeps only through a `piecewise` holding it in a
+branch. -/
 def MeaningKept (I : Interp) (ts : List Term) (u : Term) (f : Assignment → Option ℂ) : Prop :=
   (NoPiecewise ts → ∀ ρ, u.denote I ρ = f ρ) ∧
-    (CondDefined I → DefinedWithin (fun ρ => u.denote I ρ) f)
+    (∀ ρ v w, u.denote I ρ = some v → f ρ = some w → v = w) ∧
+    ∀ ρ, PiecewiseDefinedAt I ρ ts → ∀ v, u.denote I ρ = some v → f ρ = some v
 
 /-- Every call of the term `u` is a call of one of the terms `ts`, with the
 same head and the same arguments. -/
@@ -273,11 +276,12 @@ valid constants), for rules of calls that keep the meaning of a call
 (`RegistryRules.Keeps`), on canonical operands, the result of the sum, the
 product, the power, the negation, the difference and the quotient has the
 strict meaning of its input at every assignment when no operand holds
-`piecewise`; and, where the truth of every condition is defined wherever its
-operands are (`CondDefined`), it is defined only where its input is, with the
-same value, so it gives no value where its input is undefined. A call
-constructed by the call constructor has the meaning of the call at every
-assignment. -/
+`piecewise`; it has the value of its input wherever both are defined; and at
+an assignment where every value inside the calls of `piecewise` of the
+operands is defined (`PiecewiseDefinedAt`), it is defined only where its
+input is, so it gives no value there where its input is undefined
+(`MeaningKept`). A call constructed by the call constructor has the meaning
+of the call at every assignment. -/
 def ConstructorsKeepMeanings : Prop :=
   ∀ (o : Orders) (maxExponent : ℕ) (R : RegistryRules) (I : Interp), o.Total →
     R.Closed (fun me => Term.Canonical o me R) Term.negBases →
