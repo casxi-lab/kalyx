@@ -1,6 +1,7 @@
 module
 
 public import Kalyx.Statements.Terms
+import Kalyx.Proofs.Terms.Faults
 
 /-!
 # Proofs of the statements about the canonical forms
@@ -9,9 +10,11 @@ One theorem for each registered statement of `Kalyx.Statements.Terms` about
 the canonical forms that the constructors return: their independence of the
 order and the grouping of the operands, their closure and idempotence,
 merging, the bases of negative powers, the faults of strict evaluation and the
-atomicity of calls, whose type is exactly that statement. Every proof is
-planned: each theorem is proved by `sorry`, and the statements are registered
-with the state `planned` until their proofs replace it.
+atomicity of calls, whose type is exactly that statement. The faults of
+strict evaluation are proved from the helper module `Kalyx.Proofs.Terms.Faults`.
+The proofs of the other statements are planned: each of those theorems is
+proved by `sorry`, and its statement is registered with the state `planned`
+until its proof replaces it.
 -/
 
 namespace Kalyx.Proofs.Terms
@@ -34,9 +37,9 @@ public theorem mergingAddsCoefficientsAndExponents : MergingAddsCoefficientsAndE
 public theorem constructorsKeepNegativeBases : ConstructorsKeepNegativeBases := by
   sorry
 
-/-- Proves `StrictEvaluationFaults`; the proof is planned. -/
-public theorem strictEvaluationFaults : StrictEvaluationFaults := by
-  sorry
+/-- Proves `StrictEvaluationFaults`. -/
+public theorem strictEvaluationFaults : StrictEvaluationFaults :=
+  strictEvaluationFaults_holds
 
 /-- Proves `CallsAreAtoms`; the proof is planned. -/
 public theorem callsAreAtoms : CallsAreAtoms := by

@@ -210,7 +210,7 @@
       "name": "Kalyx.Statements.Terms.StrictEvaluationFaults",
       "theorem": "Kalyx.Proofs.Terms.strictEvaluationFaults",
       "module": "Kalyx.Proofs.Terms.Normal",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.ComparisonUnderBitLimit",
