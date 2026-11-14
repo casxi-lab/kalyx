@@ -1,5 +1,174 @@
 {
   "schema": 1,
-  "hash": "ba2d5d6bf9d79b05a5ce29ba8b1eb94b55ac08b8",
-  "statements": []
+  "hash": "efc6fb517147cc2d6d0d39a2fe50d42a26d4e649",
+  "statements": [
+    {
+      "name": "Kalyx.Statements.Fields.RingAxioms",
+      "theorem": "Kalyx.Proofs.Fields.ringAxioms",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.FieldAxioms",
+      "theorem": "Kalyx.Proofs.Fields.fieldAxioms",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.RingDivisionAndInverse",
+      "theorem": "Kalyx.Proofs.Fields.ringDivisionAndInverse",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ZeroTestsAreExact",
+      "theorem": "Kalyx.Proofs.Fields.zeroTestsAreExact",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.CanonicalFormsAreUniqueAndComplete",
+      "theorem": "Kalyx.Proofs.Fields.canonicalFormsAreUniqueAndComplete",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.MapsPreserveOperations",
+      "theorem": "Kalyx.Proofs.Fields.mapsPreserveOperations",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ParallelPathsCommute",
+      "theorem": "Kalyx.Proofs.Fields.parallelPathsCommute",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ReductionOutsideItsDomain",
+      "theorem": "Kalyx.Proofs.Fields.reductionOutsideItsDomain",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.CanonicalFormExamples",
+      "theorem": "Kalyx.Proofs.Fields.canonicalFormExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.NonCanonicalRepresentatives",
+      "theorem": "Kalyx.Proofs.Fields.nonCanonicalRepresentatives",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.InverseExamples",
+      "theorem": "Kalyx.Proofs.Fields.inverseExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ZeroHasNoInverse",
+      "theorem": "Kalyx.Proofs.Fields.zeroHasNoInverse",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.PowerExamples",
+      "theorem": "Kalyx.Proofs.Fields.powerExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.PowerFailures",
+      "theorem": "Kalyx.Proofs.Fields.powerFailures",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ZeroTestExamples",
+      "theorem": "Kalyx.Proofs.Fields.zeroTestExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ZeroTestsOfHiddenZeros",
+      "theorem": "Kalyx.Proofs.Fields.zeroTestsOfHiddenZeros",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.EqualNumberFieldsCombine",
+      "theorem": "Kalyx.Proofs.Fields.equalNumberFieldsCombine",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.DifferentNumberFieldsMismatch",
+      "theorem": "Kalyx.Proofs.Fields.differentNumberFieldsMismatch",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.MapExamples",
+      "theorem": "Kalyx.Proofs.Fields.mapExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ReductionOfOneSeventh",
+      "theorem": "Kalyx.Proofs.Fields.reductionOfOneSeventh",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ProductWithinBitLimit",
+      "theorem": "Kalyx.Proofs.Fields.productWithinBitLimit",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ProductBeyondBitLimit",
+      "theorem": "Kalyx.Proofs.Fields.productBeyondBitLimit",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.IntegerDivisionExamples",
+      "theorem": "Kalyx.Proofs.Fields.integerDivisionExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.IntegerDivisionFailures",
+      "theorem": "Kalyx.Proofs.Fields.integerDivisionFailures",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ResidueInverseExamples",
+      "theorem": "Kalyx.Proofs.Fields.residueInverseExamples",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ResidueFailures",
+      "theorem": "Kalyx.Proofs.Fields.residueFailures",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.IntegerPathsAndResiduesAgree",
+      "theorem": "Kalyx.Proofs.Fields.integerPathsAndResiduesAgree",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Fields.ResidueRingsAndPrimeFieldsDiffer",
+      "theorem": "Kalyx.Proofs.Fields.residueRingsAndPrimeFieldsDiffer",
+      "module": "Kalyx.Proofs.Fields",
+      "state": "planned"
+    }
+  ]
 }
