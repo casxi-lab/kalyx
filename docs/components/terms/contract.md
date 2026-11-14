@@ -1026,8 +1026,9 @@ what `eval` reads, and the meaning of a term as a partial function from the
 assignments of its symbols to the complex numbers. Its terms and
 constructors are computable definitions, and the limits that a construction
 reads, `maxExponent` and `maxIntegerBits`, are explicit parameters. What the
-design leaves open is a parameter: the order within rank 7 and the order of
-the coefficient lists of the minimal polynomials of algebraic constants, of
+design leaves open is a parameter: the precedence of the shapes of
+conditions, of their relations and of their properties, and the order of the
+coefficient lists of the minimal polynomials of algebraic constants, of
 which the statements assume only that they are total; the rules that the
 call constructor reads from the registry, assumed to keep the meaning of a
 call and to return canonical values that keep the bases of $N$; the values
