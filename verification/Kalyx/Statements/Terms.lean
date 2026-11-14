@@ -180,10 +180,12 @@ canonical operands:
   operand; its monomials with the coefficient 0 are at most the witness
   monomial over the maximal elements of the bases that the cores of total 0
   hold with a negative exponent and the other cores do not;
-* the product of operands whose items are neither `i` nor roots of a
-  literal degree, with a coefficient other than 0, keeps the coefficient and,
-  for every key, the total exponent of its operands; a constant has one key
-  for both signs;
+* the product of operands whose items are no roots of a literal degree, with
+  a coefficient other than 0, keeps the coefficient and, for every key other
+  than that of `i`, the total exponent of its operands; a constant has one key
+  for both signs; and the total exponent `e` of `i` returns to `i ^ (e mod 4)`:
+  the sign `-1` in the coefficient when `e mod 4` is 2 or 3, and `i` with the
+  exponent 1 when `e` is odd;
 * the product with the coefficient 0 is the zero witness of the maximal
   elements of the bases of its operands;
 * a one `(b⁻¹)⁰` whose base the other operands hold with a negative
@@ -205,9 +207,12 @@ def MergingAddsCoefficientsAndExponents : Prop :=
         (sumParts [u]).2.filter (fun m => m.1 = 0) =
           if bs = [] then [] else [(0, witnessCore bs)]) ∧
     (∀ ts u p q, (∀ t ∈ ts, canonical t) → productParts maxExponent ts = .value p →
-      (∀ x ∈ p.items, x.1 ≠ Term.imaginaryUnit ∧ rootOf x.1 = none) → p.coefficient ≠ 0 →
+      (∀ x ∈ p.items, rootOf x.1 = none) → p.coefficient ≠ 0 →
       mkProduct o maxExponent ts = .value u → productParts maxExponent [u] = .value q →
-      q.coefficient = p.coefficient ∧ ∀ K, exponentOf K q.items = exponentOf K p.items) ∧
+      let e := exponentOf (Key.of Term.imaginaryUnit 1) p.items
+      q.coefficient = p.coefficient * (if e % 4 = 2 ∨ e % 4 = 3 then -1 else 1) ∧
+        exponentOf (Key.of Term.imaginaryUnit 1) q.items = (if e % 2 = 1 then 1 else 0) ∧
+        ∀ K, K.base ≠ Term.imaginaryUnit → exponentOf K q.items = exponentOf K p.items) ∧
     (∀ ts u, (∀ t ∈ ts, canonical t) → mkProduct o maxExponent (.number 0 :: ts) = .value u →
       u = zeroWitness (maxBases o (Term.negBasesList ts))) ∧
     (∀ b ts, (∀ t ∈ ts, canonical t) → b ∈ Term.negBasesList ts →
