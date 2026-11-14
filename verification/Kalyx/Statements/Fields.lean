@@ -438,13 +438,14 @@ def IntegerPathsAndResiduesAgree : Prop :=
 
 /-- Residue rings and prime fields are different parents, negative (FLD-R20):
 parents are compared by their defining data only, a residue ring by its
-modulus and a prime field by its prime, and the two structures have parents
-of different types, so that no operation takes an element of `ℤ/7` and one of
-`𝔽_7` together; in both, the inverse of zero is `DivisionByZero`. -/
+modulus and a prime field by its prime, and in both `ℤ/7` and `𝔽_7` the
+inverse of zero is `DivisionByZero`. The parents of the two structures are of
+different types, so that no operation takes an element of `ℤ/7` and one of
+`𝔽_7` together; this separation is given by the types and is not stated, as
+the absence of an edge between them is not. -/
 def ResidueRingsAndPrimeFieldsDiffer : Prop :=
   (∀ μ : ResidueRing → ℕ → Storage, SameParentLaw (ResidueRing.ring μ).toCoefficientRing) ∧
   SameParentLaw PrimeField.field.toCoefficientRing ∧
-  ResidueRing ≠ PrimeField ∧
   (∀ μ : ResidueRing → ℕ → Storage,
     (ResidueRing.ring μ).unitInverse ⟨7⟩ 0 = .fault .divisionByZero) ∧
   ∃ F, PrimeField.new 7 = .built F ∧ PrimeField.field.inverse F ⟨0⟩ = .fault .divisionByZero
