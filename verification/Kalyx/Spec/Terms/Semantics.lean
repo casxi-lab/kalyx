@@ -1,6 +1,6 @@
 module
 
-public import Kalyx.Spec.Terms.Order
+public import Kalyx.Spec.Terms.Algebraic
 public import Mathlib.Analysis.SpecialFunctions.Trigonometric.Basic
 
 /-!
@@ -164,16 +164,11 @@ def Interp.RootLaw (I : Interp) : Prop :=
     I.call ⟨"rootn", .registered⟩ [u, n] ^ k =
       u ^ (k / n) * I.call ⟨"rootn", .registered⟩ [u, n] ^ (k % n)
 
-/-- Every constant that `valid` admits has a value other than 0: `valid` is
-the validity of the identities of algebraic constants, which is stated with
-them. -/
-def Interp.ConstantsNonzero (I : Interp) (valid : Constant → Prop) : Prop :=
-  ∀ c, valid c → c.denote I ≠ 0
+/-- Every valid constant (`Constant.Valid`) has a value other than 0. -/
+def Interp.ConstantsNonzero (I : Interp) : Prop := ∀ c : Constant, c.Valid → c.denote I ≠ 0
 
-/-- The laws of an interpretation together, under the validity `valid` of
-constants. -/
-def Interp.Lawful (I : Interp) (valid : Constant → Prop) : Prop :=
-  I.CondLaw ∧ I.RootLaw ∧ I.ConstantsNonzero valid
+/-- The laws of an interpretation together. -/
+def Interp.Lawful (I : Interp) : Prop := I.CondLaw ∧ I.RootLaw ∧ I.ConstantsNonzero
 
 /-- Two terms have the same meaning: at every assignment, both are undefined,
 or both are defined with the same value. This is the criterion of the rules
