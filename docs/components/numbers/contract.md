@@ -994,10 +994,11 @@ parameters and `ResourceLimit` as an outcome of its own, the domain tests
 first: in the form that may report, against estimates that are never below
 the bounds of [checks and charges](#checks-and-charges), an operation may
 report `ResourceLimit` naming `max_integer_bits` where the estimate or the
-result is above the limit, and returns its value where the result is within
-it. It states no charges, cancellation or deadlines, and it is not refined
-against the code. The bit checks of the residue rings, the number fields
-and the maps are not stated yet.
+result is above the limit, returns a value only where the result is within
+it, and returns its value where the estimate is within it. It states no
+charges, cancellation or deadlines, and it is not refined against the code.
+The bit checks of the residue rings, the number fields and the maps are not
+stated yet.
 
 - **Implemented here.** Every operation of `Rational`, of `Rationals` and of
   `PrimeField`.
