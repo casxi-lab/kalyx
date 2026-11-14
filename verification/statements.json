@@ -186,7 +186,7 @@
       "name": "Kalyx.Statements.Terms.TermOrderIsTotal",
       "theorem": "Kalyx.Proofs.Terms.termOrderIsTotal",
       "module": "Kalyx.Proofs.Terms.Order",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.MergingAddsCoefficientsAndExponents",
@@ -216,7 +216,7 @@
       "name": "Kalyx.Statements.Terms.ComparisonUnderBitLimit",
       "theorem": "Kalyx.Proofs.Terms.comparisonUnderBitLimit",
       "module": "Kalyx.Proofs.Terms.Order",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.CallsAreAtoms",
