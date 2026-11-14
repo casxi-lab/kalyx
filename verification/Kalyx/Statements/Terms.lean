@@ -141,9 +141,13 @@ operands, every constructor of the term core, the sum, the product, the
 power, the negation, the difference, the quotient, the condition and the
 symbol, returns a canonical term or fails with a fault other than `Internal`
 or with `ResourceLimit`; the call constructor returns a canonical term or
-fails, and fails with `Internal` only where the rules do. A canonical term
-whose exponents the limit admits is rebuilt from its parts through the
-constructors into itself (`Term.rebuild`). -/
+fails, and fails with `Internal` only where the rules do. Under a positive
+limit, a canonical term whose exponents the limit admits is rebuilt from its
+parts through the constructors into itself (`Term.rebuild`). The limit 0 is
+left out: rebuilding a product, or a monomial of a sum, checks the exponents
+of its factors against the limit, the exponent 1 of a factor that is not a
+power included, which `Term.exponentsWithin` does not read; so under the
+limit 0 a term such as `8 * x` or `x + y` fails with `ResourceLimit`. -/
 def CanonicalFormsAreClosedAndIdempotent : Prop :=
   ∀ (o : Orders) (maxExponent : ℕ) (R : RegistryRules), o.Total →
     R.Closed (fun me => Term.Canonical o me R) Term.negBases →
@@ -161,7 +165,7 @@ def CanonicalFormsAreClosedAndIdempotent : Prop :=
       (∀ u, mkCall maxExponent R h args = .value u → canonical u) ∧
       (mkCall maxExponent R h args = .fault .internal →
         R.apply maxExponent h args = .fault .internal)) ∧
-    ∀ t, canonical t → t.exponentsWithin maxExponent = true →
+    ∀ t, canonical t → 0 < maxExponent → t.exponentsWithin maxExponent = true →
       t.rebuild o maxExponent R = .value t
 
 /-- The order of terms is total (TRM-R01, TRM-R03, TRM-R13 to TRM-R15): for
