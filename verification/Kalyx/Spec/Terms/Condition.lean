@@ -13,8 +13,8 @@ one condition and `and` and `or` of two or more. At each assignment of its
 symbols a condition is true, false or undefined.
 
 This specification states the place of conditions after the sums, their
-order within the rank (by shape with its relation or property, in the order
-that the parameter `Orders.condition` gives, then by their operands), the
+order within the rank (by shape, then by the relation or the property, in the
+orders that the parameters `Orders` give, then by their operands), the
 separation of the two classes and the atomicity of conditions: no rule of
 sums, products and powers takes or enters a condition, a condition operand
 of a value constructor fails with `Syntax`, and the one rule of the term core

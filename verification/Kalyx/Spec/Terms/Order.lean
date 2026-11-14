@@ -8,7 +8,7 @@ public import Kalyx.Spec.Terms.Term
 `Term.cmp o` is the total order of terms (TRM-R03), a pure function: by rank
 first, and within a rank by the rules of the terms contract ("Kinds and the
 total order") and of the architecture ("Kinds and order", "Order and cache").
-Two orders that the design does not fix down to single values are parameters
+The orders that the design does not fix down to single values are parameters
 (`Orders`), of which the statements assume only that they are total
 (`Orders.Total`); `Orders.sample` is one choice of them for replays and
 examples, not kalyx's.
@@ -61,24 +61,55 @@ transitive; and `eq` only for equal arguments (`Std.TransCmp` and
 `Std.LawfulEqCmp`). -/
 def TotalCmp {α : Type} (c : α → α → Ordering) : Prop := Std.TransCmp c ∧ Std.LawfulEqCmp c
 
+/-- The shape of a condition without its relation or its property: each
+truth value is a shape of its own. -/
+inductive CondKind where
+  | truth (value : Bool)
+  | comparison | predicate | defined | not | and | or
+  deriving DecidableEq, Repr
+
+/-- The shape of a condition without its relation or its property. -/
+def CondShape.kind : CondShape → CondKind
+  | .truth b => .truth b
+  | .comparison _ => .comparison
+  | .predicate _ => .predicate
+  | .defined => .defined
+  | .not => .not
+  | .and => .and
+  | .or => .or
+
 /-- The orders that the design does not fix down to single values, the
-parameters of the order of terms. `condition` orders the shapes of
-conditions with their relations and properties, which order conditions first
-within rank 7: the architecture orders conditions by shape, then by the
-relation or the property, without ordering the shapes, the relations or the
-properties among themselves. `coefficients` orders the coefficient lists of
-the minimal polynomials of two algebraic constants of one type and one
-degree, between the degree and the index: the architecture orders them "by
-the coefficients of `m`". -/
+parameters of the order of terms. The architecture orders conditions within
+rank 7 by shape first, then by the relation or the property, then by their
+operands, without ordering the shapes, the relations or the properties among
+themselves: `shapes`, `relations` and `properties` give these three orders.
+`coefficients` orders the coefficient lists of the minimal polynomials of two
+algebraic constants of one type and one degree, between the degree and the
+index: the architecture orders them "by the coefficients of `m`". -/
 structure Orders where
   /-- The order of the shapes of conditions. -/
-  condition : CondShape → CondShape → Ordering
+  shapes : CondKind → CondKind → Ordering
+  /-- The order of the relations of comparisons. -/
+  relations : Relation → Relation → Ordering
+  /-- The order of the properties of property predicates, by their names. -/
+  properties : String → String → Ordering
   /-- The order of the coefficient lists of minimal polynomials of one
   degree. -/
   coefficients : List ℚ → List ℚ → Ordering
 
-/-- Both orders of the parameters are total. -/
-def Orders.Total (o : Orders) : Prop := TotalCmp o.condition ∧ TotalCmp o.coefficients
+/-- The orders of the parameters are total. -/
+def Orders.Total (o : Orders) : Prop :=
+  TotalCmp o.shapes ∧ TotalCmp o.relations ∧ TotalCmp o.properties ∧ TotalCmp o.coefficients
+
+/-- The order of the shapes of conditions with their relations and
+properties: by shape, then the relations of two comparisons, or the
+properties of two property predicates. -/
+def CondShape.cmp (o : Orders) (s r : CondShape) : Ordering :=
+  (o.shapes s.kind r.kind).then
+    (match s, r with
+      | .comparison a, .comparison b => o.relations a b
+      | .predicate p, .predicate q => o.properties p q
+      | _, _ => .eq)
 
 /-- The order of the identities of two algebraic constants of one type: by
 degree, the length of the list of `m`, then by the coefficients of `m` in the
@@ -145,8 +176,8 @@ ranks differ in their ranks. Within a rank: numbers by value; constants by
 head name, then the class, then the arguments; powers by base, then
 exponent; products by their factors, then the coefficient; sums by their
 monomials, each by its core and then its coefficient, then the constant;
-conditions by their shape, in the order of the parameters, then their
-operands. Children are compared one by one over the common positions, and
+conditions by their shape and then their relation or property, in the orders
+of the parameters (`CondShape.cmp`), then their operands. Children are compared one by one over the common positions, and
 then by their numbers, so that a proper prefix comes first. -/
 def Term.firstDifference (o : Orders) : Term → Term → Difference
   | .number a, .number b => .ofRationals a b
@@ -159,7 +190,7 @@ def Term.firstDifference (o : Orders) : Term → Term → Difference
   | .product a fs, .product b gs => (Term.firstDifferenceList o fs gs).andThen (.ofRationals a b)
   | .sum a ms, .sum b ns => (Term.firstDifferencePairs o ms ns).andThen (.ofRationals a b)
   | .condition s xs, .condition r ys =>
-    (Difference.ofOrdering (o.condition s r)).andThen (Term.firstDifferenceList o xs ys)
+    (Difference.ofOrdering (CondShape.cmp o s r)).andThen (Term.firstDifferenceList o xs ys)
   | t, u => .ofOrdering (compare t.rank u.rank)
   termination_by structural t _ => t
 
@@ -306,23 +337,24 @@ def strictlyIncreasing {α : Type} (c : α → α → Ordering) : List α → Bo
 /-! ## A choice of the parameters -/
 
 /-- A sample order of the shapes of conditions: `false`, `true`, the
-comparisons by their relations in the order `==`, `!=`, `<`, `<=`, `>`, `>=`,
-the predicates by the bytes of their properties, `defined`, `not`, `and`,
-`or`. -/
-def CondShape.sampleCmp (s r : CondShape) : Ordering :=
-  let index : CondShape → ℕ
-    | .truth false => 0 | .truth true => 1 | .comparison .eq => 2 | .comparison .ne => 3
-    | .comparison .lt => 4 | .comparison .le => 5 | .comparison .gt => 6
-    | .comparison .ge => 7 | .predicate _ => 8 | .defined => 9 | .not => 10 | .and => 11
-    | .or => 12
-  match s, r with
-  | .predicate p, .predicate q => nameCmp p q
-  | _, _ => compare (index s) (index r)
+comparisons, the predicates, `defined`, `not`, `and`, `or`. -/
+def CondKind.sampleCmp (s r : CondKind) : Ordering :=
+  let index : CondKind → ℕ
+    | .truth false => 0 | .truth true => 1 | .comparison => 2 | .predicate => 3
+    | .defined => 4 | .not => 5 | .and => 6 | .or => 7
+  compare (index s) (index r)
+
+/-- A sample order of the relations: `==`, `!=`, `<`, `<=`, `>`, `>=`. -/
+def Relation.sampleCmp (a b : Relation) : Ordering :=
+  let index : Relation → ℕ
+    | .eq => 0 | .ne => 1 | .lt => 2 | .le => 3 | .gt => 4 | .ge => 5
+  compare (index a) (index b)
 
 /-- A choice of the parameters for replays and examples, not kalyx's orders:
-the sample order of the shapes, and coefficient lists lexicographically by
-value from the constant term. -/
-def Orders.sample : Orders := ⟨CondShape.sampleCmp, lexCmp ratCmp⟩
+the sample orders of the shapes and of the relations, the properties by the
+bytes of their names, and coefficient lists lexicographically by value from
+the constant term. -/
+def Orders.sample : Orders := ⟨CondKind.sampleCmp, Relation.sampleCmp, nameCmp, lexCmp ratCmp⟩
 
 end Kalyx.Spec.Terms
 
