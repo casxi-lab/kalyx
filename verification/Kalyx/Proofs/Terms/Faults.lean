@@ -1,6 +1,7 @@
 module
 
 public import Kalyx.Statements.Terms
+public import Kalyx.Proofs.Terms.Basics
 
 /-!
 # The faults of strict evaluation
@@ -26,17 +27,6 @@ open Kalyx.Spec.Terms Kalyx.Spec.Fields Kalyx.Statements.Terms
 /-- A result that is not the fault `DivisionByZero`. -/
 private abbrev NoDiv {α : Type} (r : Result α) : Prop := r ≠ .fault .divisionByZero
 
-/-- A bound value is the function at the value. -/
-private theorem value_bind {α β : Type} (v : α) (f : α → Result β) :
-    (Result.value v >>= f) = f v := rfl
-
-/-- A pure value is the value. -/
-private theorem pure_eq {α : Type} (v : α) : (pure v : Result α) = .value v := rfl
-
-/-- A bound limit is the limit. -/
-private theorem limit_bind {α β : Type} (l : LimitField) (f : α → Result β) :
-    (Result.resourceLimit l >>= f) = .resourceLimit l := rfl
-
 /-- Closes `NoDiv` of a value, a limit or another fault. -/
 local macro "nodiv" : tactic => `(tactic| (intro h; cases h))
 
@@ -58,20 +48,15 @@ private theorem bind_div_of {α β : Type} {x : Result α} {f : α → Result β
   | fault e => exact ⟨fun h => by cases h; rfl, fun h => by cases h; rfl⟩
   | resourceLimit l => exact ⟨nofun, nofun⟩
 
-/-- The loop of `mapM` is not `DivisionByZero` when `f` gives no
-`DivisionByZero` on any element of the list. -/
-private theorem loop_noDiv {α β : Type} (f : α → Result β) :
-    ∀ (l : List α) (bs : List β), (∀ a ∈ l, NoDiv (f a)) → NoDiv (List.mapM.loop f l bs)
-  | [], _, _ => by rw [List.mapM.loop]; nodiv
-  | a :: l, bs, h => by
-    rw [List.mapM.loop]
-    exact bind_noDiv (h a (by simp)) fun v => loop_noDiv f l _ fun x hx => h x (by simp [hx])
-
 /-- `mapM` is not `DivisionByZero` when `f` gives no `DivisionByZero` on any
 element of the list. -/
-private theorem mapM_noDiv {α β : Type} (f : α → Result β) (l : List α)
-    (h : ∀ a ∈ l, NoDiv (f a)) : NoDiv (l.mapM f) :=
-  loop_noDiv f l [] h
+private theorem mapM_noDiv {α β : Type} (f : α → Result β) :
+    ∀ (l : List α), (∀ a ∈ l, NoDiv (f a)) → NoDiv (l.mapM f)
+  | [], _ => by rw [List.mapM_nil]; nodiv
+  | a :: l, h => by
+    rw [List.mapM_cons]
+    exact bind_noDiv (h a (by simp)) fun _ =>
+      bind_noDiv (mapM_noDiv f l fun x hx => h x (by simp [hx])) fun _ => by nodiv
 
 /-! ## Products and sums never divide by zero -/
 
@@ -240,36 +225,6 @@ private theorem mkDivide_div_iff (o : Orders) (me : ℕ) (a b : Term) :
 
 /-! ## Zero bases -/
 
-/-- A content of 0 means the constant 0 and only coefficients 0. -/
-private theorem sumContent_eq_zero {c : ℚ} :
-    ∀ (ms : List (ℚ × Term)), sumContent c ms = 0 → c = 0 ∧ ∀ m ∈ ms, m.1 = 0
-  | [], h => ⟨by simpa [sumContent] using h, by simp⟩
-  | (a, t) :: ms, h => by
-    rw [sumContent] at h
-    split at h
-    · obtain ⟨h1, h2⟩ := sumContent_eq_zero ms h
-      exact ⟨h1, List.forall_mem_cons.2 ⟨by assumption, h2⟩⟩
-    · exact absurd h (by assumption)
-
-/-- A canonical sum has a content other than 0: it has at least two parts and
-at most one monomial with the coefficient 0. -/
-private theorem content_ne_zero {o : Orders} {me : ℕ} {R : RegistryRules} {c : ℚ}
-    {ms : List (ℚ × Term)} (h : Term.Canonical o me R (.sum c ms)) : sumContent c ms ≠ 0 := by
-  intro h0
-  obtain ⟨hc, hms⟩ := sumContent_eq_zero ms h0
-  have hs : canonicalSum o c ms = true := by
-    have := h.1
-    simp only [Term.shapeOk, Term.nodes, List.all_cons, Bool.and_eq_true] at this
-    exact this.1
-  have hf : ms.filter (fun m => decide (m.1 = 0)) = ms :=
-    List.filter_eq_self.2 fun m hm => by simp [hms m hm]
-  unfold canonicalSum at hs
-  rw [hf, hc] at hs
-  match ms, hs with
-  | [], hs => simp at hs
-  | [_], hs => simp at hs
-  | _ :: _ :: _, hs => simp at hs
-
 /-- On a canonical term, the zero bases are the number 0 and the products with
 the coefficient 0. -/
 private theorem zeroBase_iff {o : Orders} {me : ℕ} {R : RegistryRules} {b : Term}
@@ -277,7 +232,10 @@ private theorem zeroBase_iff {o : Orders} {me : ℕ} {R : RegistryRules} {b : Te
   cases b with
   | number r => simp [ZeroBase]
   | product c fs => simp [ZeroBase]
-  | sum c ms => simp [ZeroBase, content_ne_zero h]
+  | sum c ms =>
+    have := h.1
+    simp only [Term.shapeOk, Term.nodes, List.all_cons, Bool.and_eq_true] at this
+    simp [ZeroBase, sumContent_ne_zero this.1]
   | _ => simp [ZeroBase]
 
 /-- Monomials with the coefficient 0 add up to 0 where they are defined. -/
@@ -301,7 +259,7 @@ private theorem denote_zero (I : Interp) (ρ : Assignment) (b : Term) (hb : Zero
     simp only [ZeroBase] at hb
     cases h : Term.denoteList I ρ fs <;> simp [Term.denote, h, hb]
   | sum c ms =>
-    obtain ⟨hc, hms⟩ := sumContent_eq_zero ms hb
+    obtain ⟨hc, hms⟩ := sumContent_eq_zero hb
     rcases denotePairs_zero I ρ ms hms with h | h <;> simp [Term.denote, h, hc]
   | _ => simp [ZeroBase] at hb
 
@@ -326,7 +284,7 @@ private theorem product_two_powers (o : Orders) (me : ℕ) (b : Term) (j k : ℤ
   have hred : ∀ s : ℤ, exponentBound me < s.natAbs →
       [(b, s)].mapM (reduceItem me) = .resourceLimit .exponent := by
     intro s hs
-    simp [List.mapM, List.mapM.loop, reduceItem, checkExponent, hs, limit_bind]
+    simp [List.mapM, List.mapM.loop, reduceItem, checkExponent, hs, bind_limit]
   have hm : mergeItems o [(b, j), (b, k)] = [(b, j + k)] ∨
       mergeItems o [(b, j), (b, k)] = [(b, k + j)] := by
     unfold mergeItems
@@ -345,17 +303,17 @@ private theorem product_two_powers (o : Orders) (me : ℕ) (b : Term) (j k : ℤ
   by_cases h1 : exponentBound me < j.natAbs
   · have : productParts me [.power b j, .power b k] = .resourceLimit .exponent := by
       simp [productParts, List.mapM, List.mapM.loop, factorParts, itemParts, checkExponent, hj,
-        h1, limit_bind]
+        h1, bind_limit]
     rw [this]; rfl
   by_cases h2 : exponentBound me < k.natAbs
   · have : productParts me [.power b j, .power b k] = .resourceLimit .exponent := by
       simp [productParts, List.mapM, List.mapM.loop, factorParts, itemParts, checkExponent, hj,
-        hk, h1, h2, value_bind, limit_bind]
+        hk, h1, h2, bind_value, bind_limit]
     rw [this]; rfl
   have hp : productParts me [.power b j, .power b k] = .value ⟨1, [(b, j), (b, k)], []⟩ := by
     simp [productParts, List.mapM, List.mapM.loop, factorParts, itemParts, checkExponent, hj, hk,
-      h1, h2, pure_eq, value_bind, ProductParts.append, ProductParts.unit]
-  rw [hp, value_bind]
+      h1, h2, pure_value, bind_value, ProductParts.append, ProductParts.unit]
+  rw [hp, bind_value]
   exact hbuild
 
 /-! ## The statement -/
@@ -379,7 +337,7 @@ public theorem strictEvaluationFaults_holds : StrictEvaluationFaults := by
     by_cases hk : exponentBound me < k.natAbs
     · simp only [hk, ↓reduceIte]
     simp [hk, Term.isCondition, h0, h1, distributedPower, mergedPower, mergePowers, hm,
-      checkExponent, hjk, limit_bind]
+      checkExponent, hjk, bind_limit]
   · intro b k hb hk
     rw [mkPower_div_iff, zeroBase_iff hb]
     exact ⟨fun h => h.2, fun h => ⟨hk, h⟩⟩
