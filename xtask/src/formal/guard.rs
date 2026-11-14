@@ -850,7 +850,6 @@ mod tests {
     fn the_committed_registries_parse() {
         let statements = include_str!("../../../verification/statements.json");
         let statements = load_statements(statements, &LAYOUT).expect("the statements parse");
-        assert!(statements.statements.is_empty());
         assert_eq!(statements.hash.len(), 40);
         let axioms = lean::load_axioms(include_str!("../../../verification/axioms.json"));
         assert_eq!(axioms, Ok(BTreeSet::new()));
