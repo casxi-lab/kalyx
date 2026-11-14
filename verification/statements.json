@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "hash": "efc6fb517147cc2d6d0d39a2fe50d42a26d4e649",
+  "hash": "a0e0099ee19ad2e8ebed55b52849e550b922c11e",
   "statements": [
     {
       "name": "Kalyx.Statements.Fields.RingAxioms",
@@ -169,6 +169,240 @@
       "theorem": "Kalyx.Proofs.Fields.residueRingsAndPrimeFieldsDiffer",
       "module": "Kalyx.Proofs.Fields",
       "state": "proved"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.SumsAndProductsIgnoreOrderAndGrouping",
+      "theorem": "Kalyx.Proofs.Terms.sumsAndProductsIgnoreOrderAndGrouping",
+      "module": "Kalyx.Proofs.Terms.Normal",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.CanonicalFormsAreClosedAndIdempotent",
+      "theorem": "Kalyx.Proofs.Terms.canonicalFormsAreClosedAndIdempotent",
+      "module": "Kalyx.Proofs.Terms.Normal",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.TermOrderIsTotal",
+      "theorem": "Kalyx.Proofs.Terms.termOrderIsTotal",
+      "module": "Kalyx.Proofs.Terms.Order",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.MergingAddsCoefficientsAndExponents",
+      "theorem": "Kalyx.Proofs.Terms.mergingAddsCoefficientsAndExponents",
+      "module": "Kalyx.Proofs.Terms.Normal",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ConstructorsKeepNegativeBases",
+      "theorem": "Kalyx.Proofs.Terms.constructorsKeepNegativeBases",
+      "module": "Kalyx.Proofs.Terms.Normal",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ConstructorsKeepMeanings",
+      "theorem": "Kalyx.Proofs.Terms.constructorsKeepMeanings",
+      "module": "Kalyx.Proofs.Terms.Semantics",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.StrictEvaluationFaults",
+      "theorem": "Kalyx.Proofs.Terms.strictEvaluationFaults",
+      "module": "Kalyx.Proofs.Terms.Normal",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ComparisonUnderBitLimit",
+      "theorem": "Kalyx.Proofs.Terms.comparisonUnderBitLimit",
+      "module": "Kalyx.Proofs.Terms.Order",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.CallsAreAtoms",
+      "theorem": "Kalyx.Proofs.Terms.callsAreAtoms",
+      "module": "Kalyx.Proofs.Terms.Normal",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ScaledCopiesOfOneSumMergeInEveryGrouping",
+      "theorem": "Kalyx.Proofs.Terms.scaledCopiesOfOneSumMergeInEveryGrouping",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.OppositeSignsNeverMergeInAnyGrouping",
+      "theorem": "Kalyx.Proofs.Terms.oppositeSignsNeverMergeInAnyGrouping",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ContentThatCancelsLeavesNoProduct",
+      "theorem": "Kalyx.Proofs.Terms.contentThatCancelsLeavesNoProduct",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.NonCanonicalNodesFailTheShape",
+      "theorem": "Kalyx.Proofs.Terms.nonCanonicalNodesFailTheShape",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.SumsAndProductsSortTheirTerms",
+      "theorem": "Kalyx.Proofs.Terms.sumsAndProductsSortTheirTerms",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.UnsortedCoresAndTheByteOrder",
+      "theorem": "Kalyx.Proofs.Terms.unsortedCoresAndTheByteOrder",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.LikeTermsAndCoefficientsMerge",
+      "theorem": "Kalyx.Proofs.Terms.likeTermsAndCoefficientsMerge",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.OppositeSignsKeepTwoFactors",
+      "theorem": "Kalyx.Proofs.Terms.oppositeSignsKeepTwoFactors",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ZeroAndOneDisappear",
+      "theorem": "Kalyx.Proofs.Terms.zeroAndOneDisappear",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.WitnessesKeepCancelledBases",
+      "theorem": "Kalyx.Proofs.Terms.witnessesKeepCancelledBases",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.PowersMergeAndDistribute",
+      "theorem": "Kalyx.Proofs.Terms.powersMergeAndDistribute",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.PowersThatWouldHideBasesStay",
+      "theorem": "Kalyx.Proofs.Terms.powersThatWouldHideBasesStay",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ZeroToTheZeroIsOne",
+      "theorem": "Kalyx.Proofs.Terms.zeroToTheZeroIsOne",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.StrictEvaluationFailures",
+      "theorem": "Kalyx.Proofs.Terms.strictEvaluationFailures",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.LogicalBytesOfProducts",
+      "theorem": "Kalyx.Proofs.Terms.logicalBytesOfProducts",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.SharedSubtermsCountOncePerOccurrence",
+      "theorem": "Kalyx.Proofs.Terms.sharedSubtermsCountOncePerOccurrence",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.DepthOfLeavesAndProducts",
+      "theorem": "Kalyx.Proofs.Terms.depthOfLeavesAndProducts",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.DepthIsNotSize",
+      "theorem": "Kalyx.Proofs.Terms.depthIsNotSize",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.DisplayIsTheSameForEveryConstruction",
+      "theorem": "Kalyx.Proofs.Terms.displayIsTheSameForEveryConstruction",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.DisplayOfANegatedReciprocal",
+      "theorem": "Kalyx.Proofs.Terms.displayOfANegatedReciprocal",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.SymbolNames",
+      "theorem": "Kalyx.Proofs.Terms.symbolNames",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ReservedAndMalformedNames",
+      "theorem": "Kalyx.Proofs.Terms.reservedAndMalformedNames",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.EvalGivesTheCanonicalTerm",
+      "theorem": "Kalyx.Proofs.Terms.evalGivesTheCanonicalTerm",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.EvalOfFreeSymbolsFails",
+      "theorem": "Kalyx.Proofs.Terms.evalOfFreeSymbolsFails",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ConstantsMergeAndOrder",
+      "theorem": "Kalyx.Proofs.Terms.constantsMergeAndOrder",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ConstantsAreNotNegativeBases",
+      "theorem": "Kalyx.Proofs.Terms.constantsAreNotNegativeBases",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.CallsMergeAsAtoms",
+      "theorem": "Kalyx.Proofs.Terms.callsMergeAsAtoms",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.CallsAreNotExpanded",
+      "theorem": "Kalyx.Proofs.Terms.callsAreNotExpanded",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ConditionsRankLastAndSelectBranches",
+      "theorem": "Kalyx.Proofs.Terms.conditionsRankLastAndSelectBranches",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
+    },
+    {
+      "name": "Kalyx.Statements.Terms.ConditionsInValuePositionsFail",
+      "theorem": "Kalyx.Proofs.Terms.conditionsInValuePositionsFail",
+      "module": "Kalyx.Proofs.Terms.Examples",
+      "state": "planned"
     }
   ]
 }

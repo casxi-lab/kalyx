@@ -19,13 +19,17 @@ to the [exact numbers](../numbers/contract.md).
 
 **Status.** Implemented in `src/term.rs` and `src/term/`, at tier A1 (tested
 with a written contract); its canonical forms are planned for tier A2 in
-release 0.2. The term core is written anew for kalyx after the design rules of
-the architecture: no code and no test is taken over from the earlier
-implementation, so [PORTING](../../../PORTING.md) has no row for it. Its
-first caller in the library is the [parser](../syntax/contract.md), which
-builds the term of every input through its constructors; the
-[command entry](../command/contract.md) reads the terms of its results and
-writes their display text, and its operation `eval`, which
+release 0.2. Their Lean specification is in `verification/Kalyx/Spec/Terms/`,
+and `verification/statements.json` records the state of its statements, as
+[requirements and statements](#requirements-and-statements) lists. The
+constants, the calls and the conditions of [TRM-R13](#trm-r13) to
+[TRM-R15](#trm-r15) are planned for release 0.2. The term core is written anew
+for kalyx after the design rules of the architecture: no code and no test is
+taken over from the earlier implementation, so [PORTING](../../../PORTING.md)
+has no row for it. Its first caller in the library is the
+[parser](../syntax/contract.md), which builds the term of every input through
+its constructors; the [command entry](../command/contract.md) reads the terms
+of its results and writes their display text, and its operation `eval`, which
 [evaluation of a request](#evaluation-of-a-request) states, gives the number
 of a canonical term.
 
@@ -38,8 +42,9 @@ of a canonical term.
   the witnesses of negative exponents; the total order and
   equality; the set $N(t)$ of the bases that occur with a negative exponent;
   the display text; the accessors of the structure; the storage cost;
-  drop; and what the operation `eval` of the command entry reads, its steps
-  and its result.
+  drop; what the operation `eval` of the command entry reads, its steps
+  and its result; and the executable specification of the canonical forms
+  (tier A2) in Lean, with its statements and the replays of its vectors.
 - **Excluded, with their owners.**
   - Reading input text into terms, with the input syntax, its spans,
     function-call syntax and the reserved names in input: the
@@ -51,16 +56,14 @@ of a canonical term.
     the serialization of its outcome as an output line: the
     [command entry](../command/contract.md), whose operation index links
     the section of `eval` here.
-  - Function calls (their constructor and their simplification), the
-    constants $\pi$, $i$ and `undefined` of rank 1, assumptions, and the
-    explicit operation that removes negative exponents under conditions: the
-    term core extension and the function-expression baseline, release 0.2.
+  - The implementation of function calls, constants and conditions,
+    assumptions, and the explicit operation that removes negative exponents
+    under conditions: the term core extension and the function-expression
+    baseline, release 0.2.
   - The records of the functions: the
     [function registry](../registry/contract.md).
   - Simplification beyond the canonical forms: the rewriting engine, release
     0.5.
-  - The executable specification of the canonical forms (tier A2): release
-    0.2.
 
 ## Interface
 
@@ -667,7 +670,7 @@ where the grammar needs them:
 The order of the factors and of the monomials is their stored, canonical
 order, so the constant of a sum comes first and its monomials follow in the
 total order of their cores. The text is ASCII and depends only on the term,
-which by [uniqueness](#uniqueness) is the same for every grouping and every
+which by [uniqueness](#trm-r01) is the same for every grouping and every
 order of the same operands: the text is byte for byte the same for every way
 of building the term, in every run and on every host, so $2 (x + y)$,
 $(x + y) + (x + y)$ and $(2x + y) + y$ are all written `2*x + 2*y`. As
@@ -723,27 +726,31 @@ value position is a symbol, with `UnknownSymbol`.
 ## Requirements
 
 The earlier implementation has no requirement identifiers for its terms, so
-the requirements of this component are named after the invariants that they
-state; the six canonical-form invariants come first. Tests are in
+this component numbers its own, `TRM-R01` to `TRM-R15`, which are never
+renumbered or reused; the six canonical-form invariants come first.
+[TRM-R13](#trm-r13) to [TRM-R15](#trm-r15) state the constants, the calls and
+the conditions of release 0.2, which are planned and not implemented yet. The
+Lean specification states every requirement, as
+[requirements and statements](#requirements-and-statements) lists. Tests are in
 `tests/terms.rs` unless the entry names `tests/term_properties.rs`,
 `src/term/tests.rs`, `src/term/exponent.rs` or `tests/command.rs`. Each
 canonical-form invariant also has a property test of 1,000 cases in
 `tests/term_properties.rs`, as [testing obligation 2](#testing-obligations)
 states, which its evidence names.
 
-### Uniqueness
+### TRM-R01
 
-Every canonical term has one form: `compare` gives `Equal` for two canonical
-terms exactly when their structure is equal, and the constructors give the
-same canonical term, with the same display bytes, for every grouping and every
-order of the same operands of a sum or a product. A number distributes over a
-sum, and a sum that is a factor or a base is taken by its primitive part, so
-scaled copies of one sum merge in every grouping: with $s = x + y$, $a = 2s$
-and $b = -s$, the sums $a + b + b$ and $(a + b) + b$ are both 0, and
-$(a + b) + (a + b)$ and $a + b + a + b$ are both $2x + 2y$; and $s - s$ is
-0, whose power $-1$ fails with `DivisionByZero`. With opposite signs never
-merged, $(x \cdot x^{-2}) \cdot x^2$ and $x \cdot (x^{-2} \cdot x^2)$ are both
-$x^3 x^{-2}$.
+**Uniqueness.** Every canonical term has one form: `compare` gives `Equal` for
+two canonical terms exactly when their structure is equal, and the
+constructors give the same canonical term, with the same display bytes, for
+every grouping and every order of the same operands of a sum or a product. A
+number distributes over a sum, and a sum that is a factor or a base is taken
+by its primitive part, so scaled copies of one sum merge in every grouping:
+with $s = x + y$, $a = 2s$ and $b = -s$, the sums $a + b + b$ and
+$(a + b) + b$ are both 0, and $(a + b) + (a + b)$ and $a + b + a + b$ are both
+$2x + 2y$; and $s - s$ is 0, whose power $-1$ fails with `DivisionByZero`.
+With opposite signs never merged, $(x \cdot x^{-2}) \cdot x^2$ and
+$x \cdot (x^{-2} \cdot x^2)$ are both $x^3 x^{-2}$.
 
 - **Implemented here.** The work lists, the merging by key and by core, and
   the sorting of `src/term/product.rs` and `src/term/sum.rs`, with the
@@ -760,15 +767,15 @@ $x^3 x^{-2}$.
   `sums_built_in_different_orders_merge_as_bases_and_cores` and, in
   `src/term/tests.rs`, `equal_terms_built_apart_are_separate_nodes`.
 
-### Idempotence
+### TRM-R02
 
-Rebuilding a canonical term through the constructors from its parts, as the
-accessors give them, gives a structurally equal term with the same display
-bytes: every node satisfies the [canonical shape](#canonical-shape), and in
-particular no monomial core of a sum is a sum, every sum that is a factor or
-a base is primitive, and a content that cancels against a coefficient leaves
-no product with the coefficient 1: $\frac{1}{2} (2x + 2y) = x + y$ and
-$(1 - x)^2 = (x - 1)^2$.
+**Idempotence.** Rebuilding a canonical term through the constructors from its
+parts, as the accessors give them, gives a structurally equal term with the
+same display bytes: every node satisfies the
+[canonical shape](#canonical-shape), and in particular no monomial core of a
+sum is a sum, every sum that is a factor or a base is primitive, and a content
+that cancels against a coefficient leaves no product with the coefficient 1:
+$\frac{1}{2} (2x + 2y) = x + y$ and $(1 - x)^2 = (x - 1)^2$.
 
 - **Implemented here.** The scaling and the primitive parts of sums in
   `src/term/sum.rs`, and the assembly of every constructor.
@@ -779,12 +786,13 @@ $(1 - x)^2 = (x - 1)^2$.
   `sample_terms_keep_the_local_rules_of_the_canonical_form` and
   `scaling_keeps_the_cores_and_the_primitive_part_has_the_content_1`.
 
-### Order of terms in sums and products
+### TRM-R03
 
-The monomials of a sum are sorted by core and the factors of a product by key,
-both in the [total order](#kinds-and-the-total-order), whatever the order of
-the operands; the order ranks numbers, symbols, calls, powers, products and
-sums in this order.
+**Order of terms in sums and products.** The monomials of a sum are sorted by
+core and the factors of a product by key, both in the
+[total order](#kinds-and-the-total-order), whatever the order of the operands;
+the order ranks numbers, symbols, calls, powers, products and sums in this
+order.
 
 - **Implemented here.** `src/term/order.rs` and the merge sort of
   `src/term/sort.rs`.
@@ -795,14 +803,14 @@ sums in this order.
   `calls_sort_after_symbols_and_before_powers` and
   `calls_order_by_head_name_class_arguments_and_count`.
 
-### Merging of like terms and coefficients
+### TRM-R04
 
-Numbers multiply into one coefficient and add into one constant, exactly;
-monomials with equal cores add their coefficients; factors with equal keys add
-their exponents. Cores and bases are compared by structure, never by
-identity, and a sum among the factors by its primitive part, so
-$2 z (x + y) + 3 z (y + x) = 5 z (x + y)$ and
-$(2x + 2y)(y + x) = 2 (x + y)^2$.
+**Merging of like terms and coefficients.** Numbers multiply into one
+coefficient and add into one constant, exactly; monomials with equal cores add
+their coefficients; factors with equal keys add their exponents. Cores and
+bases are compared by structure, never by identity, and a sum among the
+factors by its primitive part, so $2 z (x + y) + 3 z (y + x) = 5 z (x + y)$
+and $(2x + 2y)(y + x) = 2 (x + y)^2$.
 
 - **Implemented here.** The merging steps of `src/term/product.rs` and
   `src/term/sum.rs`.
@@ -812,13 +820,13 @@ $(2x + 2y)(y + x) = 2 (x + y)^2$.
   `a_power_of_a_product_leaves_no_nested_product_and_no_repeated_key` and, in
   `src/term/tests.rs`, `calls_are_atoms_of_sums_products_and_powers`.
 
-### Elimination of 0 and 1
+### TRM-R05
 
-A summand 0, a factor 1 and the exponent 1 disappear; the empty sum is 0 and
-the empty product 1; a sum or a product left with one part is that part; a
-product with the coefficient 0 and a sum of cancelled monomials are 0, and
-$t^0$ is 1, unless a base that occurs with a negative exponent needs a
-witness.
+**Elimination of 0 and 1.** A summand 0, a factor 1 and the exponent 1
+disappear; the empty sum is 0 and the empty product 1; a sum or a product left
+with one part is that part; a product with the coefficient 0 and a sum of
+cancelled monomials are 0, and $t^0$ is 1, unless a base that occurs with a
+negative exponent needs a witness.
 
 - **Implemented here.** The assembly of products and sums and the rules of
   the exponents 0 and 1 in `src/term/power.rs`.
@@ -827,9 +835,10 @@ witness.
   `tests/term_properties.rs`. Also
   `a_sum_minus_itself_is_zero_and_has_no_reciprocal`.
 
-### Integer powers and the negative-exponent invariant
+### TRM-R06
 
-Powers follow the rules of [powers](#powers), and every constructor keeps
+**Integer powers and the negative-exponent invariant.** Powers follow the
+rules of [powers](#powers), and every constructor keeps
 $N(\mathrm{input}) \subseteq N(\mathrm{output})$, a base that is a sum taken
 by its primitive part, with the minimal witnesses of
 [negative exponents](#negative-exponents-and-witnesses).
@@ -850,9 +859,10 @@ by its primitive part, with the minimal witnesses of
   `magnitudes_cover_the_whole_range_of_i64` and
   `integers_become_exponents_under_the_same_check`.
 
-### Strict evaluation of numbers
+### TRM-R07
 
-The rules of [strict numeric evaluation](#strict-numeric-evaluation).
+**Strict evaluation of numbers.** The rules of
+[strict numeric evaluation](#strict-numeric-evaluation).
 
 - **Implemented here.** `src/term/power.rs` with `Rational::power`, and
   `Term::divide`.
@@ -862,12 +872,13 @@ The rules of [strict numeric evaluation](#strict-numeric-evaluation).
   `x_over_x_to_the_two_to_the_32_exceeds_max_exponent`. Also
   `a_sum_minus_itself_is_zero_and_has_no_reciprocal`.
 
-### Accounting under the request context
+### TRM-R08
 
-Every step is charged as [charges](#charges) state, an exhausted budget ends a
-construction with `ResourceLimit` naming `max_work`, every node is checked
-before it is allocated as [size, depth and storage](#size-depth-and-storage)
-state, and a broken internal invariant is a `Fault(Internal)`, never a panic
+**Accounting under the request context.** Every step is charged as
+[charges](#charges) state, an exhausted budget ends a construction with
+`ResourceLimit` naming `max_work`, every node is checked before it is
+allocated as [size, depth and storage](#size-depth-and-storage) state, and a
+broken internal invariant is a `Fault(Internal)`, never a panic
 ([convention 12](../../conventions/public-api.md#12-no-panic)).
 
 - **Implemented here.** `src/term/node.rs` and every charge of the
@@ -886,10 +897,11 @@ state, and a broken internal invariant is a `Fault(Internal)`, never a panic
   `the_cost_of_a_call_counts_its_name_and_arguments` and
   `a_broken_invariant_is_an_internal_fault`.
 
-### Depth and drop
+### TRM-R09
 
-Terms of any depth that the limits admit are built, compared, displayed and
-dropped with a native stack that does not grow with their depth.
+**Depth and drop.** Terms of any depth that the limits admit are built,
+compared, displayed and dropped with a native stack that does not grow with
+their depth.
 
 - **Implemented here.** The loops of `src/term/order.rs`,
   `src/term/display.rs` and `src/term/witness.rs`, and `Drop` in
@@ -898,36 +910,175 @@ dropped with a native stack that does not grow with their depth.
   with `max_depth` raised above the tested depth, and
   `dropping_a_term_keeps_its_shared_subterms` in `src/term/tests.rs`.
 
-### Deterministic display
+### TRM-R10
 
-The text of a term follows the [display](#display) grammar and is the same,
-byte for byte, for every way of building the term and in every run.
+**Deterministic display.** The text of a term follows the [display](#display)
+grammar and is the same, byte for byte, for every way of building the term and
+in every run.
 
 - **Implemented here.** `src/term/display.rs`.
 - **Evidence.** `display_bytes_are_the_same_in_two_runs`,
   `construction_order_does_not_change_the_display_bytes` and
   `the_display_follows_its_grammar`.
 
-### Symbols and reserved names
+### TRM-R11
 
-Symbol names follow the rule of [symbol names](#symbol-names), and the
-reserved names fail as [calls and reserved names](#calls-and-reserved-names)
-state.
+**Symbols and reserved names.** Symbol names follow the rule of
+[symbol names](#symbol-names), and the reserved names fail as
+[calls and reserved names](#calls-and-reserved-names) state.
 
 - **Implemented here.** `src/term/symbol.rs`.
 - **Evidence.** `reserved_names_are_unsupported` and
   `symbol_names_are_identifiers`.
 
-### Evaluation reads the canonical term
+### TRM-R12
 
-`eval` gives the number of its input and fails with `UnknownSymbol` for a
-term that is not a number, as [evaluation of a request](#evaluation-of-a-request)
-states.
+**Evaluation reads the canonical term.** `eval` gives the number of its input
+and fails with `UnknownSymbol` for a term that is not a number, as
+[evaluation of a request](#evaluation-of-a-request) states.
 
 - **Implemented here.** `eval` in `src/command/dispatch.rs`.
 - **Evidence.** Positive: `eval_gives_the_exact_number_of_the_input`.
   Negative: `eval_of_a_term_with_a_symbol_is_an_unknown_symbol`. Both are in
   `tests/command.rs`.
+
+### TRM-R13
+
+**Constants.** Planned for release 0.2: rank 1 holds the named constants
+$\pi$ and $i$ and the algebraic constants, each of which holds the
+[identity](../../architecture.md#identity) $(m, k)$ of an algebraic number,
+and `undefined` is not a term. Every constant is an exact number other than 0
+([constants](../../architecture.md#constants)): it never enters $N$, the
+factors of one constant base add their exponents whatever their signs,
+$i^k$ is $1$, $i$, $-1$ or $(-1) \cdot i$ by $k \bmod 4$ for every integer
+$k$, a power of $\pi$ or of an algebraic constant is not reduced, and no
+constructor folds arithmetic between algebraic constants. Within rank 1 the
+named constants come first, by the bytes of their names, and then the
+algebraic constants, real before complex, then by degree, by the
+coefficients of $m$ and by the index. The principal root of a rational is
+normalized as [principal roots of rationals](../../architecture.md#principal-roots-of-rationals)
+states, and an algebraic number becomes a term by the rules of
+[algebraic numbers as terms](../../architecture.md#algebraic-numbers-as-terms),
+so a canonical term holds an algebraic constant only for a number that no
+closed form covers.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### TRM-R14
+
+**Calls.** Planned for release 0.2: a call `Call(Head { name, class }, args)`
+of rank 3, with the shape and the order that
+[calls and reserved names](#calls-and-reserved-names) fixes, is a total
+uninterpreted atom of sums, products and powers
+([call nodes](../../architecture.md#call-nodes)): they compare calls by
+structure, merge equal calls as one, and never enter, distribute over or
+rewrite a call. The call constructor checks the class of each argument,
+applies the rule of `piecewise` on a truth value, and leaves every other call
+to the rules that it reads from the function registry, with the checks of
+the order of `derivative` and of the bindings of `substitute`
+([rules of the call constructor](../../architecture.md#rules-of-the-call-constructor));
+each rule is an identity with the same domain on both sides. The powers of a
+root of a literal degree $n$, $\sqrt{u}$ of the degree 2 or
+$\mathrm{rootn}(u, n)$, are a rule of the term core: for $k \ge n$,
+$(\sqrt[n]{u})^k = u^{\lfloor k/n \rfloor} (\sqrt[n]{u})^{k \bmod n}$, whose
+factors return to the merging of the product, and a negative power of a root
+is not reduced. `derivative` and `substitute` are formal atoms of the term
+core.
+
+- **Implemented here.** Nothing yet but the reserved shape of a call node;
+  planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### TRM-R15
+
+**Conditions.** Planned for release 0.2: the conditions are a kind of rank 7,
+after the sums ([conditions](../../architecture.md#conditions)): the truth
+values, the comparisons, the property predicates, `defined`, `not`, `and` and
+`or`, ordered within the rank by shape, then by the relation or the property,
+then by their operands. Values and conditions are two classes: the operands
+of the connectives and the first argument of `piecewise` are conditions,
+every other operand and argument is a value, and an operand of the wrong
+class fails with `Fault(Syntax)`. No rule of sums, products and powers takes
+or enters a condition. `piecewise(c, a, b)` is a formal call whose first
+argument is a condition: it is $a$ for `true` and $b$ for `false`, a rule of
+the term core that selects a branch and is the one exception to the
+negative-exponent invariant of [TRM-R06](#trm-r06), which the constructors of
+values keep. At each assignment a condition is true, false or undefined.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### Requirements and statements
+
+The Lean specification in
+[`verification/Kalyx/Spec/Terms/`](../../../verification/Kalyx/Spec/Terms)
+states the requirements above, written from them and from the design rules of
+the architecture, not from the code: the terms and their kinds, the total
+order, the constructors and the canonical-form predicate, the display text,
+what `eval` reads, and the meaning of a term as a partial function from the
+assignments of its symbols to the complex numbers. Its terms and
+constructors are computable definitions, and the limits that a construction
+reads, `maxExponent` and `maxIntegerBits`, are explicit parameters. What the
+design leaves open is a parameter: the precedence of the shapes of
+conditions, of their relations and of their properties, and the order of the
+coefficient lists of the minimal polynomials of algebraic constants, of
+which the statements assume only that they are total; the rules that the
+call constructor reads from the registry, assumed to keep the meaning of a
+call and to return canonical values that keep the bases of $N$; the values
+of calls and of algebraic constants and the truth of conditions, of which
+only the truth values are fixed; the answer of `eval` for a term without free
+symbols that holds a formal call; and the bytes and the text of constants,
+calls and conditions. The bounds on the bits of numbers are those of the
+[exact numbers](../numbers/contract.md#requirements-and-statements), whose
+specification this one imports. [TRM-R08](#trm-r08) is stated for the tree
+size, the depth and the logical bytes, [TRM-R09](#trm-r09) for the depth,
+[TRM-R10](#trm-r10) for the text of numbers, symbols, named constants,
+calls, powers, products and sums, [TRM-R12](#trm-r12) for the canonical term
+that `eval` reads, and [TRM-R15](#trm-r15) for the place, the order, the
+classes and the atomicity of conditions and the rule of `piecewise`; the
+charges, the checks of nodes, the native stack, drop and the structural
+normalization of conditions are not stated.
+
+The propositions of
+[`verification/Kalyx/Statements/Terms.lean`](../../../verification/Kalyx/Statements/Terms.lean)
+are its registered statements: nine properties of the canonical forms, and a
+positive and a negative example of each requirement.
+`verification/statements.json` registers them with the theorems of the
+modules in
+[`verification/Kalyx/Proofs/Terms/`](../../../verification/Kalyx/Proofs/Terms)
+and records the state of each.
+[`verification/Kalyx/SpecTests/Terms.lean`](../../../verification/Kalyx/SpecTests/Terms.lean)
+replays through the specification, with `#guard`, the 152 vectors of
+[`vectors/r02.tsv`](../../../vectors/r02.tsv),
+[`vectors/cli_cases.tsv`](../../../vectors/cli_cases.tsv),
+[`vectors/library.tsv`](../../../vectors/library.tsv) and
+[`vectors/root_calls.tsv`](../../../vectors/root_calls.tsv) whose answers the
+term core alone decides.
+
+| Requirement | Properties | Positive example | Negative example |
+| --- | --- | --- | --- |
+| [TRM-R01](#trm-r01) | `SumsAndProductsIgnoreOrderAndGrouping`, `TermOrderIsTotal` | `ScaledCopiesOfOneSumMergeInEveryGrouping` | `OppositeSignsNeverMergeInAnyGrouping` |
+| [TRM-R02](#trm-r02) | `CanonicalFormsAreClosedAndIdempotent` | `ContentThatCancelsLeavesNoProduct` | `NonCanonicalNodesFailTheShape` |
+| [TRM-R03](#trm-r03) | `SumsAndProductsIgnoreOrderAndGrouping`, `TermOrderIsTotal`, `ComparisonUnderBitLimit` | `SumsAndProductsSortTheirTerms` | `UnsortedCoresAndTheByteOrder` |
+| [TRM-R04](#trm-r04) | `SumsAndProductsIgnoreOrderAndGrouping`, `MergingAddsCoefficientsAndExponents`, `ConstructorsKeepMeanings`, `CallsAreAtoms` | `LikeTermsAndCoefficientsMerge` | `OppositeSignsKeepTwoFactors` |
+| [TRM-R05](#trm-r05) | `CanonicalFormsAreClosedAndIdempotent`, `MergingAddsCoefficientsAndExponents`, `ConstructorsKeepNegativeBases`, `ConstructorsKeepMeanings`, `StrictEvaluationFaults` | `ZeroAndOneDisappear` | `WitnessesKeepCancelledBases` |
+| [TRM-R06](#trm-r06) | `CanonicalFormsAreClosedAndIdempotent`, `ConstructorsKeepNegativeBases`, `ConstructorsKeepMeanings`, `StrictEvaluationFaults` | `PowersMergeAndDistribute` | `PowersThatWouldHideBasesStay` |
+| [TRM-R07](#trm-r07) | `StrictEvaluationFaults` | `ZeroToTheZeroIsOne` | `StrictEvaluationFailures` |
+| [TRM-R08](#trm-r08) | `ComparisonUnderBitLimit` | `LogicalBytesOfProducts` | `SharedSubtermsCountOncePerOccurrence` |
+| [TRM-R09](#trm-r09) | None | `DepthOfLeavesAndProducts` | `DepthIsNotSize` |
+| [TRM-R10](#trm-r10) | None | `DisplayIsTheSameForEveryConstruction` | `DisplayOfANegatedReciprocal` |
+| [TRM-R11](#trm-r11) | None | `SymbolNames` | `ReservedAndMalformedNames` |
+| [TRM-R12](#trm-r12) | None | `EvalGivesTheCanonicalTerm` | `EvalOfFreeSymbolsFails` |
+| [TRM-R13](#trm-r13) | `SumsAndProductsIgnoreOrderAndGrouping`, `CanonicalFormsAreClosedAndIdempotent`, `TermOrderIsTotal`, `MergingAddsCoefficientsAndExponents`, `ConstructorsKeepNegativeBases`, `ConstructorsKeepMeanings` | `ConstantsMergeAndOrder` | `ConstantsAreNotNegativeBases` |
+| [TRM-R14](#trm-r14) | `SumsAndProductsIgnoreOrderAndGrouping`, `CanonicalFormsAreClosedAndIdempotent`, `TermOrderIsTotal`, `ConstructorsKeepNegativeBases`, `ConstructorsKeepMeanings`, `CallsAreAtoms` | `CallsMergeAsAtoms` | `CallsAreNotExpanded` |
+| [TRM-R15](#trm-r15) | `CanonicalFormsAreClosedAndIdempotent`, `TermOrderIsTotal`, `ConstructorsKeepMeanings` | `ConditionsRankLastAndSelectBranches` | `ConditionsInValuePositionsFail` |
 
 ## Defects of the earlier implementation
 
