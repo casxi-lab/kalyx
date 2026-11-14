@@ -25,12 +25,15 @@ explicit `maxExponent`:
    constant can reach, drops its item, since `c⁰ = 1`. The powers of `i`
    reduce by the exponent modulo 4 to 1, `i`, `-1` and `-i`, the sign going
    into the coefficient. The powers of roots: for a root `ⁿ√u` of a literal
-   degree `n` (`sqrt(u)` of degree 2, `rootn(u, n)` with a positive integer
-   `n`) and an exponent `k ≥ n`, `(ⁿ√u)ᵏ = u ^ ⌊k/n⌋ (ⁿ√u) ^ (k mod n)`:
+   degree `n` (`sqrt(u)` of degree 2, `rootn(u, n)` with an integer
+   `n ≥ 2`) and an exponent `k ≥ n`, `(ⁿ√u)ᵏ = u ^ ⌊k/n⌋ (ⁿ√u) ^ (k mod n)`:
    the item keeps `k mod n` and the flattening of `u ^ ⌊k/n⌋` returns to
    the work list, so its items merge with the others. A negative exponent
    leaves a root as it is. These rules of the term core are written out,
-   not read from the registry rules.
+   not read from the registry rules. `rootn(u, 1) = u` is a rule of calls,
+   so a root of the degree 1 is no root here: otherwise the factor
+   `rootn(u, 1)` would become `u` in a product while a sum keeps it in the
+   monomial `c · rootn(u, 1)`, under rules that keep the call.
 4. **Zero coefficient**: the product is the zero witness of the maximal
    elements of `N` of the factors and of the ones set aside, or 0.
 5. **Ones**: otherwise the bases that the ones set aside hold with a
@@ -116,13 +119,14 @@ def mergeItems (o : Orders) (items : List (Term × ℤ)) : List (Term × ℤ) :=
 def Term.imaginaryUnit : Term := .constant (.named .i)
 
 /-- The radicand and the literal degree of a root: `sqrt(u)` has the
-degree 2, and `rootn(u, n)` the degree `n` when `n` is a number that is a
-positive integer; both are calls of the class `Registered`. Any other term,
-`rootn` with another degree included, is no root here. -/
+degree 2, and `rootn(u, n)` the degree `n` when `n` is a number that is an
+integer of at least 2; both are calls of the class `Registered`. Any other
+term, `rootn` with another degree included, is no root here: the degree 1
+is left to the rules of calls, which rewrite `rootn(u, 1)` to `u`. -/
 def rootOf : Term → Option (Term × ℕ)
   | .call h [u] => if h = ⟨"sqrt", .registered⟩ then some (u, 2) else none
   | .call h [u, .number n] =>
-    if h = ⟨"rootn", .registered⟩ ∧ n.den = 1 ∧ 0 < n then some (u, n.num.toNat) else none
+    if h = ⟨"rootn", .registered⟩ ∧ n.den = 1 ∧ 1 < n then some (u, n.num.toNat) else none
   | _ => none
 
 /-- A merged item `(b, k)`: its exponent is checked, and then it is dropped
