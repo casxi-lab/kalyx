@@ -780,8 +780,9 @@ private theorem divStep_spec {b : List ℚ} (hb : b.getLast? ≠ some 0) (hb0 : 
     simp only [toPoly, map_neg]
     ring
 
-/-- The long division by a list `b` without trailing zeros: `p = q b + r`, and
-the remainder has no trailing zeros and is shorter than `b`. -/
+/-- The long division by a nonempty list `b` without trailing zeros, the list of
+a nonzero polynomial: `p = q b + r`, and the remainder has no trailing zeros and
+is shorter than `b`. -/
 private theorem divMod_spec {b : List ℚ} (hb : b.getLast? ≠ some 0) (hb0 : b ≠ [])
     (p : List ℚ) :
     toPoly p = toPoly (divMod p b).1 * toPoly b + toPoly (divMod p b).2 ∧
@@ -811,11 +812,12 @@ private theorem divMod_spec {b : List ℚ} (hb : b.getLast? ≠ some 0) (hb0 : b
   · show (trim _).length < b.length
     omega
 
-/-- The extended Euclidean algorithm from `r₀` and `r₁`, with their cofactors:
-while the remainder `r₁` is shorter than the fuel, it ends with a nonzero
-remainder that divides `M` and `A`, congruent modulo `M` to its cofactor times
-`A`, provided every common divisor of `r₀` and `r₁` divides `M` and `A` and
-both remainders are congruent to their cofactors times `A`. -/
+/-- The extended Euclidean algorithm from a nonzero `r₀` and a remainder `r₁`
+without trailing zeros, with their cofactors: when `r₁` is shorter than the
+fuel, every common divisor of `r₀` and `r₁` divides `M` and `A`, and both
+remainders are congruent modulo `M` to their cofactors times `A`, it ends with a
+nonzero remainder that divides `M` and `A` and is congruent modulo `M` to its
+cofactor times `A`. -/
 private theorem euclid_spec (M A : ℚ[X]) :
     ∀ (fuel : ℕ) (r₀ s₀ r₁ s₁ : List ℚ), r₁.getLast? ≠ some 0 → r₁.length < fuel →
       toPoly r₀ ≠ 0 → (∀ d, d ∣ toPoly r₀ → d ∣ toPoly r₁ → d ∣ M ∧ d ∣ A) →
