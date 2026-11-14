@@ -19,7 +19,12 @@ to the [context](../context/contract.md), and the errors to the
 A0 (tested), with the integer kernel in `src/number/integer.rs` and the
 prime fields in `src/coefficient/prime.rs` and its child
 `src/coefficient/prime/traits.rs` at tier A1 (tested with a written
-contract); the trait is planned for tier A2 in release 0.2. The
+contract); the trait is planned for tier A2 in release 0.2. Its Lean
+specification, with those of the rationals, the prime fields and the
+planned coefficient structures of the release, is in
+`verification/Kalyx/Spec/Fields/`; its statements are registered and their
+proofs are planned, as
+[requirements and statements](#requirements-and-statements) lists. The
 first caller in the library is the [term core](../terms/contract.md), whose
 numbers, coefficients and constants are rationals; the
 [polynomials](../polynomials/contract.md) over $\mathbb{Q}$ reach their
@@ -57,7 +62,9 @@ A3 upgrade.
     $\mathbb{Z}/n$, $\mathbb{Q}(a)$, the result-state subtraits of rings that
     are not fields, and maps between structures, such as the reduction of
     integers and rationals into a prime field: the coefficient fields of
-    release 0.2. The
+    release 0.2, planned. Their requirements are stated below, marked as
+    planned, and the Lean specification of the coefficient fields states
+    them already. The
     operations on the polynomials over a prime field beyond those of the
     [polynomials](../polynomials/contract.md), such as division with
     remainder, and the Berlekamp factorization: the basic polynomial
@@ -786,8 +793,15 @@ The requirement identifiers are those of the coefficient fields of the
 earlier implementation of the casξ computer algebra system; they are never
 renumbered or reused. Each entry states the part of the requirement that
 applies to the rationals, the prime fields and the trait, as kalyx
-implements it, and the tests that are its evidence. Tests are in `tests/numbers.rs`, and those of
-FLD-R14 and FLD-R15 in `tests/integers.rs`, unless the entry names
+implements it, and the tests that are its evidence. Where a requirement
+extends to the coefficient structures of release 0.2 that are not
+implemented yet, the integer coefficient ring, the residue rings, the number
+fields and the maps between structures, its entry states that part as
+planned; [FLD-R05](#fld-r05) and [FLD-R11](#fld-r11) apply to them alone.
+The Lean specification states every entry but the literals, as
+[requirements and statements](#requirements-and-statements) lists. Tests
+are in `tests/numbers.rs`, and those of FLD-R14 and FLD-R15 in
+`tests/integers.rs`, unless the entry names
 `tests/coefficient.rs` or a file below `src/number/`. The bit check of
 an integer is [CTX-R07](../context/contract.md#ctx-r07) of the context.
 
@@ -800,6 +814,12 @@ operation returns one.
 
 In a prime field every element is the least nonnegative residue of its
 class, which every method returns.
+
+Planned: in a number field $\mathbb{Q}(a)$ every element is a polynomial in
+$a$ of degree below that of the minimal polynomial, which denotes it
+uniquely, and every operation returns it. The canonical forms of the
+integers and the residue rings are those of [FLD-R14](#fld-r14) and
+[FLD-R15](#fld-r15).
 
 - **Implemented here.** The private fields of `Rational`, the reduction of
   `new` and of the kernels, and the fast paths, which build a fraction without
@@ -843,6 +863,10 @@ nothing.
 The earlier requirement made the prime fields an exception, whose inverse of
 zero was an invariant failure; in kalyx it is `DivisionByZero` there too, as
 [prime fields](#prime-fields) states.
+
+Planned: in a number field the inverse of a nonzero element has the
+product 1 with it, and a quotient is the product with the inverse of the
+divisor; the inverse of zero and a quotient by zero are `DivisionByZero`.
 
 - **Implemented here.** `Rational::new`, `divide`, `inverse` and `power`, and
   `inverse` and `divide` of `Rationals` and of `PrimeField`.
@@ -895,6 +919,9 @@ it.
 of the rationals and of the prime fields are exact and never undecided, which
 their reason type `Infallible` makes impossible.
 
+Planned: the zero tests of the integer coefficient ring, the residue rings
+and the number fields are exact as well, and never undecided.
+
 - **Implemented here.** `zero_test` of `Rationals` and of `PrimeField`.
 - **Evidence.** Positive: `rationals_decide_every_zero_test_without_a_charge`
   and `prime_fields_decide_every_zero_test_without_a_charge` in
@@ -902,6 +929,49 @@ their reason type `Infallible` makes impossible.
   and `prime_fields_have_inverses_and_zero_has_none` in
   `tests/coefficient.rs`, which check that the test answers zero exactly for
   the zero of the model.
+
+### FLD-R05
+
+**Number-field compatibility.** Planned, with the number fields. The
+defining data of a number field, the parent of its elements, are its
+minimal polynomial and its embedding, and two number fields are the same
+parent exactly when both are equal: fields that are isomorphic but have
+different polynomials or different embeddings are different parents. The
+sum, the difference, the product and the quotient of elements of two
+different number fields are `VariableMismatch`, and only those of such
+elements; the mismatch comes before a zero divisor. The Lean specification
+takes the embedding as data with a decidable equality; how an
+implementation compares embeddings, and what the comparison charges, are
+not part of this entry.
+
+- **Implemented here.** Nothing yet: the number fields are planned for
+  release 0.2.
+- **Evidence.** Planned with the implementation; the statements of the
+  specification are those of
+  [requirements and statements](#requirements-and-statements).
+
+### FLD-R11
+
+**Homomorphisms.** Planned, with the maps between structures. A map between
+two coefficient structures, over a source parent and a target parent, is a
+partial homomorphism: a ring homomorphism from a subring of the source, its
+domain, into the target, which preserves zero, one, sums and products there;
+a total homomorphism has the whole source as its domain and gives the exact
+image of every element. An element outside the domain is the result state
+`notInDomain`, which is not an error: apart from the checks and charges of
+the request context, a map never fails. The maps of release 0.2 are total
+maps $n \mapsto n \cdot 1$ of the integers into the rationals, a prime
+field and a residue ring, the total map of the rationals into a number
+field, which takes a rational to a constant, and the partial reduction of
+the rationals into a prime field $\mathbb F_p$, defined on the rationals
+whose denominator in lowest terms $p$ does not divide, which maps $a/b$ to
+$a b^{-1}$. Mapping polynomials coefficient by coefficient is not part of
+this entry.
+
+- **Implemented here.** Nothing yet: the maps are planned for release 0.2.
+- **Evidence.** Planned with the implementation; the statements of the
+  specification are those of
+  [requirements and statements](#requirements-and-statements).
 
 ### FLD-R12
 
@@ -917,6 +987,17 @@ cancellation, the value is returned.
 The element operations of the prime fields check the bounds of
 [prime fields](#prime-fields) before their charges, which depend only on the
 modulus and, for `from_integer`, on the integer.
+
+The Lean specification states the bit checks of the rationals, the integers
+and the prime fields with `max_integer_bits` and `max_exponent` as explicit
+parameters and `ResourceLimit` as an outcome of its own, the domain tests
+first: in the form that may report, against estimates that are never below
+the bounds of [checks and charges](#checks-and-charges), an operation may
+report `ResourceLimit` naming `max_integer_bits` where the estimate or the
+result is above the limit, and returns its value where the result is within
+it. It states no charges, cancellation or deadlines, and it is not refined
+against the code. The bit checks of the residue rings, the number fields
+and the maps are not stated yet.
 
 - **Implemented here.** Every operation of `Rational`, of `Rationals` and of
   `PrimeField`.
@@ -973,8 +1054,16 @@ is admitted; and the bounds are those of the table there, none above the
 estimates of the earlier requirement: a sum needs
 $\max(\lvert a \rvert, \lvert b \rvert) + 1$ bits, where the earlier
 estimate was one bit more.
-The integer coefficient ring, its exact division with the result state
-inexact and the maps out of $\mathbb{Z}$ are not part of this component.
+
+Planned: the integers as a coefficient ring, which has no parent value. Each
+integer is its own canonical form; the ring operations are those of
+`Integer`; the zero test is exact; the storage cost of $z$ is
+$(1, \lvert z \rvert + 4)$; and exact division is the result-state
+subtrait of the ring: the quotient when the divisor divides the dividend,
+the result state *inexact*, which is neither an error nor a rounded
+quotient, when it does not, and `DivisionByZero` for a zero divisor,
+$0 / 0$ included. The units of the ring are $1$ and $-1$. The maps out of
+$\mathbb{Z}$ are those of [FLD-R11](#fld-r11).
 
 - **Implemented here.** The operations of `Integer`, `gcd`, `lcm` and
   `extended_gcd` in `src/number/integer.rs`.
@@ -1028,8 +1117,29 @@ requirement states no estimate for zero, so that the inverse of zero modulo
 $m \gt 1$ needs two bits more than the modulus has. That is the one bound
 above the estimates of the earlier requirement; the others are its
 estimates of $b + 2$ bits for an inverse and $2 b$ bits for each product of
-a power, $b$ being the bits of the modulus. The parents of residue rings,
-their zero rules and the mismatch of moduli are not part of this component.
+a power, $b$ being the bits of the modulus.
+
+Planned: the residue rings $\mathbb{Z}/n$ as coefficient rings. The parent
+is the modulus $n \ge 1$, and building it from an integer $n \le 0$ is
+`OutsideDomain`; $\mathbb{Z}/1$ is the zero ring, in which $0 = 1$ is a
+unit with the inverse 0. Elements are the least nonnegative residues
+$0 \le a \lt n$; a method given a residue at or above $n$ fails with
+`OutsideDomain`, as the methods of a prime field do; the zero test is
+exact. A residue $a$ is a unit exactly when $\gcd(a, n) = 1$. The inverse
+of the result-state subtrait gives a unit its inverse, and a nonzero residue
+that is not a unit the result state *not a unit* with the factor
+$d = \gcd(a, n)$, $1 \lt d \lt n$; for $n \gt 1$ the inverse of zero,
+a division by zero and a negative power of zero are `DivisionByZero`, as in
+the prime fields. Division and negative powers take the outcomes of the
+inverse of the divisor and of the base, and $a^0 = 1$, $0^0$ included.
+Residues of different moduli are `VariableMismatch`, before a zero divisor.
+$\mathbb{Z}/p$ and $\mathbb F_p$ are different parents over the same ring:
+their sums, differences and products agree, and so do the inverses of their
+units, and the inverse of zero is `DivisionByZero` in both, where the
+earlier requirement made it an invariant failure in the prime field. The
+storage cost of a residue is a function of the parent and the residue that
+the implementation fixes; the bit checks of the residue rings are not
+stated yet.
 
 - **Implemented here.** `modular_inverse`, `modular_power`,
   `Congruence::new` and `crt` in `src/number/integer.rs`.
@@ -1049,6 +1159,30 @@ their zero rules and the mismatch of moduli are not part of this component.
   `modular_powers_and_inverses_match_repeated_multiplication` and
   `crt_systems_of_up_to_four_congruences_match_brute_force`.
 
+### FLD-R20
+
+**Identity of the parents and the homomorphism graph.** Parents are equal by
+their defining data only, not up to isomorphism: the integers have no parent
+value, a residue ring $\mathbb{Z}/n$ is determined by $n$, a prime field
+$\mathbb F_p$ by $p$, and a number field by its minimal polynomial and its
+embedding, as [FLD-R05](#fld-r05) states. The edges of the homomorphism
+graph of release 0.2 are the maps of [FLD-R11](#fld-r11), and its parallel
+paths commute: a ring homomorphism out of $\mathbb{Z}$ is unique, so the
+integers into $\mathbb F_p$ through the rationals agree with the map of the
+integers into $\mathbb F_p$, and the integers into a number field through
+the rationals agree with its `from_integer`. $\mathbb{Z}/p$ and
+$\mathbb F_p$ are different parents, joined by no edge; their values agree
+as [FLD-R15](#fld-r15) states. Only the parents of the prime fields are
+implemented; the rest is planned.
+
+- **Implemented here.** `same_parent` of `PrimeField`, which compares the
+  moduli; the other parents and the maps are planned for release 0.2.
+- **Evidence.** For the prime fields,
+  `elements_of_different_prime_fields_fail_with_variable_mismatch` in
+  `src/coefficient/tests.rs`; the rest is planned with the implementation,
+  and the statements of the specification are those of
+  [requirements and statements](#requirements-and-statements).
+
 ### Literals, without an identifier
 
 The literals have no requirement identifier of the earlier implementation;
@@ -1064,10 +1198,48 @@ the rule is stated under [decimal literals](#decimal-literals).
   `a_literal_inside_a_larger_source_reports_shifted_spans` and
   `small_and_large_digit_strings_convert_alike`.
 
+### Requirements and statements
+
+The Lean specification in
+[`verification/Kalyx/Spec/Fields/`](../../../verification/Kalyx/Spec/Fields)
+states the requirements above, written from them and not from the code: the
+trait with its laws, which give its methods their meaning through
+interpretations in Mathlib, the rationals, the integers, the residue rings,
+the prime fields, the number fields and the maps between them. Its elements
+and operations are computable definitions, and the limits that its checks
+read are explicit parameters. The propositions of
+[`verification/Kalyx/Statements/Fields.lean`](../../../verification/Kalyx/Statements/Fields.lean)
+are its registered statements: the properties of the structures, and a
+positive and a negative example of each requirement.
+`verification/statements.json` registers them with the theorems of
+[`verification/Kalyx/Proofs/Fields.lean`](../../../verification/Kalyx/Proofs/Fields.lean),
+whose proofs are planned. The literals have no statement.
+[`verification/Kalyx/SpecTests/Fields.lean`](../../../verification/Kalyx/SpecTests/Fields.lean)
+replays through the specification, with `#guard`, the seven vectors of the
+commands `eval` and `field-element` in
+[`vectors/cli_cases.tsv`](../../../vectors/cli_cases.tsv) whose answers the
+element operations of the coefficient fields alone decide.
+
+| Requirement | Properties | Positive example | Negative example |
+| --- | --- | --- | --- |
+| [FLD-R01](#fld-r01) | `RingAxioms`, `CanonicalFormsAreUniqueAndComplete` | `CanonicalFormExamples` | `NonCanonicalRepresentatives` |
+| [FLD-R02](#fld-r02) | `FieldAxioms` | `InverseExamples` | `ZeroHasNoInverse` |
+| [FLD-R03](#fld-r03) | None | `PowerExamples` | `PowerFailures` |
+| [FLD-R04](#fld-r04) | `ZeroTestsAreExact` | `ZeroTestExamples` | `ZeroTestsOfHiddenZeros` |
+| [FLD-R05](#fld-r05) | None | `EqualNumberFieldsCombine` | `DifferentNumberFieldsMismatch` |
+| [FLD-R11](#fld-r11) | `MapsPreserveOperations`, `ReductionOutsideItsDomain` | `MapExamples` | `ReductionOfOneSeventh` |
+| [FLD-R12](#fld-r12) | None | `ProductWithinBitLimit` | `ProductBeyondBitLimit` |
+| [FLD-R14](#fld-r14) | `RingAxioms`, `RingDivisionAndInverse`, `ZeroTestsAreExact`, `CanonicalFormsAreUniqueAndComplete` | `IntegerDivisionExamples` | `IntegerDivisionFailures` |
+| [FLD-R15](#fld-r15) | `RingAxioms`, `RingDivisionAndInverse`, `ZeroTestsAreExact`, `CanonicalFormsAreUniqueAndComplete` | `ResidueInverseExamples` | `ResidueFailures` |
+| [FLD-R20](#fld-r20) | `MapsPreserveOperations`, `ParallelPathsCommute` | `IntegerPathsAndResiduesAgree` | `ResidueRingsAndPrimeFieldsDiffer` |
+
 ## Testing obligations
 
 1. **Requirements.** One positive and one negative test per requirement, as
-   each entry above names them.
+   each entry above names them; for a planned part, the positive and the
+   negative example of the specification that
+   [requirements and statements](#requirements-and-statements) lists, until
+   the implementation adds its tests.
 2. **Bounds before charges.** For an addition, a multiplication and a power,
    a test whose bound exceeds `max_integer_bits` checks `ResourceLimit` with
    `LimitId::Field(LimitField::IntegerBits)` and an unchanged `work_used`.
