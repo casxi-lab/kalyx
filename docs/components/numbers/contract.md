@@ -22,8 +22,8 @@ prime fields in `src/coefficient/prime.rs` and its child
 contract); the trait is planned for tier A2 in release 0.2. Its Lean
 specification, with those of the rationals, the prime fields and the
 planned coefficient structures of the release, is in
-`verification/Kalyx/Spec/Fields/`; its statements are registered and their
-proofs are planned, as
+`verification/Kalyx/Spec/Fields/`; its statements are registered and
+proved, as
 [requirements and statements](#requirements-and-statements) lists. The
 first caller in the library is the [term core](../terms/contract.md), whose
 numbers, coefficients and constants are rationals; the
@@ -1212,9 +1212,9 @@ read are explicit parameters. The propositions of
 [`verification/Kalyx/Statements/Fields.lean`](../../../verification/Kalyx/Statements/Fields.lean)
 are its registered statements: the properties of the structures, and a
 positive and a negative example of each requirement.
-`verification/statements.json` registers them with the theorems of
-[`verification/Kalyx/Proofs/Fields.lean`](../../../verification/Kalyx/Proofs/Fields.lean),
-whose proofs are planned. The literals have no statement.
+`verification/statements.json` registers them as proved by the theorems of
+[`verification/Kalyx/Proofs/Fields.lean`](../../../verification/Kalyx/Proofs/Fields.lean).
+The literals have no statement.
 [`verification/Kalyx/SpecTests/Fields.lean`](../../../verification/Kalyx/SpecTests/Fields.lean)
 replays through the specification, with `#guard`, the seven vectors of the
 commands `eval` and `field-element` in
