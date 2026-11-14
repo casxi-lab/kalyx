@@ -151,14 +151,16 @@ def RegistryRules.Keeps {V : Type} (R : RegistryRules) (f : Term → V) : Prop :
   ∀ maxExponent h args t, R.apply maxExponent h args = .rewrite t → f t = f (.call h args)
 
 /-- The rules are closed for the canonical forms `canonical` and keep the bases
-`bases`: on canonical arguments, the result of a rewrite is a canonical value
-that holds every base that the call holds. With the canonical-form predicate
-and the bases of `N`, a rewrite returns a canonical term and drops no point
-where its input is undefined. -/
+`bases`: under a limit `maxExponent`, on arguments canonical under it, the
+result of a rewrite is a value canonical under it that holds every base that
+the call holds. With the canonical-form predicate, which reads the rules under
+the limit, and the bases of `N`, a rewrite returns a canonical term and drops
+no point where its input is undefined. -/
 def RegistryRules.Closed {β : Type} [Membership Term β] (R : RegistryRules)
-    (canonical : Term → Prop) (bases : Term → β) : Prop :=
-  ∀ maxExponent h args t, (∀ a ∈ args, canonical a) → R.apply maxExponent h args = .rewrite t →
-    canonical t ∧ t.isCondition = false ∧ ∀ b ∈ bases (.call h args), b ∈ bases t
+    (canonical : ℕ → Term → Prop) (bases : Term → β) : Prop :=
+  ∀ maxExponent h args t, (∀ a ∈ args, canonical maxExponent a) →
+    R.apply maxExponent h args = .rewrite t →
+      canonical maxExponent t ∧ t.isCondition = false ∧ ∀ b ∈ bases (.call h args), b ∈ bases t
 
 /-- The rule of `piecewise`, a rule of the term core (architecture, "Rules of
 the call constructor"): on the arguments `true, a, b` the term `a`, on
