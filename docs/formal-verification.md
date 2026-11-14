@@ -41,11 +41,12 @@ The gate runs the [qualification](#qualification) of the pinned tools and
 the [base round](#base-round), which builds, audits and replays the
 hand-written Lean: today the qualification proofs and the definitions that
 they use, and the specifications of the coefficient fields and of the term
-core with their statements, replays and proofs. `cargo xtask formal check` reports every
-production function of the files of the module list, since no target is
-registered and no contract lists an open obligation yet; it is not part of
-`cargo xtask check` or of the gate. Proof targets and the other parts of the
-gate are planned, and this page changes with them.
+core with their statements, replays and the theorems of their statements,
+whose state `verification/statements.json` records. `cargo xtask formal check`
+reports every production function of the files of the module list, since no
+target is registered and no contract lists an open obligation yet; it is not
+part of `cargo xtask check` or of the gate. Proof targets and the other parts
+of the gate are planned, and this page changes with them.
 
 ## Layout
 
