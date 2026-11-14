@@ -49,8 +49,10 @@ through the program. The earlier implementation is not public; it serves as
 a reference and as a source of test vectors. The proof tooling in
 `verification/` and `xtask/src/formal/` provides the commands of
 `cargo xtask formal` and two steps of the checks, and CI runs its proof gate;
-the statements of the Lean specification of the coefficient fields are
-proved, but no code of kalyx is proved yet.
+the Lean specifications of the coefficient fields and of the term core state
+their requirements, with the state of their statements in
+[formal verification](docs/formal-verification.md), and no code of kalyx is
+proved yet.
 
 ## Build and run
 
@@ -280,8 +282,9 @@ domains, and natural-language input.
   the requests of the answer vectors and deep inputs use, measured on one
   host, with the commands that measure them.
 - [Formal verification](docs/formal-verification.md): the proof tooling
-  taken over from krepi, its commands, the module list of the proof-target
-  modules and the CI job of the proof gate; no code of kalyx is proved yet.
+  taken over from krepi, its commands, the Lean specifications and their
+  statements, the module list of the proof-target modules and the CI job of
+  the proof gate; no code of kalyx is proved yet.
 - Rules for this repository: [AGENTS](AGENTS.md) and
   [CONTRIBUTING](CONTRIBUTING.md); code taken over from the earlier
   implementation and from krepi: [PORTING](PORTING.md).
