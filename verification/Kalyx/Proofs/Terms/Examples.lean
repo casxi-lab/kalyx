@@ -7,134 +7,199 @@ public import Kalyx.Statements.Terms
 
 One theorem for each registered statement of `Kalyx.Statements.Terms` about
 the positive and the negative example of each requirement of the terms
-contract, whose type is exactly that statement. Every proof is planned: each
-theorem is proved by `sorry`, and the statements are registered with the state
-`planned` until their proofs replace it.
+contract, whose type is exactly that statement.
+
+The examples about given terms are decided by evaluation in the kernel
+(`decide +kernel`). The positive canonical-form claim is split into its
+decided shape (`Term.shapeOk`) and the validity of its constants, which holds
+since that term holds no constant; a negated one is refuted by its decided
+shape alone. The display examples compute their constructions and then unfold
+the display, which reads no parameter; the `eval` examples split on the two
+answers for closed formal nodes and decide each; the bytes of products and the
+depth of leaves unfold the formulas of the bytes and of the depth.
 -/
 
 namespace Kalyx.Proofs.Terms
 
-open Kalyx.Statements.Terms
+open Kalyx.Spec.Terms Kalyx.Statements.Terms
 
-/-- Proves `ScaledCopiesOfOneSumMergeInEveryGrouping`; the proof is planned. -/
+/-- Proves `ScaledCopiesOfOneSumMergeInEveryGrouping`. -/
 public theorem scaledCopiesOfOneSumMergeInEveryGrouping :
     ScaledCopiesOfOneSumMergeInEveryGrouping := by
-  sorry
+  unfold ScaledCopiesOfOneSumMergeInEveryGrouping
+  decide +kernel
 
-/-- Proves `OppositeSignsNeverMergeInAnyGrouping`; the proof is planned. -/
+/-- Proves `OppositeSignsNeverMergeInAnyGrouping`. -/
 public theorem oppositeSignsNeverMergeInAnyGrouping : OppositeSignsNeverMergeInAnyGrouping := by
-  sorry
+  unfold OppositeSignsNeverMergeInAnyGrouping
+  decide +kernel
 
-/-- Proves `ContentThatCancelsLeavesNoProduct`; the proof is planned. -/
+/-- Proves `ContentThatCancelsLeavesNoProduct`. -/
 public theorem contentThatCancelsLeavesNoProduct : ContentThatCancelsLeavesNoProduct := by
-  sorry
+  unfold ContentThatCancelsLeavesNoProduct
+  refine ⟨by decide +kernel, by decide +kernel, ⟨by decide +kernel, ?_⟩, by decide +kernel⟩
+  intro c hc
+  simp [Term.nodes, Term.nodesPairs] at hc
 
-/-- Proves `NonCanonicalNodesFailTheShape`; the proof is planned. -/
+/-- Proves `NonCanonicalNodesFailTheShape`. -/
 public theorem nonCanonicalNodesFailTheShape : NonCanonicalNodesFailTheShape := by
-  sorry
+  unfold NonCanonicalNodesFailTheShape
+  exact ⟨fun h => absurd h.1 (by decide +kernel), fun h => absurd h.1 (by decide +kernel),
+    fun h => absurd h.1 (by decide +kernel)⟩
 
-/-- Proves `SumsAndProductsSortTheirTerms`; the proof is planned. -/
+/-- Proves `SumsAndProductsSortTheirTerms`. -/
 public theorem sumsAndProductsSortTheirTerms : SumsAndProductsSortTheirTerms := by
-  sorry
+  unfold SumsAndProductsSortTheirTerms
+  decide +kernel
 
-/-- Proves `UnsortedCoresAndTheByteOrder`; the proof is planned. -/
+/-- Proves `UnsortedCoresAndTheByteOrder`. -/
 public theorem unsortedCoresAndTheByteOrder : UnsortedCoresAndTheByteOrder := by
-  sorry
+  unfold UnsortedCoresAndTheByteOrder
+  exact ⟨fun h => absurd h.1 (by decide +kernel), by decide +kernel, by decide +kernel⟩
 
-/-- Proves `LikeTermsAndCoefficientsMerge`; the proof is planned. -/
+/-- Proves `LikeTermsAndCoefficientsMerge`. -/
 public theorem likeTermsAndCoefficientsMerge : LikeTermsAndCoefficientsMerge := by
-  sorry
+  unfold LikeTermsAndCoefficientsMerge
+  decide +kernel
 
-/-- Proves `OppositeSignsKeepTwoFactors`; the proof is planned. -/
+/-- Proves `OppositeSignsKeepTwoFactors`. -/
 public theorem oppositeSignsKeepTwoFactors : OppositeSignsKeepTwoFactors := by
-  sorry
+  unfold OppositeSignsKeepTwoFactors
+  decide +kernel
 
-/-- Proves `ZeroAndOneDisappear`; the proof is planned. -/
+/-- Proves `ZeroAndOneDisappear`. -/
 public theorem zeroAndOneDisappear : ZeroAndOneDisappear := by
-  sorry
+  unfold ZeroAndOneDisappear
+  decide +kernel
 
-/-- Proves `WitnessesKeepCancelledBases`; the proof is planned. -/
+/-- Proves `WitnessesKeepCancelledBases`. -/
 public theorem witnessesKeepCancelledBases : WitnessesKeepCancelledBases := by
-  sorry
+  unfold WitnessesKeepCancelledBases
+  decide +kernel
 
-/-- Proves `PowersMergeAndDistribute`; the proof is planned. -/
+/-- Proves `PowersMergeAndDistribute`. -/
 public theorem powersMergeAndDistribute : PowersMergeAndDistribute := by
-  sorry
+  unfold PowersMergeAndDistribute
+  decide +kernel
 
-/-- Proves `PowersThatWouldHideBasesStay`; the proof is planned. -/
+/-- Proves `PowersThatWouldHideBasesStay`. -/
 public theorem powersThatWouldHideBasesStay : PowersThatWouldHideBasesStay := by
-  sorry
+  unfold PowersThatWouldHideBasesStay
+  decide +kernel
 
-/-- Proves `ZeroToTheZeroIsOne`; the proof is planned. -/
+/-- Proves `ZeroToTheZeroIsOne`. -/
 public theorem zeroToTheZeroIsOne : ZeroToTheZeroIsOne := by
-  sorry
+  unfold ZeroToTheZeroIsOne
+  decide +kernel
 
-/-- Proves `StrictEvaluationFailures`; the proof is planned. -/
+/-- Proves `StrictEvaluationFailures`. -/
 public theorem strictEvaluationFailures : StrictEvaluationFailures := by
-  sorry
+  unfold StrictEvaluationFailures
+  decide +kernel
 
-/-- Proves `LogicalBytesOfProducts`; the proof is planned. -/
+/-- Proves `LogicalBytesOfProducts`. -/
 public theorem logicalBytesOfProducts : LogicalBytesOfProducts := by
-  sorry
+  refine ⟨fun p c name k hc _ => ?_, fun p a b => ?_⟩
+  · simp [Term.bytes, Term.bytesList, ratBytes, hc]
+    omega
+  · simp [Term.bytes, Term.bytesList]
 
-/-- Proves `SharedSubtermsCountOncePerOccurrence`; the proof is planned. -/
+/-- Proves `SharedSubtermsCountOncePerOccurrence`. -/
 public theorem sharedSubtermsCountOncePerOccurrence : SharedSubtermsCountOncePerOccurrence := by
-  sorry
+  unfold SharedSubtermsCountOncePerOccurrence
+  decide +kernel
 
-/-- Proves `DepthOfLeavesAndProducts`; the proof is planned. -/
-public theorem depthOfLeavesAndProducts : DepthOfLeavesAndProducts := by
-  sorry
+/-- Proves `DepthOfLeavesAndProducts`. -/
+public theorem depthOfLeavesAndProducts : DepthOfLeavesAndProducts :=
+  ⟨fun _ => by simp [Term.depth], fun _ => by simp [Term.depth], by decide +kernel⟩
 
-/-- Proves `DepthIsNotSize`; the proof is planned. -/
+/-- Proves `DepthIsNotSize`. -/
 public theorem depthIsNotSize : DepthIsNotSize := by
-  sorry
+  unfold DepthIsNotSize
+  decide +kernel
 
-/-- Proves `DisplayIsTheSameForEveryConstruction`; the proof is planned. -/
+/-- Proves `DisplayIsTheSameForEveryConstruction`. -/
 public theorem displayIsTheSameForEveryConstruction : DisplayIsTheSameForEveryConstruction := by
-  sorry
+  unfold DisplayIsTheSameForEveryConstruction
+  dsimp only
+  intro p
+  have h₁ : mkProduct Orders.sample defaultMaxExponent
+      [.number 2, .sum 0 [(1, .symbol "x"), (1, .symbol "y")]] =
+      .value (.sum 0 [(2, .symbol "x"), (2, .symbol "y")]) := by decide +kernel
+  have h₂ : mkSum Orders.sample [.sum 0 [(1, .symbol "x"), (1, .symbol "y")],
+      .sum 0 [(1, .symbol "x"), (1, .symbol "y")]] =
+      .value (.sum 0 [(2, .symbol "x"), (2, .symbol "y")]) := by decide +kernel
+  have h₃ : mkSum Orders.sample [.sum 0 [(2, .symbol "x"), (1, .symbol "y")], .symbol "y"] =
+      .value (.sum 0 [(2, .symbol "x"), (2, .symbol "y")]) := by decide +kernel
+  rw [h₁, h₂, h₃]
+  simp only [Result.map, Term.display, Term.displayPairs]
+  decide +kernel
 
-/-- Proves `DisplayOfANegatedReciprocal`; the proof is planned. -/
+/-- Proves `DisplayOfANegatedReciprocal`. -/
 public theorem displayOfANegatedReciprocal : DisplayOfANegatedReciprocal := by
-  sorry
+  unfold DisplayOfANegatedReciprocal
+  dsimp only
+  intro p
+  have h : ((mkSubtract Orders.sample defaultMaxExponent (.number 1) (.symbol "x")).bind
+      fun d => mkPower Orders.sample defaultMaxExponent d (-1)) =
+      .value (.product (-1) [.power (.sum (-1) [(1, .symbol "x")]) (-1)]) := by decide +kernel
+  rw [h]
+  simp only [Result.map, Term.display, Term.displayList, Term.displayPairs]
+  decide +kernel
 
-/-- Proves `SymbolNames`; the proof is planned. -/
+/-- Proves `SymbolNames`. -/
 public theorem symbolNames : SymbolNames := by
-  sorry
+  unfold SymbolNames
+  decide +kernel
 
-/-- Proves `ReservedAndMalformedNames`; the proof is planned. -/
+/-- Proves `ReservedAndMalformedNames`. -/
 public theorem reservedAndMalformedNames : ReservedAndMalformedNames := by
-  sorry
+  unfold ReservedAndMalformedNames
+  decide +kernel
 
-/-- Proves `EvalGivesTheCanonicalTerm`; the proof is planned. -/
+/-- Proves `EvalGivesTheCanonicalTerm`. -/
 public theorem evalGivesTheCanonicalTerm : EvalGivesTheCanonicalTerm := by
-  sorry
+  unfold EvalGivesTheCanonicalTerm
+  dsimp only
+  intro cf
+  cases cf <;> decide +kernel
 
-/-- Proves `EvalOfFreeSymbolsFails`; the proof is planned. -/
+/-- Proves `EvalOfFreeSymbolsFails`. -/
 public theorem evalOfFreeSymbolsFails : EvalOfFreeSymbolsFails := by
-  sorry
+  unfold EvalOfFreeSymbolsFails
+  dsimp only
+  intro cf
+  cases cf <;> decide +kernel
 
-/-- Proves `ConstantsMergeAndOrder`; the proof is planned. -/
+/-- Proves `ConstantsMergeAndOrder`. -/
 public theorem constantsMergeAndOrder : ConstantsMergeAndOrder := by
-  sorry
+  unfold ConstantsMergeAndOrder
+  decide +kernel
 
-/-- Proves `ConstantsAreNotNegativeBases`; the proof is planned. -/
+/-- Proves `ConstantsAreNotNegativeBases`. -/
 public theorem constantsAreNotNegativeBases : ConstantsAreNotNegativeBases := by
-  sorry
+  unfold ConstantsAreNotNegativeBases
+  exact ⟨by decide +kernel, by decide +kernel, by decide +kernel, by decide +kernel,
+    fun h => absurd h.1 (by decide +kernel)⟩
 
-/-- Proves `CallsMergeAsAtoms`; the proof is planned. -/
+/-- Proves `CallsMergeAsAtoms`. -/
 public theorem callsMergeAsAtoms : CallsMergeAsAtoms := by
-  sorry
+  unfold CallsMergeAsAtoms
+  decide +kernel
 
-/-- Proves `CallsAreNotExpanded`; the proof is planned. -/
+/-- Proves `CallsAreNotExpanded`. -/
 public theorem callsAreNotExpanded : CallsAreNotExpanded := by
-  sorry
+  unfold CallsAreNotExpanded
+  decide +kernel
 
-/-- Proves `ConditionsRankLastAndSelectBranches`; the proof is planned. -/
+/-- Proves `ConditionsRankLastAndSelectBranches`. -/
 public theorem conditionsRankLastAndSelectBranches : ConditionsRankLastAndSelectBranches := by
-  sorry
+  unfold ConditionsRankLastAndSelectBranches
+  decide +kernel
 
-/-- Proves `ConditionsInValuePositionsFail`; the proof is planned. -/
+/-- Proves `ConditionsInValuePositionsFail`. -/
 public theorem conditionsInValuePositionsFail : ConditionsInValuePositionsFail := by
-  sorry
+  unfold ConditionsInValuePositionsFail
+  decide +kernel
 
 end Kalyx.Proofs.Terms
