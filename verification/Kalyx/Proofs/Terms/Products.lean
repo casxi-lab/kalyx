@@ -10,12 +10,15 @@ public import Kalyx.Proofs.Terms.Bases
 # Products: order, limits, rounds and merging
 
 The product conjuncts of `SumsAndProductsIgnoreOrderAndGrouping` but grouping, and
-those of `MergingAddsCoefficientsAndExponents`: a product ignores the order of its
-operands, a product of values succeeds or fails with `ResourceLimit` naming `max_exponent` (the rounds of
-`settleItems` always suffice), and keeps its value under a larger limit; merging
-keeps coefficients and exponents, the zero witness, the held ones and the powers of
-`i`. The read-back of a built product (`productParts_finish`) is exported, with the shape
-of the items of canonical values kept by the rounds (`RootShape`, `settleItems_shape`) and the
+those of `MergingAddsCoefficientsAndExponents` but the powers of roots, which
+`Kalyx.Proofs.Terms.Grouping` proves: a product ignores the order of its operands, a
+product of values succeeds or fails with `ResourceLimit` naming `max_exponent` (the rounds
+of `settleItems` always suffice), and keeps its value under a larger limit; a product of
+canonical operands without roots of a literal degree and with a coefficient other than 0
+keeps the coefficient up to the sign of the power of `i` and the total exponent of every
+other key; the zero witness and the held ones are kept; and `i ^ k` is `i` to the power `k`
+modulo 4. The read-back of a built product (`productParts_finish`) is exported, with the shape of the
+items of canonical values kept by the rounds (`RootShape`, `settleItems_shape`) and the
 assembly of settled parts (`finish_eq`).
 -/
 

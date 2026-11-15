@@ -8,11 +8,12 @@ public import Kalyx.Proofs.Terms.Bases
 # Products ignore grouping; powers of roots
 
 Two conjuncts, through parts that settle alike (`Settle.SettleEq`): a product of canonical
-operands does not depend on their grouping (`productsIgnoreGrouping`, the grouping of products
-in `SumsAndProductsIgnoreOrderAndGrouping`), since a built product reads back as parts that
-settle like the parts it is built from; and a power `k ≥ n` of a root `ⁿ√u` of a literal degree
-is `u ^ ⌊k/n⌋ (ⁿ√u) ^ (k mod n)` (`powersOfRoots`, the powers of roots in
-`MergingAddsCoefficientsAndExponents`), since the first round reduces the root this way.
+operands does not depend on their grouping when the constructions succeed
+(`productsIgnoreGrouping`, the grouping of products in `SumsAndProductsIgnoreOrderAndGrouping`),
+since a built product reads back as parts that settle like the parts it is built from; and a
+power `k ≥ n` of a root `ⁿ√u` of a literal degree is `u ^ ⌊k/n⌋ (ⁿ√u) ^ (k mod n)` when both
+sides succeed (`powersOfRoots`, the powers of roots in `MergingAddsCoefficientsAndExponents`),
+since the first round reduces the root this way.
 -/
 
 namespace Kalyx.Proofs.Terms.Grouping
@@ -52,7 +53,7 @@ private theorem mapM_append_value {α β : Type} {f : α → Result β} {l₁ l�
   obtain ⟨r₁, h₁, h⟩ := bind_eq_value.1 h; obtain ⟨r₂, h₂, h⟩ := bind_eq_value.1 h
   exact ⟨r₁, r₂, h₁, h₂, (Result.value.inj h).symm⟩
 
-/-- Products do not depend on the grouping of canonical operands. -/
+/-- Products do not depend on the grouping of canonical operands, when the constructions succeed. -/
 public theorem productsIgnoreGrouping (o : Orders) (me : ℕ) (R : RegistryRules) (ho : o.Total) :
     ∀ ts₁ ts₂ ts₃ s u u', (∀ t ∈ ts₁ ++ ts₂ ++ ts₃, Term.Canonical o me R t) →
       mkProduct o me ts₂ = .value s → mkProduct o me (ts₁ ++ ts₂ ++ ts₃) = .value u →
