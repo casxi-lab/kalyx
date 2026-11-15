@@ -174,13 +174,13 @@
       "name": "Kalyx.Statements.Terms.SumsAndProductsIgnoreOrderAndGrouping",
       "theorem": "Kalyx.Proofs.Terms.sumsAndProductsIgnoreOrderAndGrouping",
       "module": "Kalyx.Proofs.Terms.Normal",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.CanonicalFormsAreClosedAndIdempotent",
       "theorem": "Kalyx.Proofs.Terms.canonicalFormsAreClosedAndIdempotent",
       "module": "Kalyx.Proofs.Terms.Normal",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.TermOrderIsTotal",
@@ -192,19 +192,19 @@
       "name": "Kalyx.Statements.Terms.MergingAddsCoefficientsAndExponents",
       "theorem": "Kalyx.Proofs.Terms.mergingAddsCoefficientsAndExponents",
       "module": "Kalyx.Proofs.Terms.Normal",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.ConstructorsKeepNegativeBases",
       "theorem": "Kalyx.Proofs.Terms.constructorsKeepNegativeBases",
       "module": "Kalyx.Proofs.Terms.Normal",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.ConstructorsKeepMeanings",
       "theorem": "Kalyx.Proofs.Terms.constructorsKeepMeanings",
       "module": "Kalyx.Proofs.Terms.Semantics",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.StrictEvaluationFaults",
@@ -222,7 +222,7 @@
       "name": "Kalyx.Statements.Terms.CallsAreAtoms",
       "theorem": "Kalyx.Proofs.Terms.callsAreAtoms",
       "module": "Kalyx.Proofs.Terms.Normal",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Terms.ScaledCopiesOfOneSumMergeInEveryGrouping",
