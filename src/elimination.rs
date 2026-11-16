@@ -10,7 +10,7 @@
 //! comes from the field or from a hook of the storage, called where the
 //! domain's elimination performs it, so the results, errors and work of a
 //! reduction depend only on the field and the storage. The storage and its
-//! reservation belong to the caller; the skeleton holds no frame and no
+//! reservations belong to the caller; the skeleton holds no frame and no
 //! reservation of the context.
 //!
 //! Only an entry whose zero test answered nonzero becomes a pivot: the first
@@ -95,8 +95,8 @@ pub(crate) trait EliminationRows {
 
     /// The entry checks of a reduction in the first `variables` columns, and
     /// the empty list that receives the pivot columns. The skeleton does not
-    /// compare `variables` with `width()`: a storage that can receive more
-    /// variables than columns rejects them here.
+    /// compare `variables` with `width()`: a storage whose caller may pass
+    /// more variables than columns rejects them here.
     fn begin_reduction(&mut self, variables: usize, context: &mut Context) -> Result<Vec<usize>>;
 
     /// The charge of a pivot candidate, before its zero test.

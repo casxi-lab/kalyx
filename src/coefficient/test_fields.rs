@@ -2,10 +2,10 @@
 //! the tests of code that is generic over the coefficient traits, such as
 //! the elimination skeleton.
 //!
-//! The coefficient traits are sealed, and the seal is visible only in this
-//! module tree, so the test fields that other modules need are defined here.
-//! Neither field charges the context: the code under test is then the only
-//! source of checks and charges. [`UndecidedResidues`] answers undecided for
+//! The coefficient traits are sealed, and the seal is visible only in
+//! `crate::coefficient` and its child modules, so the test fields that other
+//! modules need are defined here. Neither field charges the context: the
+//! code under test is then the only source of charges. [`UndecidedResidues`] answers undecided for
 //! the zero test of the values of a chosen set, which may contain zero, and
 //! reports every zero test that it answers; [`ExactResidues`] always decides.
 
@@ -31,7 +31,7 @@ pub(crate) fn residue_product(p: u32, a: u32, b: u32) -> u32 {
     ((u64::from(a) * u64::from(b)) % u64::from(p)) as u32
 }
 
-/// `a^(p-2)`, the inverse of a nonzero residue, by repeated multiplication:
+/// $a^{p-2}$, the inverse of a nonzero residue, by repeated multiplication:
 /// $p - 2$ products, so only for the small primes of the tests, $p \ge 2$.
 fn residue_inverse(p: u32, a: u32) -> Result<u32> {
     if a == 0 {
@@ -67,7 +67,8 @@ const RESIDUE_COST: Storage = Storage::new(1, 4);
 
 /// The residues modulo `p` whose zero test answers undecided, with the value
 /// as its reason, for the values in `undecided`, and decides every other
-/// value. Every answer is passed to `report`, with the context of the test.
+/// value. Every answer is passed to `report`, with the context that the zero
+/// test receives.
 pub(crate) struct UndecidedResidues<'a> {
     pub(crate) p: u32,
     pub(crate) undecided: &'a [u32],

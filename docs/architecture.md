@@ -21,12 +21,12 @@ the univariate polynomials over $\mathbb{Q}$, the command entry with its
 output lines, the command-line program `kalyx` and the repository checks.
 The errors and result states, the shared result types `Evidence` and
 `Truth`, the context and limits, the exact numbers with the integer kernel,
-the two layers of the coefficient-field trait and `Rationals`, the term core
-with its canonical forms, the parser of the [input syntax](semantics.md), the
-univariate polynomials with expansion and differentiation, the
-crate-internal function registry with the records of the eleven functions of
-function expressions, the crate-internal elimination skeleton and the
-command entry with the
+the two layers of the coefficient-field trait with `Rationals` and the
+prime fields, the term core with its canonical forms, the parser of the
+[input syntax](semantics.md), the univariate polynomials with expansion and
+differentiation, the crate-internal function registry with the records of
+the eleven functions of function expressions, the crate-internal
+elimination skeleton and the command entry with the
 [output lines](semantics.md#output-lines) are implemented, each with its
 contract ([errors](components/errors/contract.md),
 [shared result types](components/shared-results/contract.md),

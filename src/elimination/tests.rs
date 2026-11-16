@@ -5,7 +5,7 @@
 //! for the values of a chosen set, which may contain zero, and decides every
 //! other value, and one that always decides; neither charges. The storage
 //! `Grid` holds the entries in row-major order, charges nothing, and records
-//! every hook and every zero test in a log. The checks judge the results by
+//! every hook in a log, into which the first field reports every zero test. The checks judge the results by
 //! the definition of the reduced row echelon form, by a factorization of the
 //! input through the result, and by ranks and determinants that the tests
 //! compute independently from minors, by cofactor expansion modulo $p$.
@@ -27,8 +27,8 @@
 //!   and every hook sees the frames and the reservations of its caller.
 //!
 //! The tests of the control flow restate, one by one, the properties that
-//! the qualification case `elimination-skeleton` of the earlier
-//! implementation proved. Over the prime fields of the library the skeleton
+//! the proofs of the qualification case `elimination-skeleton` established
+//! in the earlier implementation. Over the prime fields of the library the skeleton
 //! agrees with a naive elimination written here, and the resource tests run
 //! it with a storage that charges one unit per hook, as a caller does.
 
@@ -994,8 +994,8 @@ fn the_skeleton_holds_no_frame_and_no_reservation() {
 }
 
 // ---------------------------------------------------------------------------
-// The properties of the qualification case of the earlier implementation,
-// restated as unit tests
+// The properties that the proofs of the qualification case established in
+// the earlier implementation, restated as unit tests
 
 /// The answer of the pivot search from `row` in the single column of
 /// `entries`, over the residues modulo 7 that answer undecided for
@@ -1235,7 +1235,8 @@ fn a_column_that_answered_nonzero_runs_the_pivot_step() {
     assert_eq!(grid.swapped, [true, false]);
     assert_eq!(grid.ends, [(0, 0), (1, 1)]);
 
-    // A swap at a later column, B02: the whole rows are swapped, cell by
+    // A swap at a later column, in the second representative input over
+    // $\mathbb F_5$: the whole rows are swapped, cell by
     // cell from the first column.
     let log = Log::default();
     let mut grid = Grid::new(3, 4, &[0, 1, 2, 3, 0, 2, 4, 1, 0, 3, 1, 0], &log);
@@ -1753,7 +1754,10 @@ fn reductions_over_prime_fields_match_naive_elimination() {
 // ---------------------------------------------------------------------------
 // Resource limits, cancellation and rollback
 
-/// The representative inputs B01 to B03.
+/// The three representative inputs, numbered 1 to 3 in this order: a
+/// square matrix over $\mathbb F_7$ whose first pivot needs a swap, a matrix
+/// over $\mathbb F_5$ with a zero column and a swap at a later column, and a
+/// system over the largest prime below $2^{32}$.
 fn representative() -> [Input; 3] {
     let p = 4_294_967_291;
     [
@@ -1781,27 +1785,29 @@ fn representative() -> [Input; 3] {
     ]
 }
 
-/// The pivot columns of B01 to B03.
+/// The pivot columns of the representative inputs.
 const REPRESENTATIVE_PIVOTS: [&[usize]; 3] = [&[0, 1, 2], &[1, 3], &[0, 1]];
 
-/// The reduced entries of B01 to B03, computed by hand.
+/// The reduced entries of the representative inputs, computed by hand.
 const REPRESENTATIVE_RESULTS: [&[u32]; 3] = [
     &[1, 0, 0, 0, 1, 0, 0, 0, 1],
     &[0, 1, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0],
     &[1, 0, 6, 0, 1, 2_147_483_651],
 ];
 
-/// The work that `eliminate` charges for B01 to B03, measured.
+/// The work that `eliminate` charges for the representative inputs, measured.
 const REPRESENTATIVE_WORK: [u64; 3] = [249, 179, 194];
 
-/// The storage that the storage of rows holds at the end of B01 to B03.
+/// The storage that the storage of rows holds at the end of the reductions
+/// of the representative inputs.
 const REPRESENTATIVE_PEAK: [Storage; 3] = [
     Storage::new(9, 77),
     Storage::new(12, 78),
     Storage::new(6, 114),
 ];
 
-/// The charges of B01 to B03 that poll the cancellation probe, measured.
+/// The charges of the representative inputs that poll the cancellation
+/// probe, measured.
 const REPRESENTATIVE_CHARGES: [u64; 3] = [63, 55, 39];
 
 /// The storage that the caller of the rollback tests holds itself.
@@ -1845,13 +1851,13 @@ fn assert_limit(result: Result<Eliminated>, field: LimitField) {
 }
 
 /// With exactly the work it charges an elimination succeeds, with the hand
-/// results of B01 to B03, and with one unit less it fails with
+/// results of the representative inputs, and with one unit less it fails with
 /// `ResourceLimit` on `max_work`.
 #[test]
 fn an_elimination_over_a_prime_field_passes_at_the_exact_work_and_fails_one_unit_below() {
     for (k, input) in representative().iter().enumerate() {
         let work = measured_work(input);
-        assert_eq!(work, REPRESENTATIVE_WORK[k], "B0{}", k + 1);
+        assert_eq!(work, REPRESENTATIVE_WORK[k], "input {}", k + 1);
         let mut exact = Context::new(Limits::new().with_max_work(work), CancelFlag::new());
         let found = run(input, &mut exact).unwrap();
         assert_eq!(
@@ -1873,7 +1879,7 @@ fn an_elimination_over_a_prime_field_passes_at_the_exact_work_and_fails_one_unit
 fn an_elimination_over_a_prime_field_passes_at_the_exact_storage_and_fails_one_byte_below() {
     for (k, input) in representative().iter().enumerate() {
         let peak = run(input, &mut context()).unwrap().peak;
-        assert_eq!(peak, REPRESENTATIVE_PEAK[k], "B0{}", k + 1);
+        assert_eq!(peak, REPRESENTATIVE_PEAK[k], "input {}", k + 1);
         assert_eq!(
             peak,
             reserved_storage(input, REPRESENTATIVE_PIVOTS[k].len())
@@ -1960,7 +1966,7 @@ fn charge_points(input: &Input) -> u64 {
 fn cancellation_at_every_charge_of_an_elimination_is_reported() {
     for (n, input) in representative().iter().enumerate() {
         let points = charge_points(input);
-        assert_eq!(points, REPRESENTATIVE_CHARGES[n], "B0{}", n + 1);
+        assert_eq!(points, REPRESENTATIVE_CHARGES[n], "input {}", n + 1);
         for k in 0..points {
             let probe = CountingProbe::after(k);
             let Err(error) = run(input, &mut observed(Limits::new(), probe.clone())) else {

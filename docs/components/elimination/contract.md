@@ -14,7 +14,7 @@ the errors and the result states to the
 [errors and result states](../errors/contract.md).
 
 **Status.** Implemented in `src/elimination.rs`, at tier A1 (tested with a
-written contract), with no tier above A1 planned. The skeleton is a
+written contract), with no upgrade to A3 planned. The skeleton is a
 crate-internal module: it has no public interface, and the public names of
 the crate root do not change. It is ported from the elimination skeleton of
 the earlier implementation, as [PORTING](../../../PORTING.md) records. No
@@ -60,10 +60,10 @@ are `pub(crate)`:
 
 ### Zero tests and pivots
 
-- **Answers.** The zero test of the field answers `Zero`, `Nonzero` or
-  `Undecided` with a reason (`ZeroTest` of the coefficient traits). Zero
-  means that the element is zero and nonzero that it is not; undecided
-  carries no information about the element.
+- **Answers.** The skeleton reads the three answers of the zero test of the
+  [coefficient traits](../numbers/contract.md#the-coefficient-field-trait)
+  as they are stated there, and takes `Undecided` as no information about
+  the element.
 - **Pivots.** Only an entry whose test answered nonzero becomes a pivot.
   An entry that answered zero is passed over as zero. An entry that
   answered undecided is neither a pivot nor treated as zero; a result that
@@ -101,15 +101,26 @@ storage eliminates from.
 
 The storage holds the entries, `rows()` rows of `width()` columns borrowed
 through `entry`, and performs the checks and charges of its domain in hooks
-that the skeleton calls in this order: `begin_reduction`, the entry checks
-of a reduction, which returns the list that receives the pivot columns;
-`candidate_step` before the zero test of each candidate; `swap_cell` for
-every column of a swap; `begin_pivot`, the checks of a pivot, which returns
-it; `store`, the replacement of an entry with its limits, after which a
-failed storage is discarded; `first_target`, the first row to eliminate
-from; `target_step` before each such row, the pivot row included when it is
-in the range; `end_pivot`; `reserve_pivot`, the room for one more pivot
-column; and `end_reduction` after the last column.
+that the skeleton calls in this order:
+
+- `begin_reduction(variables)`, the entry checks of a reduction, which
+  returns the empty list that receives the pivot columns; the skeleton
+  takes the number of pivots so far as the current row;
+- `candidate_step` before the zero test of each candidate;
+- `swap_cell` for every column of a swap, from the first column on;
+- `begin_pivot(row, column, swapped)`, the checks of the pivot in `row` and
+  `column`, which returns it; `swapped` holds when its row was swapped into
+  place;
+- `store`, which replaces an entry and enforces the request limits; after a
+  failed store the caller discards the storage;
+- `first_target`, the first row to eliminate from, and `target_step` before
+  each such row, the pivot row included when it is in the range;
+- `end_pivot(row, column)` after the elimination of the pivot in `row` and
+  `column`;
+- `reserve_pivot`, the room for one more pivot column, which the skeleton
+  then appends;
+- `end_reduction` when the variables or the rows run out, for a complete
+  reduction only.
 
 - **Hooks.** The skeleton never constructs an error and never charges the
   context itself; every check, charge and error comes from the field or the
@@ -128,13 +139,68 @@ column; and `end_reduction` after the last column.
 `Reduction::Undecided` refines `MathState::Undecided`: a reduction that
 depends on an undecided zero test ends in it, inside `Ok`, as the
 [shared result types](../../architecture.md#shared-result-types) state for
-a status type of a feature. The storage keeps the state that the reduction
+the status enum of a feature. The storage keeps the state that the reduction
 reached, with the pivots of the earlier columns in place, and no hook runs
 after the search of the undecided column. The state carries the reason
 alone, because no production field answers undecided yet. Over a field
 whose reason type is `Infallible`, such as the prime fields, a reduction
-completes by construction, and `complete` unwraps its pivot columns without
-a failure path.
+never ends undecided, and `complete` unwraps its pivot columns without a
+failure path.
+
+## Requirements
+
+The elimination skeleton had no requirement identifiers in the earlier
+implementation, so the requirements of this component are named after what
+they state. Tests are in `src/elimination/tests.rs`.
+
+### Only a nonzero answer makes a pivot
+
+The pivot of a column is the first candidate whose zero test answered
+nonzero; a candidate that answered zero or undecided is passed over.
+
+- **Implemented here.** `find_pivot` and `first_undecided`.
+- **Tests.** Negative: `undecided_answers_never_become_pivots`, over
+  generated matrices and sets of undecided values, and
+  `undecided_candidates_are_passed_over`. Also
+  `exact_reductions_are_reduced_row_echelon_forms`.
+
+### An undecided column ends the reduction
+
+A column whose candidates answered zero or undecided, at least one of them
+undecided, ends the reduction with `Reduction::Undecided` and the reason of
+its first undecided answer, before any further hook.
+
+- **Implemented here.** `reduce_columns`.
+- **Tests.** Negative: `undecided_columns_end_the_reduction` and
+  `an_undecided_column_ends_the_reduction_without_a_hook`;
+  `a_single_undecided_entry_gives_an_undecided_reduction`.
+
+### The skeleton neither charges nor fails by itself
+
+Every charge, check and error of a reduction comes from the field or the
+storage, and a failure of either ends the reduction.
+
+- **Implemented here.** The whole module, which calls no method of the
+  context and constructs no error.
+- **Tests.** Negative: `the_skeleton_never_charges`, under an exhausted
+  budget and a cancelled flag, and `a_failing_hook_ends_the_reduction`, at
+  every store and at every other hook that takes the context.
+
+### The skeleton holds no frame and no reservation
+
+- **Implemented here.** The whole module, which opens no frame and reserves
+  nothing.
+- **Tests.** Negative: `the_skeleton_holds_no_frame_and_no_reservation`, in
+  every hook that takes the context and in every zero test.
+
+### The hooks run in their order, with their arguments
+
+- **Implemented here.** `reduce`, `pivot_step`, `swap_rows`, `normalize_row`,
+  `eliminate_rows`, `eliminate_row` and `subtract_row`.
+- **Tests.** The tests of the control flow, item 4 of the
+  [testing obligations](#testing-obligations), and
+  `forward_elimination_yields_the_determinant` for a storage that
+  eliminates only below each pivot.
 
 ## Testing obligations
 
@@ -145,8 +211,9 @@ always decides, charge nothing.
 
 1. **Reduced row echelon form.** Generated reductions over fields with and
    without undecided answers are the reduced row echelon forms of their
-   inputs, checked against ranks and a factorization computed
-   independently: `exact_reductions_are_reduced_row_echelon_forms` and
+   inputs, checked by the definition of the form, by a factorization of the
+   input through the result and against ranks computed independently from
+   minors: `exact_reductions_are_reduced_row_echelon_forms` and
    `undecided_answers_never_become_pivots`; forward elimination gives the
    determinant: `forward_elimination_yields_the_determinant`.
 2. **Undecided answers.** `undecided_candidates_are_passed_over`,
@@ -191,18 +258,24 @@ always decides, charge nothing.
 
 ## Extractability
 
-No proof target is registered for the skeleton, and `src/elimination.rs`
-and its tests are not in the module list of
-[formal verification](../../formal-verification.md#module-list). The test
-fields in `src/coefficient/test_fields.rs` lie in the directory
-`src/coefficient` of that list, but only test code reaches them, so the
-`subset` step and the inventory skip them.
-It keeps the shape in which the earlier implementation extracted it: one
-loop per function, each an index loop whose condition is a comparison; the
-result state returned from inside the column loop; the uninhabited reason
-unwrapped by an empty `match`; no closure and no `cfg` but `#[cfg(test)]`
-on the test module, with the lint expectation of the module selected by
-`cfg_attr`. The tests use `RefCell` and closures; they are test code.
+The component is at tier A1 with no upgrade to A3 planned and is not a proof
+target, so `src/elimination.rs` and its tests are not in the module list of
+[formal verification](../../formal-verification.md#module-list) and the
+provable subset of Rust is not required of it. Its code is written in that
+style nonetheless: at most one loop per function, each an index loop whose
+condition is a comparison or a conjunction of comparisons; the result state
+returned from inside the column loop; the uninhabited reason unwrapped by an
+empty `match`; no closure; and no `cfg` but `#[cfg(test)]` on the test
+module, with the derives of `Reduction` for the tests and the lint
+expectation of the module selected by `cfg_attr`. These are the shapes of
+the qualification case `elimination-skeleton` of the proof tooling, which
+takes the zero test from a subtrait where the skeleton here takes it from
+the supertrait `CoefficientRing`. None of the code has been extracted.
+
+The test fields in `src/coefficient/test_fields.rs` lie in the directory
+`src/coefficient` of the module list, but only test code reaches them, so
+the `subset` step and the inventory skip them. The tests use `RefCell`,
+`Cell` and closures; they are test code.
 
 ## Current deviations
 
