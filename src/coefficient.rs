@@ -51,6 +51,8 @@ use crate::{Context, Error, FaultKind, LimitField, Result};
 
 mod prime;
 #[cfg(test)]
+pub(crate) mod test_fields;
+#[cfg(test)]
 mod tests;
 
 pub use prime::{PrimeField, PrimeResidue};

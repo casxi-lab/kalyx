@@ -269,7 +269,8 @@ domains, and natural-language input.
   states, the shared result types `Evidence` and `Truth`, the context and
   limits, the exact numbers with the coefficient-field trait and the prime
   fields, the term core, the parser, the univariate polynomials, the
-  function registry and the command entry are implemented yet.
+  function registry, the elimination skeleton and the command entry are
+  implemented yet.
 - [Input syntax and semantics](docs/semantics.md): the one grammar of the
   library's input, its precedence and lexical rules, how an expression
   becomes a term, the output lines and the forms of the command-line

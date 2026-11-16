@@ -615,6 +615,13 @@ in which nothing else is retained.
   and `divide` test the element or the divisor for zero before any charge of
   the operation, and fail with `Fault(DivisionByZero)`; a field whose zero
   test is charged pays for the test first.
+- **Test fields.** `src/coefficient/test_fields.rs`, compiled only for the
+  tests, implements `CoefficientRing` and `CoefficientField` for residues
+  modulo a small prime, for the tests of the
+  [elimination skeleton](../elimination/contract.md): `UndecidedResidues`,
+  whose zero test answers `Undecided` for chosen values, and
+  `ExactResidues`. They check no sizes and charge nothing, so the rule on
+  charging does not apply to them, and no production code reaches them.
 
 ### Rationals
 

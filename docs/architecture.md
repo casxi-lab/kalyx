@@ -21,11 +21,12 @@ the univariate polynomials over $\mathbb{Q}$, the command entry with its
 output lines, the command-line program `kalyx` and the repository checks.
 The errors and result states, the shared result types `Evidence` and
 `Truth`, the context and limits, the exact numbers with the integer kernel,
-the two layers of the coefficient-field trait and `Rationals`, the term core
-with its canonical forms, the parser of the [input syntax](semantics.md), the
-univariate polynomials with expansion and differentiation, the
-crate-internal function registry with the records of the eleven functions of
-function expressions and the command entry with the
+the two layers of the coefficient-field trait with `Rationals` and the
+prime fields, the term core with its canonical forms, the parser of the
+[input syntax](semantics.md), the univariate polynomials with expansion and
+differentiation, the crate-internal function registry with the records of
+the eleven functions of function expressions, the crate-internal
+elimination skeleton and the command entry with the
 [output lines](semantics.md#output-lines) are implemented, each with its
 contract ([errors](components/errors/contract.md),
 [shared result types](components/shared-results/contract.md),
@@ -35,6 +36,7 @@ contract ([errors](components/errors/contract.md),
 [syntax](components/syntax/contract.md),
 [polynomials](components/polynomials/contract.md),
 [function registry](components/registry/contract.md),
+[elimination skeleton](components/elimination/contract.md),
 [command entry](components/command/contract.md), co-signed with
 krepi); no other library component below is implemented
 yet. For the other components, the tables are
@@ -128,7 +130,7 @@ when each release is planned, except where the plan already fixes them.
 | Term core extension: constants, function-call nodes, conditions and assumptions | 0.2 | A2 for canonical forms | the function-expression baseline (elementary functions, $\pi$, $i$, conditions and `piecewise`), 0.2 |
 | Integer kernel: the arithmetic of `Integer`, GCD, LCM, extended GCD, modular inverse, modular power and Chinese remaindering (`number`; implemented, [contract](components/numbers/contract.md#the-integer-kernel)) | 0.2 | A1; Chinese remaindering is planned for A2 in 0.4, with the fast arithmetic; no A3 upgrade | the GCD and the factorization of polynomials over $\mathbb{Q}$, 0.2 |
 | Coefficient-field interface and fields beyond $\mathbb{Q}[x]$: $\mathbb F_p$ (`PrimeField` in `coefficient`; implemented, [contract](components/numbers/contract.md#prime-fields)), $\mathbb{Z}$, $\mathbb{Q}(a)$, multivariate rings, monomial orders, homomorphisms | 0.2 | A2 for the interface; A1 for $\mathbb F_p$; A3 upgrades in 0.2 for prime fields and monomial orders | $\mathbb F_p$: the multimodular GCD over $\mathbb{Q}$ and the Berlekamp factorization, 0.2; the others: real root isolation and algebraic numbers, and basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
-| Elimination skeleton: Gauss–Jordan elimination over a coefficient field | 0.2 | set when planned | basic polynomial algorithms over $\mathbb{Q}$, 0.2 |
+| Elimination skeleton: Gauss–Jordan elimination over a coefficient field (`elimination`, crate-internal; implemented, [contract](components/elimination/contract.md)) | 0.2 | A1; no A3 upgrade | the null space computation of the Berlekamp factorization over $\mathbb F_p$, 0.2 |
 | Function registry: the records of the eleven functions of function expressions and the identity list (`registry`, crate-internal; implemented, [contract](components/registry/contract.md)) | 0.2 | A1; A3 upgrade in 0.3 | the function-expression baseline, with the derivatives and the Taylor series of function expressions, 0.2; the call constructor of the term core reads the records in the same release and is not counted as the first caller |
 | Shared result types: `Evidence` and `Truth` (implemented, [contract](components/shared-results/contract.md)), `Completeness`; then `Guarantee` | 0.2; `Guarantee` in 0.3 | A1; no A3 upgrade; the tier of `Guarantee` is set when 0.3 is planned | the assumption queries of function expressions (`Evidence`, `Truth`; the assumption system of the same release answers them through these types and is not counted), root lists and real sets (`Completeness`), zero tests of algebraic numbers (`Evidence`), 0.2; numerical evaluation (`Guarantee`), 0.3 |
 | Numerical kernel and evaluation framework: rational-endpoint intervals, complex balls, summation, elementary kernels, one precision driver | 0.3 | A2 for inclusion; A1 for the framework; A3 upgrade in 0.3 for the series summer | the numerical evaluation entries `precision`, `ball`, `round` and `approx`, 0.3 |
