@@ -32,7 +32,7 @@
 //! agrees with a naive elimination written here, and the resource tests run
 //! it with a storage that charges one unit per hook, as a caller does.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -148,9 +148,53 @@ fn recorder(log: &Log) -> impl Fn(u32, &ZeroTest<u32>, &Context) + '_ {
     move |value, answer, _context| log.borrow_mut().push(Event::Test(value, *answer))
 }
 
+/// The hooks of `Grid` that take the context, but the store, by the event
+/// that each records.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Hook {
+    Begin,
+    Candidate,
+    Swap,
+    Pivot,
+    Target,
+    EndPivot,
+    Reserve,
+    End,
+}
+
+/// Every value of `Hook`.
+const HOOKS: [Hook; 8] = [
+    Hook::Begin,
+    Hook::Candidate,
+    Hook::Swap,
+    Hook::Pivot,
+    Hook::Target,
+    Hook::EndPivot,
+    Hook::Reserve,
+    Hook::End,
+];
+
+/// The hook that recorded `event`, if a hook but the store did.
+fn hook_of(event: &Event) -> Option<Hook> {
+    match event {
+        Event::Begin => Some(Hook::Begin),
+        Event::Candidate => Some(Hook::Candidate),
+        Event::Swap => Some(Hook::Swap),
+        Event::Pivot { .. } => Some(Hook::Pivot),
+        Event::Target => Some(Hook::Target),
+        Event::EndPivot => Some(Hook::EndPivot),
+        Event::Reserve => Some(Hook::Reserve),
+        Event::End => Some(Hook::End),
+        Event::Test(..) | Event::Store => None,
+    }
+}
+
 /// Entries in row-major order. With `below` set, a pivot eliminates only the
 /// rows below it, as a determinant needs. The store numbered `fail_at`, from
-/// zero, fails with a syntax error.
+/// zero, fails with a syntax error, and so does the first call of the hook
+/// `fail_hook`. The grid also records the arguments that its log does not
+/// show: the variables of the reduction, whether each pivot was swapped into
+/// place, and the row and column of each `end_pivot`.
 struct Grid<'a> {
     rows: usize,
     width: usize,
@@ -158,6 +202,10 @@ struct Grid<'a> {
     below: bool,
     stores: usize,
     fail_at: Option<usize>,
+    fail_hook: Option<Hook>,
+    variables: Option<usize>,
+    swapped: Vec<bool>,
+    ends: Vec<(usize, usize)>,
     log: &'a Log,
 }
 
@@ -171,12 +219,25 @@ impl<'a> Grid<'a> {
             below: false,
             stores: 0,
             fail_at: None,
+            fail_hook: None,
+            variables: None,
+            swapped: Vec::new(),
+            ends: Vec::new(),
             log,
         }
     }
 
     fn record(&self, event: Event) {
         self.log.borrow_mut().push(event);
+    }
+
+    /// Fails when `hook` is the hook that is to fail.
+    fn hook(&self, hook: Hook) -> Result<()> {
+        if self.fail_hook == Some(hook) {
+            Err(hook_failure())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -195,14 +256,17 @@ impl EliminationRows for Grid<'_> {
         &self.entries[row * self.width + column]
     }
 
-    fn begin_reduction(&mut self, _variables: usize, _context: &mut Context) -> Result<Vec<usize>> {
+    fn begin_reduction(&mut self, variables: usize, _context: &mut Context) -> Result<Vec<usize>> {
+        assert!(variables <= self.width, "{variables} variables");
+        self.variables = Some(variables);
         self.record(Event::Begin);
+        self.hook(Hook::Begin)?;
         Ok(Vec::new())
     }
 
     fn candidate_step(&self, _context: &mut Context) -> Result<()> {
         self.record(Event::Candidate);
-        Ok(())
+        self.hook(Hook::Candidate)
     }
 
     fn swap_cell(
@@ -213,6 +277,7 @@ impl EliminationRows for Grid<'_> {
         _context: &mut Context,
     ) -> Result<()> {
         self.record(Event::Swap);
+        self.hook(Hook::Swap)?;
         self.entries
             .swap(row * self.width + column, other * self.width + column);
         Ok(())
@@ -222,11 +287,13 @@ impl EliminationRows for Grid<'_> {
         &mut self,
         row: usize,
         column: usize,
-        _swapped: bool,
+        swapped: bool,
         _context: &mut Context,
     ) -> Result<u32> {
         let value = self.entries[row * self.width + column];
         self.record(Event::Pivot { row, column, value });
+        self.swapped.push(swapped);
+        self.hook(Hook::Pivot)?;
         Ok(value)
     }
 
@@ -252,28 +319,34 @@ impl EliminationRows for Grid<'_> {
 
     fn target_step(&self, _context: &mut Context) -> Result<()> {
         self.record(Event::Target);
-        Ok(())
+        self.hook(Hook::Target)
     }
 
-    fn end_pivot(&mut self, _row: usize, _column: usize, _context: &mut Context) -> Result<()> {
+    fn end_pivot(&mut self, row: usize, column: usize, _context: &mut Context) -> Result<()> {
         self.record(Event::EndPivot);
-        Ok(())
+        self.ends.push((row, column));
+        self.hook(Hook::EndPivot)
     }
 
     fn reserve_pivot(&mut self, _pivots: &mut Vec<usize>, _context: &mut Context) -> Result<()> {
         self.record(Event::Reserve);
-        Ok(())
+        self.hook(Hook::Reserve)
     }
 
     fn end_reduction(&mut self, _context: &mut Context) -> Result<()> {
         self.record(Event::End);
-        Ok(())
+        self.hook(Hook::End)
     }
 }
 
 /// The error of a failing store of `Grid`.
 fn store_failure() -> Error {
     Error::new(FaultKind::Syntax, None, "store failure")
+}
+
+/// The error of a failing hook of `Grid` other than the store.
+fn hook_failure() -> Error {
+    Error::new(FaultKind::Syntax, None, "hook failure")
 }
 
 /// The determinant of the square matrix `a` of order `n` modulo `p`, by
@@ -462,6 +535,15 @@ fn exact_reductions_are_reduced_row_echelon_forms() {
             assert_eq!(answers[last] == ZeroTest::Nonzero, pivot.is_some());
             assert_ne!(pivot, Some(0));
         }
+        // Each pivot was swapped into place exactly when swaps precede it.
+        let swapped: Vec<bool> = log
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| matches!(event, Event::Pivot { .. }))
+            .map(|(index, _)| index > 0 && log[index - 1] == Event::Swap)
+            .collect();
+        assert_eq!(grid.swapped, swapped);
+        assert_eq!(grid.variables, Some(columns));
         let exact_log = Log::default();
         let mut exact = Grid::new(rows, columns, &a, &exact_log);
         let reduction = reduce(&ExactResidues { p }, &mut exact, columns, &mut context()).unwrap();
@@ -538,6 +620,7 @@ fn undecided_candidates_are_passed_over() {
     let reduction = reduce(&field, &mut grid, 2, &mut context()).unwrap();
     assert_eq!(reduction, Reduction::Complete(vec![0, 1]));
     assert_reduced_form(&a, &grid.entries, &[0, 1], 3, 2, p);
+    assert!(grid.swapped[0]);
     let log = log.take();
     assert_eq!(
         log[..10],
@@ -686,7 +769,8 @@ fn the_skeleton_never_charges() {
 }
 
 /// A failing hook ends the reduction with its error: for every store of a
-/// reduction, a failure of that store is the last event.
+/// reduction, and for the first call of every other hook that takes the
+/// context, a failure there is the last event.
 #[test]
 fn a_failing_hook_ends_the_reduction() {
     let a = [0, 2, 1, 3, 4, 1, 1, 0, 6];
@@ -725,6 +809,34 @@ fn a_failing_hook_ends_the_reduction() {
             fail_at + 1
         );
     }
+    for hook in HOOKS {
+        let log = Log::default();
+        let mut grid = Grid::new(3, 3, &a, &log);
+        grid.fail_hook = Some(hook);
+        let report = recorder(&log);
+        let field = UndecidedResidues {
+            p: 7,
+            undecided: &[],
+            report: &report,
+        };
+        let Err(error) = reduce(&field, &mut grid, 3, &mut context()) else {
+            panic!("the hook {hook:?} did not fail");
+        };
+        let expected = hook_failure();
+        assert_eq!(
+            (error.kind(), error.span(), error.message()),
+            (expected.kind(), expected.span(), expected.message())
+        );
+        let log = log.take();
+        assert_eq!(log.last().and_then(hook_of), Some(hook));
+        assert_eq!(
+            log.iter()
+                .filter(|event| hook_of(event) == Some(hook))
+                .count(),
+            1,
+            "{hook:?}"
+        );
+    }
 }
 
 /// A storage that checks, in every hook that takes the context, that the
@@ -733,7 +845,7 @@ struct Watched<'a> {
     inner: Grid<'a>,
     frames: u64,
     retained: Storage,
-    checks: std::cell::Cell<usize>,
+    checks: Cell<usize>,
 }
 
 impl Watched<'_> {
@@ -845,9 +957,9 @@ fn the_skeleton_holds_no_frame_and_no_reservation() {
         inner: Grid::new(3, 3, &a, &log),
         frames,
         retained,
-        checks: std::cell::Cell::new(0),
+        checks: Cell::new(0),
     };
-    let tests = std::cell::Cell::new(0);
+    let tests = Cell::new(0);
     let report = |value: u32, answer: &ZeroTest<u32>, context: &Context| {
         assert_eq!(
             (context.open_frames(), context.retained()),
@@ -865,6 +977,14 @@ fn the_skeleton_holds_no_frame_and_no_reservation() {
     assert_eq!(reduction, Reduction::Complete(vec![0, 1, 2]));
     assert!(rows.checks.get() > 20, "{}", rows.checks.get());
     assert!(tests.get() > 5, "{}", tests.get());
+    let log = log.take();
+    for hook in HOOKS {
+        assert!(
+            log.iter().any(|event| hook_of(event) == Some(hook)),
+            "{hook:?}"
+        );
+    }
+    assert!(log.contains(&Event::Store));
     assert_eq!(
         (context.open_frames(), context.retained()),
         (frames, retained)
@@ -911,7 +1031,7 @@ fn the_search_stops_at_the_first_nonzero_answer() {
 }
 
 /// A candidate whose test answers zero is passed over, and the answer of the
-/// column stays zero.
+/// column stays what it was: zero, or the first undecided answer.
 #[test]
 fn the_search_passes_over_a_zero_answer() {
     let (found, log) = search(&[0, 0], 2, &[], 0);
@@ -925,6 +1045,8 @@ fn the_search_passes_over_a_zero_answer() {
             Event::Test(0, ZeroTest::Zero),
         ]
     );
+    let (found, _) = search(&[3, 0], 2, &[3], 0);
+    assert_eq!(found, (ZeroTest::Undecided(3), 2));
 }
 
 /// A candidate whose test answers undecided is passed over too; the search
@@ -1110,6 +1232,32 @@ fn a_column_that_answered_nonzero_runs_the_pivot_step() {
         column: 1,
         value: 1
     }));
+    assert_eq!(grid.swapped, [true, false]);
+    assert_eq!(grid.ends, [(0, 0), (1, 1)]);
+
+    // A swap at a later column, B02: the whole rows are swapped, cell by
+    // cell from the first column.
+    let log = Log::default();
+    let mut grid = Grid::new(3, 4, &[0, 1, 2, 3, 0, 2, 4, 1, 0, 3, 1, 0], &log);
+    let report = recorder(&log);
+    let field = UndecidedResidues {
+        p: 5,
+        undecided: &[],
+        report: &report,
+    };
+    let reduction = reduce(&field, &mut grid, 4, &mut context()).unwrap();
+    assert_eq!(reduction, Reduction::Complete(vec![1, 3]));
+    assert_eq!(grid.entries, [0, 1, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0]);
+    assert_eq!(grid.variables, Some(4));
+    assert_eq!(grid.swapped, [false, true]);
+    assert_eq!(grid.ends, [(0, 1), (1, 3)]);
+    assert_eq!(
+        log.take()
+            .iter()
+            .filter(|event| **event == Event::Swap)
+            .count(),
+        4
+    );
 }
 
 /// A pivot found in the current row stays in place: the step takes the pivot
@@ -1139,6 +1287,8 @@ fn a_pivot_in_the_current_row_stays_in_place() {
     assert!(!log.contains(&Event::Swap));
     assert_eq!(log[log.len() - 2..], [Event::EndPivot, Event::Reserve]);
     assert_eq!(grid.entries, [1, 2, 0, 6]);
+    assert_eq!(grid.swapped, [false]);
+    assert_eq!(grid.ends, [(0, 0)]);
 }
 
 /// Normalization divides each entry of the pivot row from the pivot column
@@ -1326,7 +1476,8 @@ impl EliminationRows for Charged {
         &self.entries[row * self.width + column]
     }
 
-    fn begin_reduction(&mut self, _variables: usize, context: &mut Context) -> Result<Vec<usize>> {
+    fn begin_reduction(&mut self, variables: usize, context: &mut Context) -> Result<Vec<usize>> {
+        assert!(variables <= self.width, "{variables} variables");
         context.charge(1)?;
         self.reserved.push(context.reserve(self.cost)?);
         Ok(Vec::new())
@@ -1432,17 +1583,27 @@ fn entries_cost(field: &PrimeField, entries: &[PrimeResidue]) -> Storage {
         .fold(Storage::ZERO, |sum, e| sum.saturating_add(field.measure(e)))
 }
 
+/// The result of the representative operation: the pivot columns, the
+/// reduced entries and the storage that the storage of rows held at the end
+/// of the reduction, beyond what the caller held before.
+#[derive(Debug, PartialEq)]
+struct Eliminated {
+    pivots: Vec<usize>,
+    entries: Vec<u32>,
+    peak: Storage,
+}
+
 /// The representative operation of the resource tests: the reduction of a
 /// working copy of `entries` over `field` in a `Charged` storage, which the
 /// caller discards after a failure. The caller releases the reservations of
-/// the storage after the reduction, whatever its result. It returns the
-/// pivot columns and the reduced entries.
+/// the storage after the reduction, whatever its result.
 fn eliminate(
     field: &PrimeField,
     input: &Input,
     entries: &[PrimeResidue],
     context: &mut Context,
-) -> Result<(Vec<usize>, Vec<u32>)> {
+) -> Result<Eliminated> {
+    let before = context.retained();
     let mut rows = Charged {
         rows: input.rows,
         width: input.width,
@@ -1451,18 +1612,20 @@ fn eliminate(
         reserved: Vec::new(),
     };
     let reduction = reduce(field, &mut rows, input.variables, context);
+    let peak = context.retained().saturating_sub(before);
     for reserved in rows.reserved.drain(..) {
         context.release(reserved);
     }
     let pivots = complete(reduction?);
-    Ok((
+    Ok(Eliminated {
         pivots,
-        rows.entries.iter().map(PrimeResidue::value).collect(),
-    ))
+        entries: rows.entries.iter().map(PrimeResidue::value).collect(),
+        peak,
+    })
 }
 
-/// The storage that the storage of `eliminate` reserves for `input` at its
-/// peak: the entries and one record for each of `pivots` pivot columns.
+/// The storage that the storage of `eliminate` reserves for `input` with
+/// `pivots` pivot columns: the entries and one record for each column.
 fn reserved_storage(input: &Input, pivots: usize) -> Storage {
     let (field, entries) = input.residues();
     entries_cost(&field, &entries).saturating_add(Storage::new(0, PIVOT_BYTES * pivots as u64))
@@ -1518,6 +1681,14 @@ fn naive(input: &Input) -> (Vec<usize>, Vec<u32>) {
     (pivots, a.iter().map(|&v| v as u32).collect())
 }
 
+/// A residue modulo `p` from two draws of 16 bits each, so that the
+/// residues of the large primes come from their whole range.
+fn residue(sequence: &mut Sequence, p: u32) -> u32 {
+    let high = sequence.next_in(0, 0xffff) as u64;
+    let low = sequence.next_in(0, 0xffff) as u64;
+    (((high << 16) | low) % u64::from(p)) as u32
+}
+
 /// A generated matrix over one of `PRIMES`, with at most 6 rows, at most 8
 /// columns and a generated number of variables.
 fn generated_input(sequence: &mut Sequence) -> Input {
@@ -1529,7 +1700,7 @@ fn generated_input(sequence: &mut Sequence) -> Input {
         .map(|_| match sequence.next_in(0, 3) {
             0 => 0,
             1 => p - 1,
-            _ => sequence.next_in(0, i64::from(p) - 1) as u32,
+            _ => residue(sequence, p),
         })
         .collect();
     Input {
@@ -1543,18 +1714,40 @@ fn generated_input(sequence: &mut Sequence) -> Input {
 
 /// Over the prime fields of the library, the skeleton gives the pivot
 /// columns and the entries of the naive elimination, for 1,000 generated
-/// matrices.
+/// matrices. The generated matrices cover every prime, columns without a
+/// pivot among the variables, fewer variables than columns, a rank below
+/// the number of rows and residues of the largest prime at or above $2^{31}$.
 #[test]
 fn reductions_over_prime_fields_match_naive_elimination() {
     let mut sequence = Sequence::new(0xe11a_0001);
+    let mut primes = [0_usize; PRIMES.len()];
+    let mut skipped = 0;
+    let mut fewer_variables = 0;
+    let mut deficient = 0;
+    let mut high = 0;
     for _ in 0..1000 {
         let input = generated_input(&mut sequence);
+        let (pivots, entries) = naive(&input);
+        primes[PRIMES.iter().position(|&p| p == input.p).unwrap()] += 1;
+        let prefix = pivots.iter().enumerate().all(|(k, &c)| k == c);
+        if !prefix || (pivots.len() < input.variables && pivots.len() < input.rows) {
+            skipped += 1;
+        }
+        fewer_variables += usize::from(input.variables < input.width);
+        deficient += usize::from(pivots.len() < input.rows);
+        high += input
+            .entries
+            .iter()
+            .filter(|&&v| v >= 1 << 31 && v < input.p - 1)
+            .count();
         case(format_args!("{input:?}"), || {
-            let (field, entries) = input.residues();
-            let found = eliminate(&field, &input, &entries, &mut context()).unwrap();
-            assert_eq!(found, naive(&input));
+            let (field, residues) = input.residues();
+            let found = eliminate(&field, &input, &residues, &mut context()).unwrap();
+            assert_eq!((found.pivots, found.entries), (pivots, entries));
         });
     }
+    assert!(primes.iter().all(|&n| n > 0), "{primes:?}");
+    assert!(skipped > 0 && fewer_variables > 0 && deficient > 0 && high > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1588,8 +1781,31 @@ fn representative() -> [Input; 3] {
     ]
 }
 
-/// The expected pivot columns of B01 to B03.
+/// The pivot columns of B01 to B03.
 const REPRESENTATIVE_PIVOTS: [&[usize]; 3] = [&[0, 1, 2], &[1, 3], &[0, 1]];
+
+/// The reduced entries of B01 to B03, computed by hand.
+const REPRESENTATIVE_RESULTS: [&[u32]; 3] = [
+    &[1, 0, 0, 0, 1, 0, 0, 0, 1],
+    &[0, 1, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+    &[1, 0, 6, 0, 1, 2_147_483_651],
+];
+
+/// The work that `eliminate` charges for B01 to B03, measured.
+const REPRESENTATIVE_WORK: [u64; 3] = [249, 179, 194];
+
+/// The storage that the storage of rows holds at the end of B01 to B03.
+const REPRESENTATIVE_PEAK: [Storage; 3] = [
+    Storage::new(9, 77),
+    Storage::new(12, 78),
+    Storage::new(6, 114),
+];
+
+/// The charges of B01 to B03 that poll the cancellation probe, measured.
+const REPRESENTATIVE_CHARGES: [u64; 3] = [63, 55, 39];
+
+/// The storage that the caller of the rollback tests holds itself.
+const CALLER: Storage = Storage::new(1, 8);
 
 /// The work that `eliminate` charges for `input` under the default limits.
 fn measured_work(input: &Input) -> u64 {
@@ -1599,74 +1815,83 @@ fn measured_work(input: &Input) -> u64 {
     context.work_used()
 }
 
-/// Runs `eliminate` for `input` under `context`, checks that the input and
-/// the retained storage are unchanged afterwards, and returns the result.
-fn run(input: &Input, context: &mut Context) -> Result<(Vec<usize>, Vec<u32>)> {
-    let copy = input.clone();
+/// Runs `eliminate` for `input` under `context` and checks that the
+/// retained storage is that before the call. The input is unchanged by
+/// construction: `eliminate` borrows it and reduces a working copy.
+fn run(input: &Input, context: &mut Context) -> Result<Eliminated> {
     let (field, entries) = input.residues();
     let before = context.retained();
     let result = eliminate(&field, input, &entries, context);
     assert_eq!(context.retained(), before);
-    assert_eq!(*input, copy);
-    let values: Vec<u32> = entries.iter().map(PrimeResidue::value).collect();
-    assert_eq!(values, input.entries);
     result
 }
 
-/// Asserts that `result` failed with `ResourceLimit` on `field`, at `scope`.
-fn assert_limit(
-    result: Result<(Vec<usize>, Vec<u32>)>,
-    field: LimitField,
-    scope: Option<LimitScope>,
-) {
+/// Asserts that `result` failed with `ResourceLimit` on `field`, at the
+/// scope of temporaries for the storage and at no scope for the work.
+fn assert_limit(result: Result<Eliminated>, field: LimitField) {
     let Err(error) = result else {
         panic!("the elimination succeeded");
     };
     assert_eq!(error.kind(), ErrorKind::ResourceLimit);
     let exceeded = error.exceeded().expect("a resource limit has its record");
+    let scope = match field {
+        LimitField::StorageBytes => Some(LimitScope::Temporary),
+        _ => None,
+    };
     assert_eq!(
         (exceeded.id().clone(), exceeded.scope()),
         (LimitId::Field(field), scope)
     );
 }
 
-/// With exactly the work it charges an elimination succeeds, and with one
-/// unit less it fails with `ResourceLimit` on `max_work`.
+/// With exactly the work it charges an elimination succeeds, with the hand
+/// results of B01 to B03, and with one unit less it fails with
+/// `ResourceLimit` on `max_work`.
 #[test]
 fn an_elimination_over_a_prime_field_passes_at_the_exact_work_and_fails_one_unit_below() {
-    for (input, pivots) in representative().iter().zip(REPRESENTATIVE_PIVOTS) {
+    for (k, input) in representative().iter().enumerate() {
         let work = measured_work(input);
+        assert_eq!(work, REPRESENTATIVE_WORK[k], "B0{}", k + 1);
         let mut exact = Context::new(Limits::new().with_max_work(work), CancelFlag::new());
-        let (found, entries) = run(input, &mut exact).unwrap();
-        assert_eq!((found.as_slice(), entries), (pivots, naive(input).1));
+        let found = run(input, &mut exact).unwrap();
+        assert_eq!(
+            (found.pivots.as_slice(), found.entries.as_slice()),
+            (REPRESENTATIVE_PIVOTS[k], REPRESENTATIVE_RESULTS[k])
+        );
+        assert_eq!(found.entries, naive(input).1);
         let mut below = Context::new(Limits::new().with_max_work(work - 1), CancelFlag::new());
-        assert_limit(run(input, &mut below), LimitField::Work, None);
+        assert_limit(run(input, &mut below), LimitField::Work);
     }
 }
 
-/// With exactly the storage that its rows reserve an elimination succeeds,
-/// and with one byte less the last reservation, that of the last pivot
-/// column, fails with `ResourceLimit` on `max_storage_bytes` at the scope of
-/// temporaries.
+/// With exactly the storage that its rows reserve, measured at the end of
+/// the reduction, an elimination succeeds; with one byte less the last
+/// reservation, that of the last pivot column, fails with `ResourceLimit` on
+/// `max_storage_bytes` at the scope of temporaries, before the last charge
+/// of the reduction.
 #[test]
 fn an_elimination_over_a_prime_field_passes_at_the_exact_storage_and_fails_one_byte_below() {
-    for (input, pivots) in representative().iter().zip(REPRESENTATIVE_PIVOTS) {
-        let bytes = reserved_storage(input, pivots.len()).bytes;
+    for (k, input) in representative().iter().enumerate() {
+        let peak = run(input, &mut context()).unwrap().peak;
+        assert_eq!(peak, REPRESENTATIVE_PEAK[k], "B0{}", k + 1);
+        assert_eq!(
+            peak,
+            reserved_storage(input, REPRESENTATIVE_PIVOTS[k].len())
+        );
         let mut exact = Context::new(
-            Limits::new().with_max_storage_bytes(bytes),
+            Limits::new().with_max_storage_bytes(peak.bytes),
             CancelFlag::new(),
         );
-        let (found, _) = run(input, &mut exact).unwrap();
-        assert_eq!(found, pivots);
+        assert_eq!(
+            run(input, &mut exact).unwrap().pivots,
+            REPRESENTATIVE_PIVOTS[k]
+        );
         let mut below = Context::new(
-            Limits::new().with_max_storage_bytes(bytes - 1),
+            Limits::new().with_max_storage_bytes(peak.bytes - 1),
             CancelFlag::new(),
         );
-        assert_limit(
-            run(input, &mut below),
-            LimitField::StorageBytes,
-            Some(LimitScope::Temporary),
-        );
+        assert_limit(run(input, &mut below), LimitField::StorageBytes);
+        assert_eq!(below.work_used(), measured_work(input) - 1);
     }
 }
 
@@ -1716,80 +1941,86 @@ impl Clock for StoppedClock {
     }
 }
 
-/// A context under the default limits on a stopped clock, polling `probe`.
-fn observed(probe: &CountingProbe) -> Context {
-    Context::with_observers(
-        Limits::new(),
-        Box::new(StoppedClock),
-        Box::new(probe.clone()),
-    )
-    .with_deadline(u64::MAX)
+/// A context under `limits` on a stopped clock, with a deadline that never
+/// passes, polling `probe`: only the probe can end a reduction early.
+fn observed(limits: Limits, probe: CountingProbe) -> Context {
+    Context::with_observers(limits, Box::new(StoppedClock), Box::new(probe)).with_deadline(u64::MAX)
 }
 
 /// The number of charges of `eliminate` for `input` that poll the probe.
 fn charge_points(input: &Input) -> u64 {
     let probe = CountingProbe::after(u64::MAX);
-    run(input, &mut observed(&probe)).unwrap();
+    run(input, &mut observed(Limits::new(), probe.clone())).unwrap();
     probe.polls()
 }
 
 /// A cancellation observed at any one of the charges of an elimination ends
-/// it with `Cancelled`.
+/// it with `Cancelled` at that charge, with no charge after it.
 #[test]
 fn cancellation_at_every_charge_of_an_elimination_is_reported() {
-    for input in &representative() {
+    for (n, input) in representative().iter().enumerate() {
         let points = charge_points(input);
-        assert!(points > 0);
+        assert_eq!(points, REPRESENTATIVE_CHARGES[n], "B0{}", n + 1);
         for k in 0..points {
             let probe = CountingProbe::after(k);
-            let Err(error) = run(input, &mut observed(&probe)) else {
+            let Err(error) = run(input, &mut observed(Limits::new(), probe.clone())) else {
                 panic!("not cancelled at charge {}", k + 1);
             };
             assert_eq!(error.kind(), ErrorKind::Cancelled, "charge {}", k + 1);
+            assert_eq!(probe.polls(), k + 1);
         }
     }
 }
 
-/// After every failure and cancellation of the representative eliminations,
-/// the input of the caller is unchanged and the retained storage is that
-/// before the call; `run` checks both, and no output is written.
+/// After every failure and cancellation of the representative eliminations
+/// the retained storage is that of the caller before the call, which `run`
+/// checks and this test checks again against the caller's own reservation,
+/// and no output is written. The limits run out at several points: the
+/// work at three amounts, and the storage at the reservation of the entries
+/// and at that of each pivot column.
 #[test]
 fn a_failed_or_cancelled_elimination_keeps_its_input_and_the_retained_storage() {
     for input in &representative() {
+        let pivots = naive(input).0.len();
         let work = measured_work(input);
-        let bytes = reserved_storage(input, 0).bytes;
-        let mut failures = 0;
-        for limits in [
-            Limits::new().with_max_work(work - 1),
-            Limits::new().with_max_work(work / 2),
-            Limits::new().with_max_work(0),
-            Limits::new().with_max_storage_bytes(bytes - 1),
-        ] {
+        let mut cases = vec![
+            (Limits::new().with_max_work(work - 1), LimitField::Work),
+            (Limits::new().with_max_work(work / 2), LimitField::Work),
+            (Limits::new().with_max_work(0), LimitField::Work),
+        ];
+        for k in 0..=pivots {
+            let bytes = CALLER.bytes + reserved_storage(input, k).bytes - 1;
+            cases.push((
+                Limits::new().with_max_storage_bytes(bytes),
+                LimitField::StorageBytes,
+            ));
+        }
+        for (limits, field) in cases {
             let mut context = Context::new(limits, CancelFlag::new());
-            let reserved = context.reserve(Storage::new(1, 8)).unwrap();
-            assert!(run(input, &mut context).is_err());
-            assert_eq!(context.retained(), Storage::new(1, 8));
+            let reserved = context.reserve(CALLER).unwrap();
+            assert_limit(run(input, &mut context), field);
+            assert_eq!(context.retained(), CALLER);
             assert_eq!(context.output_used(), 0);
             context.release(reserved);
-            failures += 1;
         }
         for k in 0..charge_points(input) {
-            let probe = CountingProbe::after(k);
-            let mut context = observed(&probe);
+            let mut context = observed(Limits::new(), CountingProbe::after(k));
+            let reserved = context.reserve(CALLER).unwrap();
             assert!(run(input, &mut context).is_err());
-            assert_eq!(context.retained(), Storage::ZERO);
-            failures += 1;
+            assert_eq!(context.retained(), CALLER);
+            assert_eq!(context.output_used(), 0);
+            context.release(reserved);
         }
-        assert!(failures > 4);
     }
 }
 
 /// Generated eliminations under generated limits and cancellation points do
 /// not panic: each ends with its result, `ResourceLimit` or `Cancelled`, and
-/// leaves the retained storage as it was.
+/// leaves the retained storage as it was. All three outcomes occur.
 #[test]
 fn random_eliminations_over_prime_fields_do_not_panic() {
     let mut sequence = Sequence::new(0xe11a_0002);
+    let mut outcomes = [0_usize; 3];
     for _ in 0..1000 {
         let input = generated_input(&mut sequence);
         let work = sequence.next_in(0, 400) as u64;
@@ -1798,24 +2029,23 @@ fn random_eliminations_over_prime_fields_do_not_panic() {
         case(
             format_args!("{input:?} under work {work}, bytes {bytes}, cancel after {cancel_after}"),
             || {
-                let probe = CountingProbe::after(cancel_after);
                 let limits = Limits::new()
                     .with_max_work(work)
                     .with_max_storage_bytes(bytes);
-                let mut context =
-                    Context::with_observers(limits, Box::new(StoppedClock), Box::new(probe))
-                        .with_deadline(u64::MAX);
+                let mut context = observed(limits, CountingProbe::after(cancel_after));
                 match run(&input, &mut context) {
-                    Ok(found) => assert_eq!(found, naive(&input)),
-                    Err(error) => assert!(
-                        matches!(
-                            error.kind(),
-                            ErrorKind::ResourceLimit | ErrorKind::Cancelled
-                        ),
-                        "{error:?}"
-                    ),
+                    Ok(found) => {
+                        assert_eq!((found.pivots, found.entries), naive(&input));
+                        outcomes[0] += 1;
+                    }
+                    Err(error) if error.kind() == ErrorKind::ResourceLimit => outcomes[1] += 1,
+                    Err(error) => {
+                        assert_eq!(error.kind(), ErrorKind::Cancelled, "{error:?}");
+                        outcomes[2] += 1;
+                    }
                 }
             },
         );
     }
+    assert!(outcomes.iter().all(|&n| n > 0), "{outcomes:?}");
 }

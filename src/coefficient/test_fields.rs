@@ -1,6 +1,6 @@
-//! Test-only coefficient fields of residues modulo a prime $p$, for the
-//! tests of code that is generic over the coefficient traits, such as the
-//! elimination skeleton.
+//! Test-only coefficient fields of residues modulo a small prime $p$, for
+//! the tests of code that is generic over the coefficient traits, such as
+//! the elimination skeleton.
 //!
 //! The coefficient traits are sealed, and the seal is visible only in this
 //! module tree, so the test fields that other modules need are defined here.
@@ -16,12 +16,23 @@ use crate::context::{CancelFlag, Storage};
 use crate::number::Integer;
 use crate::{Context, Error, FaultKind, Limits, Result};
 
+/// `a + b` modulo `p`.
+fn residue_sum(p: u32, a: u32, b: u32) -> u32 {
+    ((u64::from(a) + u64::from(b)) % u64::from(p)) as u32
+}
+
+/// `a - b` modulo `p`.
+fn residue_difference(p: u32, a: u32, b: u32) -> u32 {
+    ((u64::from(a) + u64::from(p) - u64::from(b)) % u64::from(p)) as u32
+}
+
 /// `a * b` modulo `p`.
 pub(crate) fn residue_product(p: u32, a: u32, b: u32) -> u32 {
     ((u64::from(a) * u64::from(b)) % u64::from(p)) as u32
 }
 
-/// `a^(p-2)`, the inverse of a nonzero residue, by repeated multiplication.
+/// `a^(p-2)`, the inverse of a nonzero residue, by repeated multiplication:
+/// $p - 2$ products, so only for the small primes of the tests, $p \ge 2$.
 fn residue_inverse(p: u32, a: u32) -> Result<u32> {
     if a == 0 {
         return Err(Error::new(FaultKind::DivisionByZero, None, "zero residue"));
@@ -29,20 +40,30 @@ fn residue_inverse(p: u32, a: u32) -> Result<u32> {
     Ok((0..p - 2).fold(1, |result, _| residue_product(p, result, a)))
 }
 
+/// `a / b` modulo `p`, the product with the inverse of `b`.
+fn residue_quotient(p: u32, a: u32, b: u32) -> Result<u32> {
+    Ok(residue_product(p, a, residue_inverse(p, b)?))
+}
+
 /// The residue of `n` modulo `p`, computed under a context of its own so
-/// that the caller's context is not charged.
+/// that the caller's context is not charged; the remainder of
+/// `divide_with_remainder` is not negative.
 fn residue_of(p: u32, n: &Integer) -> Result<u32> {
     let mut scratch = Context::new(Limits::new(), CancelFlag::new());
     let division = n.divide_with_remainder(&Integer::from(u64::from(p)), &mut scratch)?;
-    match division.remainder().magnitude_u64() {
-        Some(value) => Ok((value % u64::from(p)) as u32),
-        None => Err(Error::new(
+    match division.remainder().magnitude_u64().map(u32::try_from) {
+        Some(Ok(residue)) => Ok(residue),
+        _ => Err(Error::new(
             FaultKind::Internal,
             None,
-            "a remainder beyond 64 bits",
+            "a remainder beyond 32 bits",
         )),
     }
 }
+
+/// The storage cost of a residue of a test field: one node of 4 bytes for
+/// every residue, which the tests of the elimination skeleton do not read.
+const RESIDUE_COST: Storage = Storage::new(1, 4);
 
 /// The residues modulo `p` whose zero test answers undecided, with the value
 /// as its reason, for the values in `undecided`, and decides every other
@@ -76,15 +97,15 @@ impl CoefficientRing for UndecidedResidues<'_> {
     }
 
     fn negate(&self, a: &u32, _context: &mut Context) -> Result<u32> {
-        Ok((self.p - a) % self.p)
+        Ok(residue_difference(self.p, 0, *a))
     }
 
     fn add(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
-        Ok(((u64::from(*a) + u64::from(*b)) % u64::from(self.p)) as u32)
+        Ok(residue_sum(self.p, *a, *b))
     }
 
     fn subtract(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
-        Ok(((u64::from(*a) + u64::from(self.p) - u64::from(*b)) % u64::from(self.p)) as u32)
+        Ok(residue_difference(self.p, *a, *b))
     }
 
     fn multiply(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
@@ -104,7 +125,7 @@ impl CoefficientRing for UndecidedResidues<'_> {
     }
 
     fn measure(&self, _a: &u32) -> Storage {
-        Storage::new(1, 4)
+        RESIDUE_COST
     }
 }
 
@@ -114,7 +135,7 @@ impl CoefficientField for UndecidedResidues<'_> {
     }
 
     fn divide(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
-        Ok(residue_product(self.p, *a, residue_inverse(self.p, *b)?))
+        residue_quotient(self.p, *a, *b)
     }
 }
 
@@ -146,15 +167,15 @@ impl CoefficientRing for ExactResidues {
     }
 
     fn negate(&self, a: &u32, _context: &mut Context) -> Result<u32> {
-        Ok((self.p - a) % self.p)
+        Ok(residue_difference(self.p, 0, *a))
     }
 
     fn add(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
-        Ok(((u64::from(*a) + u64::from(*b)) % u64::from(self.p)) as u32)
+        Ok(residue_sum(self.p, *a, *b))
     }
 
     fn subtract(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
-        Ok(((u64::from(*a) + u64::from(self.p) - u64::from(*b)) % u64::from(self.p)) as u32)
+        Ok(residue_difference(self.p, *a, *b))
     }
 
     fn multiply(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
@@ -170,7 +191,7 @@ impl CoefficientRing for ExactResidues {
     }
 
     fn measure(&self, _a: &u32) -> Storage {
-        Storage::new(1, 4)
+        RESIDUE_COST
     }
 }
 
@@ -180,6 +201,6 @@ impl CoefficientField for ExactResidues {
     }
 
     fn divide(&self, a: &u32, b: &u32, _context: &mut Context) -> Result<u32> {
-        Ok(residue_product(self.p, *a, residue_inverse(self.p, *b)?))
+        residue_quotient(self.p, *a, *b)
     }
 }
