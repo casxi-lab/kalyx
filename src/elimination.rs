@@ -32,7 +32,7 @@
     not(test),
     expect(
         dead_code,
-        reason = "the elimination skeleton has no production caller yet; its unit tests run every path"
+        reason = "the elimination skeleton has no production caller yet; its unit tests reach it"
     )
 )]
 
@@ -56,9 +56,9 @@ pub(crate) enum Reduction<U> {
     /// the earlier columns in place.
     ///
     /// This state refines [`MathState::Undecided`](crate::MathState::Undecided).
-    /// It carries the reason alone, because no production caller reads it
-    /// yet; the first that does adds the undecided column and the pivot
-    /// columns found before it.
+    /// It carries the reason alone, because no production field answers
+    /// undecided yet; the first caller that reads it adds the undecided column
+    /// and the pivot columns found before it.
     Undecided(U),
 }
 
@@ -74,12 +74,13 @@ pub(crate) fn complete(reduction: Reduction<Infallible>) -> Vec<usize> {
 /// their domain.
 ///
 /// The entries form `rows()` rows of `width()` columns. The reduction pivots
-/// in the first `variables` columns; the columns after them, such as the
-/// right-hand sides of a system, are transformed with the rows. The hooks
-/// perform the checks and charges of one step of the reduction; the skeleton
-/// calls them in the order given here. The storage belongs to the caller,
-/// which reserves its room in the context before the reduction and releases
-/// it afterwards.
+/// in the first `variables` columns, at most `width()`; the columns after
+/// them, such as the right-hand sides of a system, are transformed with the
+/// rows. The hooks perform the checks and charges of one step of the
+/// reduction; the skeleton calls them in the order given here. The storage
+/// and its reservations belong to the caller: a storage that reserves room
+/// in the context does so in its hooks and holds the reservations, which the
+/// caller releases after the reduction, whatever its result.
 pub(crate) trait EliminationRows {
     type Element;
 
@@ -93,7 +94,9 @@ pub(crate) trait EliminationRows {
     fn entry(&self, row: usize, column: usize) -> &Self::Element;
 
     /// The entry checks of a reduction in the first `variables` columns, and
-    /// the empty list that receives the pivot columns.
+    /// the empty list that receives the pivot columns. The skeleton does not
+    /// compare `variables` with `width()`: a storage that can receive more
+    /// variables than columns rejects them here.
     fn begin_reduction(&mut self, variables: usize, context: &mut Context) -> Result<Vec<usize>>;
 
     /// The charge of a pivot candidate, before its zero test.
@@ -152,7 +155,8 @@ pub(crate) trait EliminationRows {
 /// Reduces `rows` in its first `variables` columns over `field`: after a
 /// complete reduction the pivot rows come first, each pivot is one and the
 /// other entries of a pivot column are zero in the rows that the storage
-/// eliminates from.
+/// eliminates from. `variables` is at most `rows.width()`, which the caller
+/// or `begin_reduction` ensures.
 pub(crate) fn reduce<F, S>(
     field: &F,
     rows: &mut S,

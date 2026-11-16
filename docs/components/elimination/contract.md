@@ -52,7 +52,9 @@ are `pub(crate)`:
   `Element` and the hooks of [the storage](#the-storage).
 - `reduce(field, rows, variables, context)`, generic over `F:
   CoefficientField` and `S: EliminationRows<Element = F::Element>`, which
-  returns `Result<Reduction<F::Undecided>>`.
+  returns `Result<Reduction<F::Undecided>>`. `variables` is at most the
+  width of the storage; the skeleton does not check it, so the caller, or
+  the storage in `begin_reduction`, does.
 
 ## Rules
 
@@ -189,8 +191,12 @@ always decides, charge nothing.
 
 ## Extractability
 
-No proof target is registered for the skeleton, and its files are not in
-the module list of [formal verification](../../formal-verification.md#module-list).
+No proof target is registered for the skeleton, and `src/elimination.rs`
+and its tests are not in the module list of
+[formal verification](../../formal-verification.md#module-list). The test
+fields in `src/coefficient/test_fields.rs` lie in the directory
+`src/coefficient` of that list, but only test code reaches them, so the
+`subset` step and the inventory skip them.
 It keeps the shape in which the earlier implementation extracted it: one
 loop per function, each an index loop whose condition is a comparison; the
 result state returned from inside the column loop; the uninhabited reason
