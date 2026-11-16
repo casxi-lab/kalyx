@@ -114,10 +114,12 @@ column; and `end_reduction` after the last column.
   storage, so the results, errors and work of a reduction depend only on
   them. A hook or a field operation that fails ends the reduction with its
   error, and no further hook runs.
-- **Ownership.** The storage and its reservation belong to the caller,
-  which reserves the room of the entries in the context before the
-  reduction and releases it afterwards. The skeleton opens no frame and
-  holds no reservation.
+- **Ownership.** The storage and its reservations belong to the caller. A
+  storage that reserves room in the context, for its entries or its pivot
+  columns, does so in its hooks and holds the reservations, and the caller
+  releases them after the reduction, whatever its result; after a failure
+  the caller discards the storage, which is a working copy. The skeleton
+  opens no frame and holds no reservation.
 
 ### The undecided state
 
@@ -176,8 +178,8 @@ always decides, charge nothing.
    `reductions_over_prime_fields_match_naive_elimination`.
 6. **Resources, cancellation and rollback.** The representative operation is
    a reduction over a prime field with a storage that charges one unit in
-   every hook that takes the context, and a reservation of its entries by
-   the caller.
+   every hook that takes the context and reserves its entries in
+   `begin_reduction` and each pivot column in `reserve_pivot`.
    `an_elimination_over_a_prime_field_passes_at_the_exact_work_and_fails_one_unit_below`,
    `an_elimination_over_a_prime_field_passes_at_the_exact_storage_and_fails_one_byte_below`,
    `cancellation_at_every_charge_of_an_elimination_is_reported`,
