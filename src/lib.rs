@@ -36,6 +36,7 @@ const _: () = assert!(usize::BITS == 64, "kalyx supports only 64-bit targets");
 pub mod coefficient;
 pub mod command;
 pub mod context;
+mod elimination;
 mod error;
 pub mod number;
 pub mod polynomial;
