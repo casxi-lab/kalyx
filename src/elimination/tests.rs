@@ -43,9 +43,11 @@ use super::{
 };
 use crate::coefficient::test_fields::{ExactResidues, UndecidedResidues, residue_product};
 use crate::coefficient::{CoefficientRing, PrimeField, PrimeResidue, ZeroTest};
-use crate::context::{CancelFlag, CancelProbe, Clock, Storage};
+use crate::context::{CancelFlag, CancelProbe, Clock, Reserved, Storage};
 use crate::number::Integer;
-use crate::{Context, Error, ErrorKind, FaultKind, LimitField, LimitId, Limits, Result};
+use crate::{
+    Context, Error, ErrorKind, FaultKind, LimitField, LimitId, LimitScope, Limits, Result,
+};
 
 // ---------------------------------------------------------------------------
 // Test support
@@ -142,8 +144,8 @@ enum Event {
 type Log = RefCell<Vec<Event>>;
 
 /// The report of a test field that records each zero test in `log`.
-fn recorder(log: &Log) -> impl Fn(u32, &ZeroTest<u32>) + '_ {
-    move |value, answer| log.borrow_mut().push(Event::Test(value, *answer))
+fn recorder(log: &Log) -> impl Fn(u32, &ZeroTest<u32>, &Context) + '_ {
+    move |value, answer, _context| log.borrow_mut().push(Event::Test(value, *answer))
 }
 
 /// Entries in row-major order. With `below` set, a pivot eliminates only the
@@ -826,8 +828,9 @@ impl EliminationRows for Watched<'_> {
 }
 
 /// The skeleton holds no frame and no reservation: under a caller that has
-/// opened a frame and reserved storage, every hook sees exactly that frame
-/// and that reservation, and so does the caller after the reduction.
+/// opened a frame and reserved storage, every hook that takes the context
+/// and every zero test sees exactly that frame and that reservation, and so
+/// does the caller after the reduction.
 #[test]
 fn the_skeleton_holds_no_frame_and_no_reservation() {
     let mut context = context();
@@ -844,7 +847,15 @@ fn the_skeleton_holds_no_frame_and_no_reservation() {
         retained,
         checks: std::cell::Cell::new(0),
     };
-    let report = recorder(&log);
+    let tests = std::cell::Cell::new(0);
+    let report = |value: u32, answer: &ZeroTest<u32>, context: &Context| {
+        assert_eq!(
+            (context.open_frames(), context.retained()),
+            (frames, retained)
+        );
+        tests.set(tests.get() + 1);
+        log.borrow_mut().push(Event::Test(value, *answer));
+    };
     let field = UndecidedResidues {
         p: 7,
         undecided: &[],
@@ -853,6 +864,7 @@ fn the_skeleton_holds_no_frame_and_no_reservation() {
     let reduction = reduce(&field, &mut rows, 3, &mut context).unwrap();
     assert_eq!(reduction, Reduction::Complete(vec![0, 1, 2]));
     assert!(rows.checks.get() > 20, "{}", rows.checks.get());
+    assert!(tests.get() > 5, "{}", tests.get());
     assert_eq!(
         (context.open_frames(), context.retained()),
         (frames, retained)
@@ -1283,12 +1295,20 @@ fn a_single_undecided_entry_gives_an_undecided_reduction() {
 /// The primes of the generated eliminations over prime fields.
 const PRIMES: [u32; 7] = [2, 3, 5, 7, 251, 65_521, 4_294_967_291];
 
+/// The bytes that `Charged` reserves for each pivot column.
+const PIVOT_BYTES: u64 = 8;
+
 /// A storage of prime residues that charges one unit in every hook that
-/// takes the context, as a caller's storage does.
+/// takes the context, as a caller's storage does, and reserves its room in
+/// its hooks: the working copy of the entries in `begin_reduction` and each
+/// pivot column in `reserve_pivot`. It holds the reservations, which its
+/// caller releases after the reduction.
 struct Charged {
     rows: usize,
     width: usize,
+    cost: Storage,
     entries: Vec<PrimeResidue>,
+    reserved: Vec<Reserved>,
 }
 
 impl EliminationRows for Charged {
@@ -1308,6 +1328,7 @@ impl EliminationRows for Charged {
 
     fn begin_reduction(&mut self, _variables: usize, context: &mut Context) -> Result<Vec<usize>> {
         context.charge(1)?;
+        self.reserved.push(context.reserve(self.cost)?);
         Ok(Vec::new())
     }
 
@@ -1364,7 +1385,10 @@ impl EliminationRows for Charged {
     }
 
     fn reserve_pivot(&mut self, _pivots: &mut Vec<usize>, context: &mut Context) -> Result<()> {
-        context.charge(1)
+        context.charge(1)?;
+        self.reserved
+            .push(context.reserve(Storage::new(0, PIVOT_BYTES))?);
+        Ok(())
     }
 
     fn end_reduction(&mut self, context: &mut Context) -> Result<()> {
@@ -1401,27 +1425,35 @@ impl Input {
     }
 }
 
-/// The representative operation of the resource tests: the reduction of
-/// `entries` over `field` in a storage that charges one unit per hook, with
-/// the room of the storage reserved by the caller for the time of the
-/// reduction. It returns the pivot columns and the reduced entries.
+/// The storage cost of `entries` over `field`.
+fn entries_cost(field: &PrimeField, entries: &[PrimeResidue]) -> Storage {
+    entries
+        .iter()
+        .fold(Storage::ZERO, |sum, e| sum.saturating_add(field.measure(e)))
+}
+
+/// The representative operation of the resource tests: the reduction of a
+/// working copy of `entries` over `field` in a `Charged` storage, which the
+/// caller discards after a failure. The caller releases the reservations of
+/// the storage after the reduction, whatever its result. It returns the
+/// pivot columns and the reduced entries.
 fn eliminate(
     field: &PrimeField,
     input: &Input,
     entries: &[PrimeResidue],
     context: &mut Context,
 ) -> Result<(Vec<usize>, Vec<u32>)> {
-    let cost = entries
-        .iter()
-        .fold(Storage::ZERO, |sum, e| sum.saturating_add(field.measure(e)));
-    let reserved = context.reserve(cost)?;
     let mut rows = Charged {
         rows: input.rows,
         width: input.width,
+        cost: entries_cost(field, entries),
         entries: entries.to_vec(),
+        reserved: Vec::new(),
     };
     let reduction = reduce(field, &mut rows, input.variables, context);
-    context.release(reserved);
+    for reserved in rows.reserved.drain(..) {
+        context.release(reserved);
+    }
     let pivots = complete(reduction?);
     Ok((
         pivots,
@@ -1429,12 +1461,11 @@ fn eliminate(
     ))
 }
 
-/// The storage that `eliminate` reserves for `input`.
-fn reserved_storage(input: &Input) -> Storage {
+/// The storage that the storage of `eliminate` reserves for `input` at its
+/// peak: the entries and one record for each of `pivots` pivot columns.
+fn reserved_storage(input: &Input, pivots: usize) -> Storage {
     let (field, entries) = input.residues();
-    entries
-        .iter()
-        .fold(Storage::ZERO, |sum, e| sum.saturating_add(field.measure(e)))
+    entries_cost(&field, &entries).saturating_add(Storage::new(0, PIVOT_BYTES * pivots as u64))
 }
 
 /// Gauss–Jordan elimination of `input` written out over machine integers:
@@ -1582,15 +1613,20 @@ fn run(input: &Input, context: &mut Context) -> Result<(Vec<usize>, Vec<u32>)> {
     result
 }
 
-/// Asserts that `result` failed with `ResourceLimit` on `field`.
-fn assert_limit(result: Result<(Vec<usize>, Vec<u32>)>, field: LimitField) {
+/// Asserts that `result` failed with `ResourceLimit` on `field`, at `scope`.
+fn assert_limit(
+    result: Result<(Vec<usize>, Vec<u32>)>,
+    field: LimitField,
+    scope: Option<LimitScope>,
+) {
     let Err(error) = result else {
         panic!("the elimination succeeded");
     };
     assert_eq!(error.kind(), ErrorKind::ResourceLimit);
+    let exceeded = error.exceeded().expect("a resource limit has its record");
     assert_eq!(
-        error.exceeded().map(|exceeded| exceeded.id().clone()),
-        Some(LimitId::Field(field))
+        (exceeded.id().clone(), exceeded.scope()),
+        (LimitId::Field(field), scope)
     );
 }
 
@@ -1604,17 +1640,18 @@ fn an_elimination_over_a_prime_field_passes_at_the_exact_work_and_fails_one_unit
         let (found, entries) = run(input, &mut exact).unwrap();
         assert_eq!((found.as_slice(), entries), (pivots, naive(input).1));
         let mut below = Context::new(Limits::new().with_max_work(work - 1), CancelFlag::new());
-        assert_limit(run(input, &mut below), LimitField::Work);
+        assert_limit(run(input, &mut below), LimitField::Work, None);
     }
 }
 
-/// With exactly the storage of its rows an elimination succeeds, and with
-/// one byte less the reservation of its caller fails with `ResourceLimit` on
-/// `max_storage_bytes`.
+/// With exactly the storage that its rows reserve an elimination succeeds,
+/// and with one byte less the last reservation, that of the last pivot
+/// column, fails with `ResourceLimit` on `max_storage_bytes` at the scope of
+/// temporaries.
 #[test]
 fn an_elimination_over_a_prime_field_passes_at_the_exact_storage_and_fails_one_byte_below() {
     for (input, pivots) in representative().iter().zip(REPRESENTATIVE_PIVOTS) {
-        let bytes = reserved_storage(input).bytes;
+        let bytes = reserved_storage(input, pivots.len()).bytes;
         let mut exact = Context::new(
             Limits::new().with_max_storage_bytes(bytes),
             CancelFlag::new(),
@@ -1625,7 +1662,11 @@ fn an_elimination_over_a_prime_field_passes_at_the_exact_storage_and_fails_one_b
             Limits::new().with_max_storage_bytes(bytes - 1),
             CancelFlag::new(),
         );
-        assert_limit(run(input, &mut below), LimitField::StorageBytes);
+        assert_limit(
+            run(input, &mut below),
+            LimitField::StorageBytes,
+            Some(LimitScope::Temporary),
+        );
     }
 }
 
@@ -1716,7 +1757,7 @@ fn cancellation_at_every_charge_of_an_elimination_is_reported() {
 fn a_failed_or_cancelled_elimination_keeps_its_input_and_the_retained_storage() {
     for input in &representative() {
         let work = measured_work(input);
-        let bytes = reserved_storage(input).bytes;
+        let bytes = reserved_storage(input, 0).bytes;
         let mut failures = 0;
         for limits in [
             Limits::new().with_max_work(work - 1),

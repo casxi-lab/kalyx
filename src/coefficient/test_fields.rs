@@ -46,11 +46,11 @@ fn residue_of(p: u32, n: &Integer) -> Result<u32> {
 
 /// The residues modulo `p` whose zero test answers undecided, with the value
 /// as its reason, for the values in `undecided`, and decides every other
-/// value. Every answer is passed to `report`.
+/// value. Every answer is passed to `report`, with the context of the test.
 pub(crate) struct UndecidedResidues<'a> {
     pub(crate) p: u32,
     pub(crate) undecided: &'a [u32],
-    pub(crate) report: &'a dyn Fn(u32, &ZeroTest<u32>),
+    pub(crate) report: &'a dyn Fn(u32, &ZeroTest<u32>, &Context),
 }
 
 impl sealed::Sealed for UndecidedResidues<'_> {}
@@ -91,7 +91,7 @@ impl CoefficientRing for UndecidedResidues<'_> {
         Ok(residue_product(self.p, *a, *b))
     }
 
-    fn zero_test(&self, a: &u32, _context: &mut Context) -> Result<ZeroTest<u32>> {
+    fn zero_test(&self, a: &u32, context: &mut Context) -> Result<ZeroTest<u32>> {
         let answer = if self.undecided.contains(a) {
             ZeroTest::Undecided(*a)
         } else if *a == 0 {
@@ -99,7 +99,7 @@ impl CoefficientRing for UndecidedResidues<'_> {
         } else {
             ZeroTest::Nonzero
         };
-        (self.report)(*a, &answer);
+        (self.report)(*a, &answer, context);
         Ok(answer)
     }
 
