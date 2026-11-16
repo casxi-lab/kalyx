@@ -5,9 +5,10 @@
 //! The coefficient traits are sealed, and the seal is visible only in
 //! `crate::coefficient` and its child modules, so the test fields that other
 //! modules need are defined here. Neither field charges the context: the
-//! code under test is then the only source of charges. [`UndecidedResidues`] answers undecided for
-//! the zero test of the values of a chosen set, which may contain zero, and
-//! reports every zero test that it answers; [`ExactResidues`] always decides.
+//! code under test is then the only source of charges.
+//! [`UndecidedResidues`] answers undecided for the zero test of the values
+//! of a chosen set, which may contain zero, and reports every zero test that
+//! it answers; [`ExactResidues`] always decides.
 
 use std::convert::Infallible;
 

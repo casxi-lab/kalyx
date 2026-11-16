@@ -103,24 +103,28 @@ The storage holds the entries, `rows()` rows of `width()` columns borrowed
 through `entry`, and performs the checks and charges of its domain in hooks
 that the skeleton calls in this order:
 
-- `begin_reduction(variables)`, the entry checks of a reduction, which
-  returns the empty list that receives the pivot columns; the skeleton
-  takes the number of pivots so far as the current row;
-- `candidate_step` before the zero test of each candidate;
-- `swap_cell` for every column of a swap, from the first column on;
-- `begin_pivot(row, column, swapped)`, the checks of the pivot in `row` and
-  `column`, which returns it; `swapped` holds when its row was swapped into
-  place;
-- `store`, which replaces an entry and enforces the request limits; after a
-  failed store the caller discards the storage;
-- `first_target`, the first row to eliminate from, and `target_step` before
-  each such row, the pivot row included when it is in the range;
-- `end_pivot(row, column)` after the elimination of the pivot in `row` and
-  `column`;
-- `reserve_pivot`, the room for one more pivot column, which the skeleton
-  then appends;
-- `end_reduction` when the variables or the rows run out, for a complete
-  reduction only.
+1. `begin_reduction(variables)`, the entry checks of a reduction, which
+   returns the empty list that receives the pivot columns; the skeleton
+   takes the number of pivots so far as the current row;
+2. `candidate_step` before the zero test of each candidate;
+3. `swap_cell(row, other, column)` for every column of a swap, from the
+   first column on;
+4. `begin_pivot(row, column, swapped)`, the checks of the pivot in `row` and
+   `column`, which returns it; `swapped` holds when its row was swapped into
+   place;
+5. `store`, which replaces an entry and enforces the request limits; after a
+   failed store the caller discards the storage;
+6. `first_target`, the first row to eliminate from, and `target_step` before
+   each such row, the pivot row included when it is in the range;
+7. `end_pivot(row, column)` after the elimination of the pivot in `row` and
+   `column`;
+8. `reserve_pivot(pivots)`, the room for one more pivot column in the pivot
+   columns so far, which the skeleton then appends;
+9. `end_reduction` when the variables or the rows run out, for a complete
+   reduction only.
+
+Two rules hold for every hook:
+
 
 - **Hooks.** The skeleton never constructs an error and never charges the
   context itself; every check, charge and error comes from the field or the
@@ -172,7 +176,7 @@ its first undecided answer, before any further hook.
 
 - **Implemented here.** `reduce_columns`.
 - **Tests.** Negative: `undecided_columns_end_the_reduction` and
-  `an_undecided_column_ends_the_reduction_without_a_hook`;
+  `an_undecided_column_ends_the_reduction_without_a_hook`. Also
   `a_single_undecided_entry_gives_an_undecided_reduction`.
 
 ### The skeleton neither charges nor fails by itself
@@ -184,7 +188,9 @@ storage, and a failure of either ends the reduction.
   context and constructs no error.
 - **Tests.** Negative: `the_skeleton_never_charges`, under an exhausted
   budget and a cancelled flag, and `a_failing_hook_ends_the_reduction`, at
-  every store and at every other hook that takes the context.
+  every store and at every other hook that takes the context. Also
+  `cancellation_at_every_charge_of_an_elimination_is_reported`, in which the
+  operations of the prime field charge and fail too.
 
 ### The skeleton holds no frame and no reservation
 
@@ -267,10 +273,11 @@ condition is a comparison or a conjunction of comparisons; the result state
 returned from inside the column loop; the uninhabited reason unwrapped by an
 empty `match`; no closure; and no `cfg` but `#[cfg(test)]` on the test
 module, with the derives of `Reduction` for the tests and the lint
-expectation of the module selected by `cfg_attr`. These are the shapes of
-the qualification case `elimination-skeleton` of the proof tooling, which
-takes the zero test from a subtrait where the skeleton here takes it from
-the supertrait `CoefficientRing`. None of the code has been extracted.
+expectation of the module selected by `cfg_attr`. The loops, the return
+from the column loop and the empty `match` are the shapes of the
+qualification case `elimination-skeleton` of the proof tooling, which takes
+the zero test from a subtrait where the skeleton here takes it from the
+supertrait `CoefficientRing`. None of the code has been extracted.
 
 The test fields in `src/coefficient/test_fields.rs` lie in the directory
 `src/coefficient` of the module list, but only test code reaches them, so

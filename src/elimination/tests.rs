@@ -5,10 +5,11 @@
 //! for the values of a chosen set, which may contain zero, and decides every
 //! other value, and one that always decides; neither charges. The storage
 //! `Grid` holds the entries in row-major order, charges nothing, and records
-//! every hook in a log, into which the first field reports every zero test. The checks judge the results by
-//! the definition of the reduced row echelon form, by a factorization of the
-//! input through the result, and by ranks and determinants that the tests
-//! compute independently from minors, by cofactor expansion modulo $p$.
+//! every hook in a log, into which the first field reports every zero test.
+//! The checks judge the results by the definition of the reduced row echelon
+//! form, by a factorization of the input through the result, and by ranks
+//! and determinants that the tests compute independently from minors, by
+//! cofactor expansion modulo $p$.
 //!
 //! - A complete reduction is the reduced row echelon form of its input, with
 //!   or without undecided answers, since that form is unique.
@@ -28,9 +29,10 @@
 //!
 //! The tests of the control flow restate, one by one, the properties that
 //! the proofs of the qualification case `elimination-skeleton` established
-//! in the earlier implementation. Over the prime fields of the library the skeleton
-//! agrees with a naive elimination written here, and the resource tests run
-//! it with a storage that charges one unit per hook, as a caller does.
+//! in the earlier implementation. Over the prime fields of the library the
+//! skeleton agrees with a naive elimination written here, and the resource
+//! tests run it with a storage that charges one unit per hook, as a caller
+//! does.
 
 use std::cell::{Cell, RefCell};
 use std::convert::Infallible;
@@ -193,8 +195,10 @@ fn hook_of(event: &Event) -> Option<Hook> {
 /// rows below it, as a determinant needs. The store numbered `fail_at`, from
 /// zero, fails with a syntax error, and so does the first call of the hook
 /// `fail_hook`. The grid also records the arguments that its log does not
-/// show: the variables of the reduction, whether each pivot was swapped into
-/// place, and the row and column of each `end_pivot`.
+/// show: the variables of the reduction, the rows and the column of each
+/// swapped cell, whether each pivot was swapped into place, the row and
+/// column of each `end_pivot` and the pivot columns that each
+/// `reserve_pivot` receives.
 struct Grid<'a> {
     rows: usize,
     width: usize,
@@ -204,8 +208,10 @@ struct Grid<'a> {
     fail_at: Option<usize>,
     fail_hook: Option<Hook>,
     variables: Option<usize>,
+    swaps: Vec<(usize, usize, usize)>,
     swapped: Vec<bool>,
     ends: Vec<(usize, usize)>,
+    reserves: Vec<Vec<usize>>,
     log: &'a Log,
 }
 
@@ -221,8 +227,10 @@ impl<'a> Grid<'a> {
             fail_at: None,
             fail_hook: None,
             variables: None,
+            swaps: Vec::new(),
             swapped: Vec::new(),
             ends: Vec::new(),
+            reserves: Vec::new(),
             log,
         }
     }
@@ -277,6 +285,7 @@ impl EliminationRows for Grid<'_> {
         _context: &mut Context,
     ) -> Result<()> {
         self.record(Event::Swap);
+        self.swaps.push((row, other, column));
         self.hook(Hook::Swap)?;
         self.entries
             .swap(row * self.width + column, other * self.width + column);
@@ -328,8 +337,9 @@ impl EliminationRows for Grid<'_> {
         self.hook(Hook::EndPivot)
     }
 
-    fn reserve_pivot(&mut self, _pivots: &mut Vec<usize>, _context: &mut Context) -> Result<()> {
+    fn reserve_pivot(&mut self, pivots: &mut Vec<usize>, _context: &mut Context) -> Result<()> {
         self.record(Event::Reserve);
+        self.reserves.push(pivots.clone());
         self.hook(Hook::Reserve)
     }
 
@@ -1232,12 +1242,14 @@ fn a_column_that_answered_nonzero_runs_the_pivot_step() {
         column: 1,
         value: 1
     }));
+    assert_eq!(grid.swaps, [(0, 1, 0), (0, 1, 1)]);
     assert_eq!(grid.swapped, [true, false]);
     assert_eq!(grid.ends, [(0, 0), (1, 1)]);
+    assert_eq!(grid.reserves, [vec![], vec![0]]);
 
     // A swap at a later column, in the second representative input over
-    // $\mathbb F_5$: the whole rows are swapped, cell by
-    // cell from the first column.
+    // $\mathbb F_5$: the whole rows are swapped, cell by cell from the first
+    // column.
     let log = Log::default();
     let mut grid = Grid::new(3, 4, &[0, 1, 2, 3, 0, 2, 4, 1, 0, 3, 1, 0], &log);
     let report = recorder(&log);
@@ -1250,8 +1262,10 @@ fn a_column_that_answered_nonzero_runs_the_pivot_step() {
     assert_eq!(reduction, Reduction::Complete(vec![1, 3]));
     assert_eq!(grid.entries, [0, 1, 2, 0, 0, 0, 0, 1, 0, 0, 0, 0]);
     assert_eq!(grid.variables, Some(4));
+    assert_eq!(grid.swaps, [(1, 2, 0), (1, 2, 1), (1, 2, 2), (1, 2, 3)]);
     assert_eq!(grid.swapped, [false, true]);
     assert_eq!(grid.ends, [(0, 1), (1, 3)]);
+    assert_eq!(grid.reserves, [vec![], vec![1]]);
     assert_eq!(
         log.take()
             .iter()
@@ -1981,7 +1995,8 @@ fn cancellation_at_every_charge_of_an_elimination_is_reported() {
 /// After every failure and cancellation of the representative eliminations
 /// the retained storage is that of the caller before the call, which `run`
 /// checks and this test checks again against the caller's own reservation,
-/// and no output is written. The limits run out at several points: the
+/// and no output is written. The input is unchanged by construction, as
+/// `run` states. The limits run out at several points: the
 /// work at three amounts, and the storage at the reservation of the entries
 /// and at that of each pivot column.
 #[test]
@@ -2012,7 +2027,10 @@ fn a_failed_or_cancelled_elimination_keeps_its_input_and_the_retained_storage() 
         for k in 0..charge_points(input) {
             let mut context = observed(Limits::new(), CountingProbe::after(k));
             let reserved = context.reserve(CALLER).unwrap();
-            assert!(run(input, &mut context).is_err());
+            let Err(error) = run(input, &mut context) else {
+                panic!("not cancelled at charge {}", k + 1);
+            };
+            assert_eq!(error.kind(), ErrorKind::Cancelled);
             assert_eq!(context.retained(), CALLER);
             assert_eq!(context.output_used(), 0);
             context.release(reserved);
