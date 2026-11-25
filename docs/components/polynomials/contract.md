@@ -21,12 +21,21 @@ trait and $\mathbb{Q}$ to the [exact numbers](../numbers/contract.md), and the
 terms to the [term core](../terms/contract.md).
 
 **Status.** Implemented in `src/polynomial.rs` and `src/polynomial/`, at tier
-A0 (tested); planned for tier A2 in release 0.2. The polynomials are written
-anew for kalyx after the design rules of the architecture: no code and no test
-is taken over from the earlier implementation, which served as a reference, so
-[PORTING](../../../PORTING.md) has no row for them. Their first caller in the
-library is the [command entry](../command/contract.md), with its operations
-`expand` and `diff`, which
+A0 (tested); planned for tier A2 in release 0.2. Their Lean specification is
+in `verification/Kalyx/Spec/Polynomials/`, and `verification/statements.json`
+records the state of its statements, as
+[requirements and statements](#requirements-and-statements) lists. Division
+with remainder, the GCDs, modular powers, evaluation and the maps of
+polynomials coefficient by coefficient, which [FLD-R08](#fld-r08),
+[FLD-R09](#fld-r09), [POL-R12](#pol-r12) to [POL-R14](#pol-r14) and
+[FLD-R11](#fld-r11) state, are planned for release 0.2. The polynomials are
+written anew for kalyx after the design rules of the architecture: no code and
+no test is taken over from the earlier implementation, which served as a
+reference, so [PORTING](../../../PORTING.md) has no row for them; it records
+the parts of their Lean specification that are taken over from the
+specification of the earlier implementation. Their first caller in the library
+is the [command entry](../command/contract.md), with its operations `expand`
+and `diff`, which
 [expansion and differentiation of a request](#expansion-and-differentiation-of-a-request)
 states.
 
@@ -43,7 +52,10 @@ states.
   the degree and the terms of a polynomial; the storage cost; and over
   $\mathbb{Q}$ the expansion of a term into a polynomial, including
   coefficients that cancel to 0, the conversion back to a term and the
-  derivative of a term.
+  derivative of a term; and the executable specification of the polynomials
+  (tier A2) in Lean, with its statements and the replays of its vectors, which
+  also states the shared algorithms over a coefficient field, evaluation and
+  the maps of polynomials coefficient by coefficient, planned for release 0.2.
 - **Excluded, with their owners.**
   - Multivariate rings, monomial orders, the coefficient rings and fields
     other than $\mathbb{Q}$ and $\mathbb F_p$, and the implementation of
@@ -52,10 +64,14 @@ states.
   - A value that stores a ring together with a polynomial, and the check of
     such pairs, which fails with `VariableMismatch` when two rings differ:
     with the first value that stores such a pair.
-  - Division with remainder, GCD and factorization: the basic polynomial
-    algorithms over $\mathbb{Q}$, release 0.2. Evaluation at a point and
-    modular powers, the other shared algorithms of the architecture: with
-    their first callers, from release 0.2 on.
+  - The implementation of the shared algorithms over a coefficient field,
+    division with remainder, the GCDs and modular powers, and of evaluation
+    and the maps of polynomials coefficient by coefficient: release 0.2,
+    planned. Their requirements are stated below, marked as planned, and the
+    Lean specification of the polynomials states them already. The
+    multimodular GCD over $\mathbb{Q}$, factorization and the operations of
+    the command entry that call the shared algorithms: the basic polynomial
+    algorithms over $\mathbb{Q}$, release 0.2.
   - Rational function fields $K(t)$ and the other coefficient-field
     extensions: release 0.4.
   - Fast multiplication: the fast arithmetic of release 0.4.
@@ -318,8 +334,10 @@ for the variable $x$ of the ring.
      addition takes the other when one of the two is zero, appends the
      product when all its degrees lie above the degree of the total, and
      merges as a sum otherwise; the total is a result and checked as one.
-   - A call fails with `Fault(NotPolynomial)`. No term of this release is a
-     call.
+   - A call fails with `Fault(NotPolynomial)`, and so do a constant and a
+     condition, the kinds that the term core plans for release 0.2: a constant
+     is not a rational number, and a condition is not a value. No term of this
+     release is a call, a constant or a condition.
 4. **Cancellation.** Coefficients that cancel leave no term, so
    $(x + 1)^2 - x^2 - 2x - 1$, which the term core keeps as a sum of a
    constant and three monomials, expands to the zero polynomial.
@@ -339,8 +357,9 @@ that symbol.
 order, and only that one: the depth of the term; then the steps of the walk
 as they occur. On entering a node comes its charge of one unit, and then for
 a number its constant; for a symbol the charge of its bytes, then
-`UnknownSymbol` or the polynomial $x$; for a call `NotPolynomial`, before its
-arguments; and for a product or a sum the constant of its coefficient or of
+`UnknownSymbol` or the polynomial $x$; for a call, a constant or a condition
+`NotPolynomial`, before the arguments of a call or the operands of a
+condition; and for a product or a sum the constant of its coefficient or of
 its constant. Its children follow in their stored order: a product multiplies
 its total by the polynomial of each factor after that factor, and a sum,
 after each core, builds the constant of the coefficient of that monomial,
@@ -498,14 +517,21 @@ which fails with `VariableMismatch` when the parents differ.
 
 ## Requirements
 
-The requirement identifiers are those of the coefficient fields of the
-earlier implementation of the casξ computer algebra system; they are never
-renumbered or reused. Each entry states the part of the requirement that
-applies to the polynomials, as kalyx implements it, and the tests that are its
-evidence. The other requirements of the component have no identifier there
-and are named after what they state. FLD-R05, the compatibility of parents and
-`VariableMismatch`, does not apply to the polynomials in this release: no
-value of the component stores a parent together with an element, as
+The identifiers `FLD-R` are those of the coefficient fields of the earlier
+implementation of the casξ computer algebra system, and each such entry states
+the part of the requirement that applies to the polynomials. The other
+requirements of the component have no identifier there: the component numbers
+them `POL-R01` to `POL-R14`, each with a name of what it states. No identifier
+is ever renumbered or reused. Each entry states the requirement as kalyx
+implements it, and the tests that are its evidence. [FLD-R08](#fld-r08),
+[FLD-R09](#fld-r09), [POL-R12](#pol-r12) to [POL-R14](#pol-r14) and
+[FLD-R11](#fld-r11) state the shared algorithms over a coefficient field,
+evaluation and the maps of polynomials of release 0.2, which are planned and
+not implemented yet. The Lean specification states every requirement, as
+[requirements and statements](#requirements-and-statements) lists. FLD-R05,
+the compatibility of parents and `VariableMismatch`, does not apply to the
+polynomials in this release: no value of the component stores a parent
+together with an element, as
 [the two types](#the-two-types-and-the-receiver-rule) state. Tests are in
 `tests/polynomials.rs` unless the entry names `src/polynomial/tests.rs`,
 `tests/polynomial_properties.rs`, `src/term/tests.rs`, `tests/command.rs`
@@ -574,20 +600,20 @@ under every budget of at least $w$, and fails with `ResourceLimit` naming
   `a_cancelled_request_ends_an_operation_at_its_first_charge` and
   `products_take_their_rows_from_the_operand_with_fewer_terms`.
 
-### The ring and its variable
+### POL-R01
 
-A ring holds its coefficient ring and a variable that follows the rule of
-symbol names; a reserved or malformed name fails as `Term::symbol` fails, and
-charges nothing.
+**The ring and its variable.** A ring holds its coefficient ring and a
+variable that follows the rule of symbol names; a reserved or malformed name
+fails as `Term::symbol` fails, and charges nothing.
 
 - **Implemented here.** `PolynomialRing::new` in `src/polynomial.rs`, with
   `check_name` of the term core.
 - **Evidence.** `the_variable_follows_the_rule_of_symbol_names`.
 
-### The variable of a request
+### POL-R02
 
-The variable of `expand` and `diff` follows the rule of symbol names and is
-checked before the input; `eval` does not read it.
+**The variable of a request.** The variable of `expand` and `diff` follows the
+rule of symbol names and is checked before the input; `eval` does not read it.
 
 - **Implemented here.** `ring` and `variable_error` in
   `src/command/dispatch.rs`.
@@ -596,12 +622,13 @@ checked before the input; `eval` does not read it.
   `the_charge_of_the_variable_fails_as_a_resource_limit`, in
   `tests/command.rs`.
 
-### Limits of the degree and of the number of terms
+### POL-R03
 
-Every result and every partial sum of a product is checked against
-`max_exponent` and, through its storage cost, against `max_nodes` and
-`max_storage_bytes`, as [limits](#limits) and [storage cost](#storage-cost)
-state; a polynomial is checked against the receiving context.
+**Limits of the degree and of the number of terms.** Every result and every
+partial sum of a product is checked against `max_exponent` and, through its
+storage cost, against `max_nodes` and `max_storage_bytes`, as
+[limits](#limits) and [storage cost](#storage-cost) state; a polynomial is
+checked against the receiving context.
 
 - **Implemented here.** `check` and `check_degree` in
   `src/polynomial/terms.rs`, and the degree checks of products and powers in
@@ -622,13 +649,15 @@ state; a polynomial is checked against the receiving context.
   `a_measure_beyond_u64_max_exceeds_every_limit` and
   `degrees_are_bounded_by_the_width_of_i64`.
 
-### Expansion of terms
+### POL-R04
 
-A term expands into its polynomial in the variable as [expansion](#expansion)
-states: numbers, the variable, sums, products and nonnegative powers;
-coefficients that cancel leave no term; another symbol fails with
-`UnknownSymbol`, and a negative power whose base holds the variable, the
-witnesses included, with `NotPolynomial`.
+**Expansion of terms.** A term expands into its polynomial in the variable as
+[expansion](#expansion) states: numbers, the variable, sums, products and
+nonnegative powers; coefficients that cancel leave no term; another symbol
+fails with `UnknownSymbol`, and a negative power whose base holds the
+variable, the witnesses included, with `NotPolynomial`. The constants and the
+conditions that the term core plans for release 0.2 fail with `NotPolynomial`,
+as a call does.
 
 - **Implemented here.** `src/polynomial/expansion.rs`.
 - **Evidence.** Positive: `terms_expand_into_their_polynomials`. Negative:
@@ -637,10 +666,10 @@ witnesses included, with `NotPolynomial`.
   cases of the vectors converted from the profiles fixture of the earlier
   implementation.
 
-### Order of failures
+### POL-R05
 
-A term with more than one failure fails with the first in the
-[order of failures](#expansion).
+**Order of failures.** A term with more than one failure fails with the first
+in the [order of failures](#expansion).
 
 - **Implemented here.** The loop of `src/polynomial/expansion.rs`, which
   enters each node before its children and charges it on entry, and the
@@ -650,60 +679,63 @@ A term with more than one failure fails with the first in the
   builds the reserved call node that only the tests of the term core can
   build.
 
-### Conversion back to terms
+### POL-R06
 
-A polynomial converts into its canonical term through the constructors of the
-term core, which expands back into the same polynomial.
+**Conversion back to terms.** A polynomial converts into its canonical term
+through the constructors of the term core, which expands back into the same
+polynomial under limits that admit the polynomial and the depth of its term.
 
 - **Implemented here.** `src/polynomial/conversion.rs`.
 - **Evidence.** `polynomials_convert_back_to_canonical_terms`, and in
   `src/polynomial/tests.rs`
   `a_degree_beyond_the_width_of_i64_is_an_internal_fault`.
 
-### Differentiation
+### POL-R07
 
-The derivative by the variable, of a polynomial and of a term.
+**Differentiation.** The derivative by the variable, of a polynomial and of a
+term.
 
 - **Implemented here.** `derivative` in `src/polynomial/arithmetic.rs` and
   `differentiate` in `src/polynomial.rs`.
 - **Evidence.** `the_derivative_is_taken_by_the_variable`, and the
   derivatives of the answer vectors.
 
-### The answer vectors
+### POL-R08
 
-The 27 cases of `vectors/r02.tsv` whose operation is `expand` or `diff` pass
-as host tests: the 21 expansions, 18 with an answer and three errors, one each
-of `NotPolynomial`, `UnknownSymbol` and `ResourceLimit`, and the 6
-derivatives. Each runs as one request under its limits: the input is parsed,
-the ring of its variable is built, and the input is expanded and converted
-back, or differentiated; the result is compared with the parsed answer through
-`Term::equals`, and an error by its kind and, for `ResourceLimit`, by the
-field that the limits column sets.
+**The answer vectors.** The 27 cases of `vectors/r02.tsv` whose operation is
+`expand` or `diff` pass as host tests: the 21 expansions, 18 with an answer
+and three errors, one each of `NotPolynomial`, `UnknownSymbol` and
+`ResourceLimit`, and the 6 derivatives. Each runs as one request under its
+limits: the input is parsed, the ring of its variable is built, and the input
+is expanded and converted back, or differentiated; the result is compared with
+the parsed answer through `Term::equals`, and an error by its kind and, for
+`ResourceLimit`, by the field that the limits column sets.
 
 - **Implemented here.** The whole component, with the parser and the term
   core.
 - **Evidence.** `the_expand_and_diff_vectors_of_r02`.
 
-### Deep terms on a small stack
+### POL-R09
 
-Terms of any depth that `max_depth` admits are expanded and differentiated
-with a native stack that does not grow with their depth, and a deeper term is
-rejected at the entry.
+**Deep terms on a small stack.** Terms of any depth that `max_depth` admits
+are expanded and differentiated with a native stack that does not grow with
+their depth, and a deeper term is rejected at the entry.
 
 - **Implemented here.** The loop and the entry check of
   `src/polynomial/expansion.rs`.
 - **Evidence.** `depth_100000_chains_expand_and_differentiate_on_a_2_mib_stack`
   and `the_entry_rejects_a_term_deeper_than_max_depth`.
 
-### One shared implementation
+### POL-R10
 
-The arithmetic and the derivative exist once, generic over the coefficient
-ring and reaching the coefficients only through the coefficient-field trait:
-its element operations, its zero test and `measure` for the cost of a
-coefficient. No operation places a bound on the elements beyond the trait;
-the only bound beyond `CoefficientRing` is the reason type `Infallible` of
-the zero test. The polynomials of every coefficient ring have the one type
-`Polynomial<K>`, and later coefficient rings use it, not a type of their own.
+**One shared implementation.** The arithmetic and the derivative exist once,
+generic over the coefficient ring and reaching the coefficients only through
+the coefficient-field trait: its element operations, its zero test and
+`measure` for the cost of a coefficient. No operation places a bound on the
+elements beyond the trait; the only bound beyond `CoefficientRing` is the
+reason type `Infallible` of the zero test. The polynomials of every
+coefficient ring have the one type `Polynomial<K>`, and later coefficient
+rings use it, not a type of their own.
 
 - **Implemented here.** `src/polynomial/arithmetic.rs` and the writer of the
   terms in `src/polynomial/terms.rs`.
@@ -714,21 +746,227 @@ the zero test. The polynomials of every coefficient ring have the one type
   which compare coefficients only by `subtract` and `zero_test` of the
   coefficient ring.
 
-### Arithmetic against an independent reference
+### POL-R11
 
-Products are commutative and associative, the product distributes over the
-sum, and the derivative is linear and follows the product rule; the binomial
-powers $(x + 1)^n$ have the binomial coefficients.
+**Arithmetic against an independent reference.** Products are commutative and
+associative, the product distributes over the sum, and the derivative is
+linear and follows the product rule; the binomial powers $(x + 1)^n$ have the
+binomial coefficients.
 
 - **Implemented here.** `src/polynomial/arithmetic.rs`.
 - **Evidence.** The property tests of
   [testing obligation 5](#testing-obligations) in
   `tests/polynomial_properties.rs`.
 
+### FLD-R08
+
+**Univariate division with remainder.** Planned for release 0.2: over a
+coefficient field, the division of $a$ by $b$ fails with `DivisionByZero` when
+$b$ is the zero polynomial, and otherwise returns the quotient $q$ and the
+remainder $r$, both canonical, with $a = q b + r$ and $\deg r \lt \deg b$, two
+conditions that determine them uniquely. The remainder alone is the same $r$,
+and fails with `DivisionByZero` for the zero polynomial too. Like the
+operations of [POL-R10](#pol-r10), the division exists once, for every
+coefficient field, $\mathbb{Q}$, $\mathbb F_p$ and the number fields among
+them, and reaches the coefficients only through the coefficient-field trait.
+The checks and the charges of the division under the request context and the
+division of multivariate polynomials are not part of this entry.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### FLD-R09
+
+**Monic GCDs.** Planned for release 0.2, for the polynomials of one variable
+over a coefficient field: the GCD of the Euclidean algorithm is monic, with
+leading coefficient 1, unless both inputs are zero; $\gcd(0, 0) = 0$,
+$\gcd(p, 0)$ is the monic form of $p$, which is $p$ multiplied by the inverse
+of its leading coefficient, and the GCD with a nonzero constant is 1. The GCD
+divides both inputs and is divisible by every common divisor, and these
+conditions determine it uniquely; two inputs are coprime exactly when their
+GCD is 1. The multivariate GCD, the checks and the charges under the request
+context, and the multimodular GCD over $\mathbb{Q}$, which these conditions
+determine as well, are not part of this entry.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### POL-R12
+
+**Extended GCD.** Planned for release 0.2: over a coefficient field, the
+extended Euclidean algorithm returns cofactors $s$ and $t$ and the GCD $g$ of
+[FLD-R09](#fld-r09) with $s a + t b = g$, and the cofactors are those of
+lowest degree:
+
+- when $b$ is zero, $t = 0$, and $s = 0$ too when $a$ is zero, so the extended
+  GCD of $0$ and $0$ is $(0, 0, 0)$ and that of $2x$ and $0$ is $(1/2, 0, x)$;
+- when $b$ is a nonzero constant multiple of $g$, $s = 0$, whatever $a$ is, so
+  the extended GCD of $x^2 - 1$ and $x - 1$ is $(0, 1, x - 1)$ and that of
+  $2x + 2$ and $x + 1$ is $(0, 1, x + 1)$;
+- when $a$ is a nonzero constant multiple of $g$ and $b$ is not, $t = 0$, so
+  the extended GCD of $x + 1$ and $x^2 - 1$ is $(1, 0, x + 1)$;
+- otherwise, $\deg s \lt \deg b - \deg g$ and $\deg t \lt \deg a - \deg g$.
+
+In the first three cases $s a + t b = g$ determines the other cofactor, and in
+the last the bound on $\deg s$ determines both, so the extended GCD is unique.
+A variant that returns one cofactor only, the charges of the cofactors and the
+operation `gcdex` of the command entry are not part of this entry.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### POL-R13
+
+**Modular powers.** Planned for release 0.2: over a coefficient field, the
+power of $a$ to the exponent $k \ge 0$ modulo $m$ fails with `DivisionByZero`
+when $m$ is the zero polynomial, and is otherwise the remainder of $a^k$ by
+$m$ of [FLD-R08](#fld-r08), canonical and of degree below $\deg m$. For
+$k = 0$ it is the remainder of 1, so every modular power modulo a nonzero
+constant is the zero polynomial. The order of the squarings affects only the
+charges; the limits of the exponent and the charges are not part of this
+entry.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### POL-R14
+
+**Evaluation.** Planned for release 0.2: over a coefficient ring, the value of
+the polynomial $\sum_i c_i x^{d_i}$ at an element $c$ is $\sum_i c_i c^{d_i}$,
+formed by the operations of the coefficient ring, with $c^0 = 1$, also for
+$c = 0$. Evaluation at a point is a ring homomorphism: the value of a sum is
+the sum of the values, the value of a product is the product of the values,
+and the value of the polynomial 1 is 1. Evaluation at a polynomial, which is
+composition, evaluation through a map into another ring, and the charges are
+not part of this entry.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### FLD-R11
+
+**Homomorphisms.** Planned for release 0.2: a polynomial is mapped along a map
+of coefficients, each edge of the homomorphism graph of the
+[exact numbers](../numbers/contract.md#fld-r11), coefficient by coefficient.
+When every coefficient lies in the domain of the map, the result is the
+polynomial of the images, without the terms whose image is zero; otherwise it
+is the result state `notInDomain`, which is not an error. Where it is defined,
+the map of polynomials preserves sums and products, and a total map gives the
+exact image of every polynomial. The map of an element is that of
+[FLD-R11](../numbers/contract.md#fld-r11) of the exact numbers; the checks and
+the charges under the request context and the maps of multivariate polynomials
+are not part of this entry.
+
+- **Implemented here.** Nothing yet; planned for release 0.2.
+- **Evidence.** The statements of the specification that
+  [requirements and statements](#requirements-and-statements) lists; the
+  tests come with the implementation.
+
+### Requirements and statements
+
+The Lean specification in
+[`verification/Kalyx/Spec/Polynomials/`](../../../verification/Kalyx/Spec/Polynomials)
+states the requirements above, written from them and from the design rules of
+the architecture, not from the code: the representation with its one writer,
+the storage cost and the checks of the limits, the ring operations and the
+derivative, the shared algorithms over a coefficient field, evaluation, the
+maps of polynomials coefficient by coefficient, and over $\mathbb{Q}$ the ring
+of a variable, the expansion of a term, the conversion back to terms,
+differentiation and the operations `expand` and `diff` of a request. Its
+polynomials and algorithms are computable definitions over the coefficient
+rings and fields of the
+[specification of the exact numbers](../numbers/contract.md#requirements-and-statements),
+and its terms are those of the
+[specification of the term core](../terms/contract.md#requirements-and-statements);
+it imports both and restates neither. The limits that its checks read,
+`max_exponent`, `max_nodes`, `max_storage_bytes` and `max_depth`, are explicit
+parameters, and a result is a value, a fault or `ResourceLimit`. The meaning
+of a polynomial is its interpretation in the polynomials of Mathlib over the
+interpretation of its coefficients; the meaning of a term, as the term core
+states it, is compared with the value of a polynomial of $\mathbb{Q}[x]$ at
+the value of the variable.
+
+The properties hold for every coefficient ring of the specification of the
+exact numbers whose ring laws hold and whose zero test is exact under its
+interpretation, the value of evaluation already when its ring laws hold; and
+those of the shared algorithms over a coefficient field, [FLD-R08](#fld-r08),
+[FLD-R09](#fld-r09), [POL-R12](#pol-r12) and [POL-R13](#pol-r13), for every
+coefficient field whose interpretation is a field and whose field laws hold as
+well, as for $\mathbb{Q}$, $\mathbb F_p$ and the number fields.
+[FLD-R12](#fld-r12) is stated for the limits that the checks read: under every
+limits, an operation of a ring returns its canonical result or fails with
+`ResourceLimit` naming one of them, and its examples show the same result
+under wider limits and the limit that a narrower one names; the charges,
+`max_work`, cancellation and the deadline are not stated. [POL-R03](#pol-r03)
+is stated for the degree and the storage cost of every result and partial sum,
+without the open frames and the reserved temporaries of the context and
+without the saturation at `u64::MAX`; [POL-R05](#pol-r05) for the failures of
+the walk and the checks, not for the charges; and [POL-R09](#pol-r09) for the
+check of the depth at the entry, not for the native stack. The expansion keeps
+the meaning of a term under every interpretation of its calls, conditions and
+constants, and the conversion back to terms under every total order of the
+term core and every lawful interpretation, the parameters of the statements
+about the term core.
+
+The propositions of
+[`verification/Kalyx/Statements/Polynomials.lean`](../../../verification/Kalyx/Statements/Polynomials.lean)
+are its registered statements: nine properties, and a positive and a negative
+example of each requirement, which fix the default limits and the sample order
+of terms unless they name others. `verification/statements.json` registers
+them with the theorems of the modules in
+[`verification/Kalyx/Proofs/Polynomials/`](../../../verification/Kalyx/Proofs/Polynomials)
+and records the state of each.
+[`verification/Kalyx/SpecTests/Polynomials.lean`](../../../verification/Kalyx/SpecTests/Polynomials.lean)
+replays through the specification, with `#guard`, the 27 cases of
+[POL-R08](#pol-r08) in [`vectors/r02.tsv`](../../../vectors/r02.tsv) and 20
+vectors of [`vectors/cli_cases.tsv`](../../../vectors/cli_cases.tsv) and
+[`vectors/library.tsv`](../../../vectors/library.tsv) whose answers the
+polynomials decide: their operations `expand` and `diff`, and `divrem`, `gcd`
+and `gcdex` through the shared algorithms over $\mathbb{Q}$ on the expansions
+of their operands.
+
+| Requirement | Properties | Positive example | Negative example |
+| --- | --- | --- | --- |
+| [FLD-R01](#fld-r01) | `RingOperationsAreExact` | `SumsKeepOneTermOrNone` | `NonCanonicalTermLists` |
+| [FLD-R03](#fld-r03) | `RingOperationsAreExact` | `PowersOfZeroAndOfABinomial` | `PowersCheckTheExponentFirst` |
+| [FLD-R04](#fld-r04) | `RingOperationsAreExact` | `BinomialCoefficientsVanishModuloSeven` | `ZeroDivisorsLeaveNoTerm` |
+| [FLD-R12](#fld-r12) | None | `PowersAgreeUnderWiderLimits` | `ExceededLimitsNameTheirField` |
+| [POL-R01](#pol-r01) | None | `RingOfAVariableName` | `ReservedAndMalformedVariables` |
+| [POL-R02](#pol-r02) | None | `DerivativeByANamedVariable` | `TheVariableIsCheckedBeforeTheInput` |
+| [POL-R03](#pol-r03) | None | `StorageOfASparsePolynomial` | `NodesBoundTermsAndPartialSums` |
+| [POL-R04](#pol-r04) | `ExpansionKeepsMeanings` | `TermsExpandIntoPolynomials` | `ForeignSymbolsAndNegativePowersFail` |
+| [POL-R05](#pol-r05) | None | `FailuresFollowTheWalk` | `OnlyTheFirstFailureIsReported` |
+| [POL-R06](#pol-r06) | `ExpansionKeepsMeanings` | `PolynomialsConvertBackToTerms` | `ConversionBuildsCanonicalTerms` |
+| [POL-R07](#pol-r07) | `DerivativeFollowsTheProductRule` | `DerivativesOfPolynomialsAndTerms` | `DerivativesThatVanishOrFail` |
+| [POL-R08](#pol-r08) | None | `BinomialVectorExpands` | `DegreeLimitVectorFails` |
+| [POL-R09](#pol-r09) | None | `TermsWithinTheDepthExpand` | `DeeperTermsFailAtTheEntry` |
+| [POL-R10](#pol-r10) | `RingOperationsAreExact`, `DerivativeFollowsTheProductRule` | `OneProductForEveryCoefficientRing` | `CrossTermsVanishModuloTwo` |
+| [POL-R11](#pol-r11) | `RingOperationsAreExact`, `DerivativeFollowsTheProductRule` | `BinomialCoefficientsOfAFourthPower` | `ProductOfXAndXPlusOne` |
+| [FLD-R08](#fld-r08) | `DivisionWithRemainderIsUnique` | `DivisionsWithRemainder` | `DivisionByZeroAndByAHigherDegree` |
+| [FLD-R09](#fld-r09) | `MonicGcdIsUnique` | `GcdsOfCommonFactors` | `GcdsWithZeroAndConstants` |
+| [POL-R12](#pol-r12) | `ExtendedGcdHasLowestCofactors` | `ExtendedGcdOfAMultiple` | `ExtendedGcdsWithZero` |
+| [POL-R13](#pol-r13) | `ModularPowersAreRemainders` | `ModularPowerOfX` | `ModularPowersByZeroAndConstants` |
+| [POL-R14](#pol-r14) | `EvaluationIsAHomomorphism` | `EvaluationAtTwo` | `EvaluationVanishesOnAllOfSeven` |
+| [FLD-R11](#fld-r11) | `MapsActOnEachCoefficient` | `IntegerPolynomialsReduceModuloSeven` | `ReductionOutsideTheDomain` |
+
 ## Testing obligations
 
-1. **Requirements.** One positive and one negative test per requirement with
-   an identifier, as each entry above names them.
+1. **Requirements.** One positive and one negative test for each of FLD-R01,
+   FLD-R03, FLD-R04 and FLD-R12, and the tests that each other entry names;
+   for a planned requirement, the positive and the negative example of the
+   specification that
+   [requirements and statements](#requirements-and-statements) lists, until
+   the implementation adds its tests.
 2. **Limits.** One negative case each for the degree and the number of
    terms, each a `ResourceLimit` with its `LimitId`, the storage case with the
    scope `Value`.
