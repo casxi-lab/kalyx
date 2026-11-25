@@ -14,11 +14,11 @@ polynomials contract, whose type is exactly that statement.
 
 The examples about given polynomials and terms are decided by evaluation in
 the kernel (`decide +kernel`); an example over a prime field names the field
-that the constructor builds from its modulus. Two examples are not closed
-computations: the term lists that are not canonical are refuted by their
-decided degrees and by a coefficient that denotes zero, and the product of
-two zero divisors is the zero polynomial for every storage cost, since only
-the zero polynomial is checked. The modular powers by a constant, of every
+that the constructor builds from its modulus. Three examples are not closed
+computations. The term lists that are not canonical are refuted by their
+decided degrees and by a coefficient that denotes zero. The product of two
+zero divisors is the zero polynomial for every storage cost, since only the
+zero polynomial is checked. The modular powers by a constant, of every
 canonical polynomial to every exponent, follow from the statement that
 modular powers are remainders (`ModularPowersAreRemainders`): the remainder
 by the constant `3` is canonical and of degree below `0`, so it denotes zero

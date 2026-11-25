@@ -10,9 +10,9 @@ it proves no registered statement. Over a coefficient field that is exact
 under an interpretation in fields (`ExactField`), on canonical operands:
 
 * in Mathlib, a monic GCD is unique (`monicGcdOf_unique`), the monic form of a
-  polynomial whose divisors are the common divisors of `A` and `B` is one
-  (`monicGcdOf_of_dvd_iff`), and `A` and `B` are coprime exactly when it is
-  one (`isRelPrime_iff`);
+  polynomial whose divisors are the common divisors of `A` and `B` is a monic
+  GCD (`monicGcdOf_of_dvd_iff`), and `A` and `B` are coprime exactly when
+  their monic GCD is `1` (`isRelPrime_iff`);
 * the Euclidean algorithm keeps the common divisors of its two remainders
   and ends within its fuel, since each remainder lowers the degree, so the
   monic GCD is canonical and a monic GCD of the interpretations
@@ -238,7 +238,7 @@ end Mathlib
 variable {P E : Type} {K : P → Type} [∀ p, Field (K p)] {F : CoefficientField P E Empty}
   {M : Model P E K} {p : P}
 
-/-- A degree below that of a degree below `f + 1` lies below `f`. -/
+/-- A degree below one that lies below `f + 1` lies below `f`. -/
 private theorem lt_of_lt_of_lt_succ {x y : WithBot ℕ} {f : ℕ} (h : x < y)
     (h' : y < ((f + 1 : ℕ) : WithBot ℕ)) : x < f := by
   induction y using WithBot.recBotCoe with

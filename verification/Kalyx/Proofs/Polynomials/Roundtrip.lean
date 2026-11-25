@@ -207,9 +207,6 @@ private theorem storage_cons (y : ℕ × Fraction) (ys : List (ℕ × Fraction))
   simp only [PolynomialRing.storage, List.map_map]
   rfl
 
-private theorem measure_eq (f : Fraction) : rationalRing.measure r.coefficients f =
-    ⟨1, f.num.natAbs.size + f.den.natAbs.size + 3⟩ := rfl
-
 private theorem measure_nodes (f : Fraction) : (rationalRing.measure r.coefficients f).nodes = 1 :=
   rfl
 

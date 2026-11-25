@@ -289,8 +289,7 @@ public theorem leadingCoefficient_eq_none_iff (a : Poly E) :
   rw [eq_zero_iff]
   simp [Poly.leadingCoefficient]
 
-/-- The degree and the leading coefficient of the representation, those of
-the last term `(d, c)`. -/
+/-- The degree of the representation, that of the last term `(d, c)`. -/
 public theorem degree_eq_some_iff (a : Poly E) (d : ℕ) :
     a.degree = some d ↔ ∃ c, a.terms.getLast? = some (d, c) := by
   simp [Poly.degree]

@@ -402,7 +402,7 @@ public theorem power_zero_exponent (L : Limits) (r : PolynomialRing P) (a : Poly
 
 /-- The loop of a power of the zero polynomial ends in the check of the zero
 polynomial. -/
-theorem power_loop_zero (L : Limits) (r : PolynomialRing P) :
+private theorem power_loop_zero (L : Limits) (r : PolynomialRing P) :
     ∀ ds : List Bool,
       (ds.foldlM (init := (Poly.zero : Poly E)) fun (s : Poly E) (digit : Bool) => do
           let s ← r.multiply R L s s
