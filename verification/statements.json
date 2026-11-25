@@ -438,13 +438,13 @@
       "name": "Kalyx.Statements.Polynomials.EvaluationIsAHomomorphism",
       "theorem": "Kalyx.Proofs.Polynomials.evaluationIsAHomomorphism",
       "module": "Kalyx.Proofs.Polynomials.Maps",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ExpansionKeepsMeanings",
       "theorem": "Kalyx.Proofs.Polynomials.expansionKeepsMeanings",
       "module": "Kalyx.Proofs.Polynomials.Terms",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ModularPowersAreRemainders",
@@ -456,7 +456,7 @@
       "name": "Kalyx.Statements.Polynomials.MapsActOnEachCoefficient",
       "theorem": "Kalyx.Proofs.Polynomials.mapsActOnEachCoefficient",
       "module": "Kalyx.Proofs.Polynomials.Maps",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.SumsKeepOneTermOrNone",
