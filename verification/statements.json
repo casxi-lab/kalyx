@@ -408,7 +408,7 @@
       "name": "Kalyx.Statements.Polynomials.RingOperationsAreExact",
       "theorem": "Kalyx.Proofs.Polynomials.ringOperationsAreExact",
       "module": "Kalyx.Proofs.Polynomials.Arithmetic",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DivisionWithRemainderIsUnique",
@@ -432,7 +432,7 @@
       "name": "Kalyx.Statements.Polynomials.DerivativeFollowsTheProductRule",
       "theorem": "Kalyx.Proofs.Polynomials.derivativeFollowsTheProductRule",
       "module": "Kalyx.Proofs.Polynomials.Arithmetic",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.EvaluationIsAHomomorphism",
