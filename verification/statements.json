@@ -414,19 +414,19 @@
       "name": "Kalyx.Statements.Polynomials.DivisionWithRemainderIsUnique",
       "theorem": "Kalyx.Proofs.Polynomials.divisionWithRemainderIsUnique",
       "module": "Kalyx.Proofs.Polynomials.Division",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.MonicGcdIsUnique",
       "theorem": "Kalyx.Proofs.Polynomials.monicGcdIsUnique",
       "module": "Kalyx.Proofs.Polynomials.Division",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ExtendedGcdHasLowestCofactors",
       "theorem": "Kalyx.Proofs.Polynomials.extendedGcdHasLowestCofactors",
       "module": "Kalyx.Proofs.Polynomials.Division",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DerivativeFollowsTheProductRule",
@@ -450,7 +450,7 @@
       "name": "Kalyx.Statements.Polynomials.ModularPowersAreRemainders",
       "theorem": "Kalyx.Proofs.Polynomials.modularPowersAreRemainders",
       "module": "Kalyx.Proofs.Polynomials.Division",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.MapsActOnEachCoefficient",
@@ -684,7 +684,7 @@
       "name": "Kalyx.Statements.Polynomials.ModularPowersByZeroAndConstants",
       "theorem": "Kalyx.Proofs.Polynomials.modularPowersByZeroAndConstants",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.EvaluationAtTwo",
