@@ -462,223 +462,223 @@
       "name": "Kalyx.Statements.Polynomials.SumsKeepOneTermOrNone",
       "theorem": "Kalyx.Proofs.Polynomials.sumsKeepOneTermOrNone",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.NonCanonicalTermLists",
       "theorem": "Kalyx.Proofs.Polynomials.nonCanonicalTermLists",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.PowersOfZeroAndOfABinomial",
       "theorem": "Kalyx.Proofs.Polynomials.powersOfZeroAndOfABinomial",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.PowersCheckTheExponentFirst",
       "theorem": "Kalyx.Proofs.Polynomials.powersCheckTheExponentFirst",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.BinomialCoefficientsVanishModuloSeven",
       "theorem": "Kalyx.Proofs.Polynomials.binomialCoefficientsVanishModuloSeven",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ZeroDivisorsLeaveNoTerm",
       "theorem": "Kalyx.Proofs.Polynomials.zeroDivisorsLeaveNoTerm",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.PowersAgreeUnderWiderLimits",
       "theorem": "Kalyx.Proofs.Polynomials.powersAgreeUnderWiderLimits",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ExceededLimitsNameTheirField",
       "theorem": "Kalyx.Proofs.Polynomials.exceededLimitsNameTheirField",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.RingOfAVariableName",
       "theorem": "Kalyx.Proofs.Polynomials.ringOfAVariableName",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ReservedAndMalformedVariables",
       "theorem": "Kalyx.Proofs.Polynomials.reservedAndMalformedVariables",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DerivativeByANamedVariable",
       "theorem": "Kalyx.Proofs.Polynomials.derivativeByANamedVariable",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.TheVariableIsCheckedBeforeTheInput",
       "theorem": "Kalyx.Proofs.Polynomials.theVariableIsCheckedBeforeTheInput",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.StorageOfASparsePolynomial",
       "theorem": "Kalyx.Proofs.Polynomials.storageOfASparsePolynomial",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.NodesBoundTermsAndPartialSums",
       "theorem": "Kalyx.Proofs.Polynomials.nodesBoundTermsAndPartialSums",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.TermsExpandIntoPolynomials",
       "theorem": "Kalyx.Proofs.Polynomials.termsExpandIntoPolynomials",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ForeignSymbolsAndNegativePowersFail",
       "theorem": "Kalyx.Proofs.Polynomials.foreignSymbolsAndNegativePowersFail",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.FailuresFollowTheWalk",
       "theorem": "Kalyx.Proofs.Polynomials.failuresFollowTheWalk",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.OnlyTheFirstFailureIsReported",
       "theorem": "Kalyx.Proofs.Polynomials.onlyTheFirstFailureIsReported",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.PolynomialsConvertBackToTerms",
       "theorem": "Kalyx.Proofs.Polynomials.polynomialsConvertBackToTerms",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ConversionBuildsCanonicalTerms",
       "theorem": "Kalyx.Proofs.Polynomials.conversionBuildsCanonicalTerms",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DerivativesOfPolynomialsAndTerms",
       "theorem": "Kalyx.Proofs.Polynomials.derivativesOfPolynomialsAndTerms",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DerivativesThatVanishOrFail",
       "theorem": "Kalyx.Proofs.Polynomials.derivativesThatVanishOrFail",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.BinomialVectorExpands",
       "theorem": "Kalyx.Proofs.Polynomials.binomialVectorExpands",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DegreeLimitVectorFails",
       "theorem": "Kalyx.Proofs.Polynomials.degreeLimitVectorFails",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.TermsWithinTheDepthExpand",
       "theorem": "Kalyx.Proofs.Polynomials.termsWithinTheDepthExpand",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DeeperTermsFailAtTheEntry",
       "theorem": "Kalyx.Proofs.Polynomials.deeperTermsFailAtTheEntry",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.OneProductForEveryCoefficientRing",
       "theorem": "Kalyx.Proofs.Polynomials.oneProductForEveryCoefficientRing",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.CrossTermsVanishModuloTwo",
       "theorem": "Kalyx.Proofs.Polynomials.crossTermsVanishModuloTwo",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.BinomialCoefficientsOfAFourthPower",
       "theorem": "Kalyx.Proofs.Polynomials.binomialCoefficientsOfAFourthPower",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ProductOfXAndXPlusOne",
       "theorem": "Kalyx.Proofs.Polynomials.productOfXAndXPlusOne",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DivisionsWithRemainder",
       "theorem": "Kalyx.Proofs.Polynomials.divisionsWithRemainder",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.DivisionByZeroAndByAHigherDegree",
       "theorem": "Kalyx.Proofs.Polynomials.divisionByZeroAndByAHigherDegree",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.GcdsOfCommonFactors",
       "theorem": "Kalyx.Proofs.Polynomials.gcdsOfCommonFactors",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.GcdsWithZeroAndConstants",
       "theorem": "Kalyx.Proofs.Polynomials.gcdsWithZeroAndConstants",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ExtendedGcdOfAMultiple",
       "theorem": "Kalyx.Proofs.Polynomials.extendedGcdOfAMultiple",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ExtendedGcdsWithZero",
       "theorem": "Kalyx.Proofs.Polynomials.extendedGcdsWithZero",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ModularPowerOfX",
       "theorem": "Kalyx.Proofs.Polynomials.modularPowerOfX",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ModularPowersByZeroAndConstants",
@@ -690,25 +690,25 @@
       "name": "Kalyx.Statements.Polynomials.EvaluationAtTwo",
       "theorem": "Kalyx.Proofs.Polynomials.evaluationAtTwo",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.EvaluationVanishesOnAllOfSeven",
       "theorem": "Kalyx.Proofs.Polynomials.evaluationVanishesOnAllOfSeven",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.IntegerPolynomialsReduceModuloSeven",
       "theorem": "Kalyx.Proofs.Polynomials.integerPolynomialsReduceModuloSeven",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Polynomials.ReductionOutsideTheDomain",
       "theorem": "Kalyx.Proofs.Polynomials.reductionOutsideTheDomain",
       "module": "Kalyx.Proofs.Polynomials.Examples",
-      "state": "planned"
+      "state": "proved"
     }
   ]
 }

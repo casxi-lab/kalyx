@@ -7,181 +7,253 @@ public import Kalyx.Statements.Polynomials
 
 One theorem for each registered statement of `Kalyx.Statements.Polynomials`
 about the positive and the negative example of each requirement of the
-polynomials contract, whose type is exactly that statement. Every proof is
-planned: each theorem is proved by `sorry`, and the statements are registered
-with the state `planned` until their proofs replace it.
+polynomials contract, whose type is exactly that statement.
+
+The examples about given polynomials and terms are decided by evaluation in
+the kernel (`decide +kernel`); an example over a prime field names the field
+that the constructor builds from its modulus. Two examples are not closed
+computations: the term lists that are not canonical are refuted by their
+decided degrees and by a coefficient that denotes zero, and the product of
+two zero divisors is the zero polynomial for every storage cost, since only
+the zero polynomial is checked. The proof of the modular powers by a
+constant of every canonical polynomial is planned: its theorem is proved by
+`sorry`, and its statement is registered with the state `planned`.
 -/
 
 namespace Kalyx.Proofs.Polynomials
 
-open Kalyx.Statements.Polynomials
+open Kalyx.Spec.Fields Kalyx.Spec.Polynomials Kalyx.Statements.Polynomials
 
-/-- Proves `SumsKeepOneTermOrNone`; the proof is planned. -/
+/-- The prime field `𝔽_2`. -/
+private def two : PrimeField := ⟨2, by norm_num, by unfold WordModulus; norm_num⟩
+
+/-- The constructor builds `𝔽_2` from `2`. -/
+private theorem new_two : PrimeField.new 2 = .built two := by
+  unfold PrimeField.new
+  rw [dite_eq_left ⟨two.prime, two.word⟩]
+  rfl
+
+/-- The prime field `𝔽_5`. -/
+private def five : PrimeField := ⟨5, by norm_num, by unfold WordModulus; norm_num⟩
+
+/-- The constructor builds `𝔽_5` from `5`. -/
+private theorem new_five : PrimeField.new 5 = .built five := by
+  unfold PrimeField.new
+  rw [dite_eq_left ⟨five.prime, five.word⟩]
+  rfl
+
+/-- The prime field `𝔽_7`. -/
+private def seven : PrimeField := ⟨7, by norm_num, by unfold WordModulus; norm_num⟩
+
+/-- The constructor builds `𝔽_7` from `7`. -/
+private theorem new_seven : PrimeField.new 7 = .built seven := by
+  unfold PrimeField.new
+  rw [dite_eq_left ⟨seven.prime, seven.word⟩]
+  rfl
+
+/-- Proves `SumsKeepOneTermOrNone`. -/
 public theorem sumsKeepOneTermOrNone : SumsKeepOneTermOrNone := by
-  sorry
+  unfold SumsKeepOneTermOrNone
+  decide +kernel
 
-/-- Proves `NonCanonicalTermLists`; the proof is planned. -/
+/-- Proves `NonCanonicalTermLists`. -/
 public theorem nonCanonicalTermLists : NonCanonicalTermLists := by
-  sorry
+  unfold NonCanonicalTermLists
+  refine ⟨fun h => absurd h.1 (by decide +kernel), fun h => ?_⟩
+  exact (h.2 (Fraction.ofRat 0) (by decide +kernel)).2 (by decide +kernel)
 
-/-- Proves `PowersOfZeroAndOfABinomial`; the proof is planned. -/
+/-- Proves `PowersOfZeroAndOfABinomial`. -/
 public theorem powersOfZeroAndOfABinomial : PowersOfZeroAndOfABinomial := by
-  sorry
+  unfold PowersOfZeroAndOfABinomial
+  decide +kernel
 
-/-- Proves `PowersCheckTheExponentFirst`; the proof is planned. -/
+/-- Proves `PowersCheckTheExponentFirst`. -/
 public theorem powersCheckTheExponentFirst : PowersCheckTheExponentFirst := by
-  sorry
+  unfold PowersCheckTheExponentFirst
+  decide +kernel
 
-/-- Proves `BinomialCoefficientsVanishModuloSeven`; the proof is planned. -/
+/-- Proves `BinomialCoefficientsVanishModuloSeven`. -/
 public theorem binomialCoefficientsVanishModuloSeven : BinomialCoefficientsVanishModuloSeven := by
-  sorry
+  exact ⟨seven, new_seven, by decide +kernel⟩
 
-/-- Proves `ZeroDivisorsLeaveNoTerm`; the proof is planned. -/
+/-- Proves `ZeroDivisorsLeaveNoTerm`. -/
 public theorem zeroDivisorsLeaveNoTerm : ZeroDivisorsLeaveNoTerm := by
-  sorry
+  intro μ
+  rfl
 
-/-- Proves `PowersAgreeUnderWiderLimits`; the proof is planned. -/
+/-- Proves `PowersAgreeUnderWiderLimits`. -/
 public theorem powersAgreeUnderWiderLimits : PowersAgreeUnderWiderLimits := by
-  sorry
+  unfold PowersAgreeUnderWiderLimits
+  decide +kernel
 
-/-- Proves `ExceededLimitsNameTheirField`; the proof is planned. -/
+/-- Proves `ExceededLimitsNameTheirField`. -/
 public theorem exceededLimitsNameTheirField : ExceededLimitsNameTheirField := by
-  sorry
+  unfold ExceededLimitsNameTheirField
+  decide +kernel
 
-/-- Proves `RingOfAVariableName`; the proof is planned. -/
+/-- Proves `RingOfAVariableName`. -/
 public theorem ringOfAVariableName : RingOfAVariableName := by
-  sorry
+  unfold RingOfAVariableName
+  decide +kernel
 
-/-- Proves `ReservedAndMalformedVariables`; the proof is planned. -/
+/-- Proves `ReservedAndMalformedVariables`. -/
 public theorem reservedAndMalformedVariables : ReservedAndMalformedVariables := by
-  sorry
+  unfold ReservedAndMalformedVariables
+  decide +kernel
 
-/-- Proves `DerivativeByANamedVariable`; the proof is planned. -/
+/-- Proves `DerivativeByANamedVariable`. -/
 public theorem derivativeByANamedVariable : DerivativeByANamedVariable := by
-  sorry
+  unfold DerivativeByANamedVariable
+  decide +kernel
 
-/-- Proves `TheVariableIsCheckedBeforeTheInput`; the proof is planned. -/
+/-- Proves `TheVariableIsCheckedBeforeTheInput`. -/
 public theorem theVariableIsCheckedBeforeTheInput : TheVariableIsCheckedBeforeTheInput := by
-  sorry
+  unfold TheVariableIsCheckedBeforeTheInput
+  decide +kernel
 
-/-- Proves `StorageOfASparsePolynomial`; the proof is planned. -/
+/-- Proves `StorageOfASparsePolynomial`. -/
 public theorem storageOfASparsePolynomial : StorageOfASparsePolynomial := by
-  sorry
+  unfold StorageOfASparsePolynomial
+  decide +kernel
 
-/-- Proves `NodesBoundTermsAndPartialSums`; the proof is planned. -/
+/-- Proves `NodesBoundTermsAndPartialSums`. -/
 public theorem nodesBoundTermsAndPartialSums : NodesBoundTermsAndPartialSums := by
-  sorry
+  unfold NodesBoundTermsAndPartialSums
+  decide +kernel
 
-/-- Proves `TermsExpandIntoPolynomials`; the proof is planned. -/
+/-- Proves `TermsExpandIntoPolynomials`. -/
 public theorem termsExpandIntoPolynomials : TermsExpandIntoPolynomials := by
-  sorry
+  unfold TermsExpandIntoPolynomials
+  decide +kernel
 
-/-- Proves `ForeignSymbolsAndNegativePowersFail`; the proof is planned. -/
+/-- Proves `ForeignSymbolsAndNegativePowersFail`. -/
 public theorem foreignSymbolsAndNegativePowersFail : ForeignSymbolsAndNegativePowersFail := by
-  sorry
+  unfold ForeignSymbolsAndNegativePowersFail
+  decide +kernel
 
-/-- Proves `FailuresFollowTheWalk`; the proof is planned. -/
+/-- Proves `FailuresFollowTheWalk`. -/
 public theorem failuresFollowTheWalk : FailuresFollowTheWalk := by
-  sorry
+  unfold FailuresFollowTheWalk
+  decide +kernel
 
-/-- Proves `OnlyTheFirstFailureIsReported`; the proof is planned. -/
+/-- Proves `OnlyTheFirstFailureIsReported`. -/
 public theorem onlyTheFirstFailureIsReported : OnlyTheFirstFailureIsReported := by
-  sorry
+  unfold OnlyTheFirstFailureIsReported
+  decide +kernel
 
-/-- Proves `PolynomialsConvertBackToTerms`; the proof is planned. -/
+/-- Proves `PolynomialsConvertBackToTerms`. -/
 public theorem polynomialsConvertBackToTerms : PolynomialsConvertBackToTerms := by
-  sorry
+  unfold PolynomialsConvertBackToTerms
+  decide +kernel
 
-/-- Proves `ConversionBuildsCanonicalTerms`; the proof is planned. -/
+/-- Proves `ConversionBuildsCanonicalTerms`. -/
 public theorem conversionBuildsCanonicalTerms : ConversionBuildsCanonicalTerms := by
-  sorry
+  unfold ConversionBuildsCanonicalTerms
+  decide +kernel
 
-/-- Proves `DerivativesOfPolynomialsAndTerms`; the proof is planned. -/
+/-- Proves `DerivativesOfPolynomialsAndTerms`. -/
 public theorem derivativesOfPolynomialsAndTerms : DerivativesOfPolynomialsAndTerms := by
-  sorry
+  unfold DerivativesOfPolynomialsAndTerms
+  decide +kernel
 
-/-- Proves `DerivativesThatVanishOrFail`; the proof is planned. -/
+/-- Proves `DerivativesThatVanishOrFail`. -/
 public theorem derivativesThatVanishOrFail : DerivativesThatVanishOrFail := by
-  sorry
+  unfold DerivativesThatVanishOrFail
+  exact ⟨⟨seven, new_seven, by decide +kernel⟩, by decide +kernel⟩
 
-/-- Proves `BinomialVectorExpands`; the proof is planned. -/
+/-- Proves `BinomialVectorExpands`. -/
 public theorem binomialVectorExpands : BinomialVectorExpands := by
-  sorry
+  unfold BinomialVectorExpands
+  decide +kernel
 
-/-- Proves `DegreeLimitVectorFails`; the proof is planned. -/
+/-- Proves `DegreeLimitVectorFails`. -/
 public theorem degreeLimitVectorFails : DegreeLimitVectorFails := by
-  sorry
+  unfold DegreeLimitVectorFails
+  decide +kernel
 
-/-- Proves `TermsWithinTheDepthExpand`; the proof is planned. -/
+/-- Proves `TermsWithinTheDepthExpand`. -/
 public theorem termsWithinTheDepthExpand : TermsWithinTheDepthExpand := by
-  sorry
+  unfold TermsWithinTheDepthExpand
+  decide +kernel
 
-/-- Proves `DeeperTermsFailAtTheEntry`; the proof is planned. -/
+/-- Proves `DeeperTermsFailAtTheEntry`. -/
 public theorem deeperTermsFailAtTheEntry : DeeperTermsFailAtTheEntry := by
-  sorry
+  unfold DeeperTermsFailAtTheEntry
+  decide +kernel
 
-/-- Proves `OneProductForEveryCoefficientRing`; the proof is planned. -/
+/-- Proves `OneProductForEveryCoefficientRing`. -/
 public theorem oneProductForEveryCoefficientRing : OneProductForEveryCoefficientRing := by
-  sorry
+  unfold OneProductForEveryCoefficientRing
+  exact ⟨by decide +kernel, five, new_five, by decide +kernel⟩
 
-/-- Proves `CrossTermsVanishModuloTwo`; the proof is planned. -/
+/-- Proves `CrossTermsVanishModuloTwo`. -/
 public theorem crossTermsVanishModuloTwo : CrossTermsVanishModuloTwo := by
-  sorry
+  exact ⟨two, new_two, by decide +kernel⟩
 
-/-- Proves `BinomialCoefficientsOfAFourthPower`; the proof is planned. -/
+/-- Proves `BinomialCoefficientsOfAFourthPower`. -/
 public theorem binomialCoefficientsOfAFourthPower : BinomialCoefficientsOfAFourthPower := by
-  sorry
+  unfold BinomialCoefficientsOfAFourthPower
+  decide +kernel
 
-/-- Proves `ProductOfXAndXPlusOne`; the proof is planned. -/
+/-- Proves `ProductOfXAndXPlusOne`. -/
 public theorem productOfXAndXPlusOne : ProductOfXAndXPlusOne := by
-  sorry
+  unfold ProductOfXAndXPlusOne
+  decide +kernel
 
-/-- Proves `DivisionsWithRemainder`; the proof is planned. -/
+/-- Proves `DivisionsWithRemainder`. -/
 public theorem divisionsWithRemainder : DivisionsWithRemainder := by
-  sorry
+  unfold DivisionsWithRemainder
+  exact ⟨by decide +kernel, seven, new_seven, by decide +kernel⟩
 
-/-- Proves `DivisionByZeroAndByAHigherDegree`; the proof is planned. -/
+/-- Proves `DivisionByZeroAndByAHigherDegree`. -/
 public theorem divisionByZeroAndByAHigherDegree : DivisionByZeroAndByAHigherDegree := by
-  sorry
+  unfold DivisionByZeroAndByAHigherDegree
+  decide +kernel
 
-/-- Proves `GcdsOfCommonFactors`; the proof is planned. -/
+/-- Proves `GcdsOfCommonFactors`. -/
 public theorem gcdsOfCommonFactors : GcdsOfCommonFactors := by
-  sorry
+  unfold GcdsOfCommonFactors
+  decide +kernel
 
-/-- Proves `GcdsWithZeroAndConstants`; the proof is planned. -/
+/-- Proves `GcdsWithZeroAndConstants`. -/
 public theorem gcdsWithZeroAndConstants : GcdsWithZeroAndConstants := by
-  sorry
+  unfold GcdsWithZeroAndConstants
+  decide +kernel
 
-/-- Proves `ExtendedGcdOfAMultiple`; the proof is planned. -/
+/-- Proves `ExtendedGcdOfAMultiple`. -/
 public theorem extendedGcdOfAMultiple : ExtendedGcdOfAMultiple := by
-  sorry
+  unfold ExtendedGcdOfAMultiple
+  decide +kernel
 
-/-- Proves `ExtendedGcdsWithZero`; the proof is planned. -/
+/-- Proves `ExtendedGcdsWithZero`. -/
 public theorem extendedGcdsWithZero : ExtendedGcdsWithZero := by
-  sorry
+  unfold ExtendedGcdsWithZero
+  decide +kernel
 
-/-- Proves `ModularPowerOfX`; the proof is planned. -/
+/-- Proves `ModularPowerOfX`. -/
 public theorem modularPowerOfX : ModularPowerOfX := by
-  sorry
+  unfold ModularPowerOfX
+  decide +kernel
 
 /-- Proves `ModularPowersByZeroAndConstants`; the proof is planned. -/
 public theorem modularPowersByZeroAndConstants : ModularPowersByZeroAndConstants := by
   sorry
 
-/-- Proves `EvaluationAtTwo`; the proof is planned. -/
+/-- Proves `EvaluationAtTwo`. -/
 public theorem evaluationAtTwo : EvaluationAtTwo := by
-  sorry
+  unfold EvaluationAtTwo
+  decide +kernel
 
-/-- Proves `EvaluationVanishesOnAllOfSeven`; the proof is planned. -/
+/-- Proves `EvaluationVanishesOnAllOfSeven`. -/
 public theorem evaluationVanishesOnAllOfSeven : EvaluationVanishesOnAllOfSeven := by
-  sorry
+  exact ⟨seven, new_seven, by decide +kernel, by decide +kernel⟩
 
-/-- Proves `IntegerPolynomialsReduceModuloSeven`; the proof is planned. -/
+/-- Proves `IntegerPolynomialsReduceModuloSeven`. -/
 public theorem integerPolynomialsReduceModuloSeven : IntegerPolynomialsReduceModuloSeven := by
-  sorry
+  exact ⟨seven, new_seven, by decide +kernel, by decide +kernel⟩
 
-/-- Proves `ReductionOutsideTheDomain`; the proof is planned. -/
+/-- Proves `ReductionOutsideTheDomain`. -/
 public theorem reductionOutsideTheDomain : ReductionOutsideTheDomain := by
-  sorry
+  exact ⟨seven, new_seven, by decide +kernel⟩
 
 end Kalyx.Proofs.Polynomials
