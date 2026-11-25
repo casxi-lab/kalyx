@@ -208,11 +208,12 @@ def PolyResult.ofResult {α : Type} : Terms.Result α → PolyResult α
   | .fault e => .fault (PolyFault.ofTermFault e)
   | .resourceLimit l => .resourceLimit l
 
-/-- The result `o` is a canonical polynomial of the ring `r` under `M` that
-denotes `x`. -/
-def PolynomialRing.Yields {P E : Type} {K : P → Type} [∀ p, CommRing (K p)] (M : Model P E K)
-    (r : PolynomialRing P) (o : PolyResult (Poly E)) (x : Polynomial (K r.coefficients)) : Prop :=
-  ∃ a, o = .value a ∧ a.Canonical M r.coefficients ∧ a.interpret M r.coefficients = x
+/-- The result `o` is a canonical polynomial over the parent `p` under `M`
+that denotes `x`, as `Model.Yields` is for elements; for a polynomial of the
+ring `r`, the parent is `r.coefficients`. -/
+def Poly.Yields {P E : Type} {K : P → Type} [∀ p, CommRing (K p)] (M : Model P E K) (p : P)
+    (o : PolyResult (Poly E)) (x : Polynomial (K p)) : Prop :=
+  ∃ a, o = .value a ∧ a.Canonical M p ∧ a.interpret M p = x
 
 /-! ## Zero tests and the writer
 
