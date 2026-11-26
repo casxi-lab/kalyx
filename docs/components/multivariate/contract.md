@@ -208,8 +208,8 @@ result is the canonical form of the sum of the terms, and every permutation
 of the list gives the same polynomial: under `lex`, $x z^2$, $x^2$, $y^2 z$,
 $x^2$ give $y^2 z$, $x z^2$, $2x^2$, and $x y$, $-x y$ give the zero
 polynomial, with no term. Normalization does not bring a coefficient to its
-canonical form, so a coefficient that is not canonical and occurs once is
-kept as it is.
+canonical form; what it gives on a coefficient that is not a canonical
+element of the parent is not part of this entry.
 
 - **Implemented here.** Nothing yet; planned for release 0.2.
 - **Evidence.** The statements of the specification that
@@ -327,10 +327,8 @@ or fails with `ResourceLimit` naming `max_exponent`. The term that it
 returns is canonical and has the value of the polynomial at every
 assignment, and when the names of the variables are distinct, as in every
 ring that [MVP-R01](#mvp-r01) builds, it expands back into the polynomial by
-[MVP-R06](#mvp-r06). A ring with a repeated name, which [MVP-R01](#mvp-r01)
-does not build, would expand a variable back as the first variable of its
-name. The display text of a polynomial and
-the charges of the conversion are not part of this entry.
+[MVP-R06](#mvp-r06). The display text of a polynomial and the charges of the
+conversion are not part of this entry.
 
 - **Implemented here.** Nothing yet; planned for release 0.2.
 - **Evidence.** The statements of the specification that
