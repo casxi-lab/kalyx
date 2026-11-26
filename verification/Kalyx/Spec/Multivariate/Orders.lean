@@ -132,8 +132,8 @@ def compareBlock (k : Fin (n + 1)) (a b : Exponents n) : Ordering :=
   (compareGrevLex (a.firstBlock k) (b.firstBlock k)).then
     (compareGrevLex (a.secondBlock k) (b.secondBlock k))
 
-/-- The comparison of the monomial order `o`, kalyx's comparison of the
-monomials of a ring: `lt` when `a` is below `b`, `eq` when they are equal,
+/-- The comparison of the monomial order `o`, by which the monomials of a
+ring are sorted: `lt` when `a` is below `b`, `eq` when they are equal,
 and `gt` when `a` is above `b`. -/
 def OrderKind.compare : OrderKind n → Exponents n → Exponents n → Ordering
   | .lex => compareLex

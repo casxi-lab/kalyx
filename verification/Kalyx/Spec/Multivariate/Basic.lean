@@ -92,8 +92,8 @@ end Exponents
 
 /-! ## Monomial orders -/
 
-/-- The monomial order of a ring with `n` variables, kalyx's `MonomialOrder`
-(FLD-R06): `lex`, `grlex` (`GradedLex`), `grevlex` (`GradedReverseLex`), or
+/-- The monomial order of a ring with `n` variables (FLD-R06): `lex`,
+`grlex` (graded lexicographic), `grevlex` (graded reverse lexicographic), or
 the block order `block k` of the split `k`, whose first block is the first
 `k` variables and whose second block is the last `n - k`, each block ordered
 by `grevlex`. The split is an element of `Fin (n + 1)`, so it is at most the
@@ -202,10 +202,10 @@ def testZero {P E : Type} (R : CoefficientRing P E Empty) (p : P) (c : E) : MvRe
 
 /-! ## The ring -/
 
-/-- The parent of the multivariate polynomials in `n` variables, kalyx's
-`MultivariateRing<K>` (MVP-R01): the parent of the coefficient ring, the
-names of the variables in their order, the first variable the most
-significant, and the monomial order. The operations take the ring as their
+/-- The parent of the multivariate polynomials in `n` variables, the
+`MultivariateRing<K>` of the architecture (MVP-R01): the parent of the
+coefficient ring, the names of the variables in their order, the first
+variable the most significant, and the monomial order. The operations take the ring as their
 receiver and assume that the polynomials they are given belong to it, built
 by it or by an equal ring; they never compare rings. Two rings are the same
 exactly when they are equal: the same parent of the coefficient ring, the
@@ -241,7 +241,7 @@ def checkVariableNames (seen : List String) : List String → MvResult Unit
     else checkVariableNames (name :: seen) names
   termination_by structural names => names
 
-/-- `MultivariateRing::new` (MVP-R01): the ring over the parent `coefficients`
+/-- The construction of a ring (MVP-R01): the ring over the parent `coefficients`
 with the variables `names`, in their order, and the monomial order `order`,
 when the names are valid (`checkVariableNames`): each a symbol name, no two
 equal. The list of names may be empty, which is the ring without variables,
