@@ -2,6 +2,7 @@ module
 
 public import Kalyx.Spec.Multivariate.Terms
 public import Kalyx.Spec.Fields.PrimeField
+public import Kalyx.Spec.Terms.Canonical
 public import Kalyx.Spec.Terms.Semantics
 public import Mathlib.RingTheory.MvPolynomial.MonomialOrder
 
@@ -60,7 +61,7 @@ namespace Kalyx.Statements.Multivariate
 
 open Kalyx.Spec.Fields
 open Kalyx.Spec.Multivariate
-open Kalyx.Spec.Terms (Term Orders Interp Assignment defaultMaxExponent)
+open Kalyx.Spec.Terms (Term Orders Interp Assignment RegistryRules defaultMaxExponent)
 
 /-! ## Notions of the statements -/
 
@@ -264,7 +265,9 @@ of a ring over `ℚ` its value at the values of the names of its variables
   interpretation, with the value of `a`;
 * under a total order of terms `o`, every `maxExponent` and a lawful
   interpretation, when the conversion of a canonical polynomial `a` back to
-  terms returns the term `u`, then `u` has the value of `a` at every
+  terms returns the term `u`, then `u` is a canonical term of the term core
+  (`Term.Canonical`) under `o`, `maxExponent` and the rules of calls that keep
+  every call (`RegistryRules.empty`), `u` has the value of `a` at every
   assignment, and, when the names of the variables are distinct, `u` expands
   back into `a`;
 * in a ring whose names pass the check of `MultivariateRing.new`, the
@@ -276,6 +279,7 @@ def ExpansionAndConversionKeepMeanings : Prop :=
   ∀ (o : Orders) (maxExponent n : ℕ) (r : MultivariateRing Rationals n) (I : Interp), o.Total →
     I.Lawful → ∀ a : MvPoly n Fraction, a.Canonical Rationals.model r.coefficients r.order →
       (∀ u, r.toTerm o maxExponent a = .value u →
+        u.Canonical o maxExponent RegistryRules.empty ∧
         (∀ ρ, u.denote I ρ = some (polyValue r a ρ)) ∧
         (r.variableNames.Nodup → r.expand u = .value a)) ∧
       (checkVariableNames [] r.variableNames = .value () →
