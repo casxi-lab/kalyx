@@ -49,8 +49,9 @@ through the program. The earlier implementation is not public; it serves as
 a reference and as a source of test vectors. The proof tooling in
 `verification/` and `xtask/src/formal/` provides the commands of
 `cargo xtask formal` and two steps of the checks, and CI runs its proof gate;
-the Lean specifications of the coefficient fields, the term core and the
-polynomials state their requirements, with the state of their statements in
+the Lean specifications of the coefficient fields, the term core, the
+polynomials and the multivariate polynomials state their requirements, with
+the state of their statements in
 [formal verification](docs/formal-verification.md), and no code of kalyx is
 proved yet.
 
