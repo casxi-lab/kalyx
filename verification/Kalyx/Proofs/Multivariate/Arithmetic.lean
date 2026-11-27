@@ -13,8 +13,8 @@ coefficients have canonical forms, and are read by the zero test, as
 operations and powers return canonical polynomials that denote the operations
 of Mathlib's `MvPolynomial (Fin n)`:
 
-* one, the variables and the constants are polynomials of one term
-  (`Canonical.monomial_yields`);
+* one, the variables and the constants are polynomials of at most one term,
+  the zero polynomial when the coefficient is zero (`Canonical.monomial_yields`);
 * a negation maps the coefficients, and a sum or a difference merges the terms
   of its operands; each step of a merge keeps the result canonical, above
   every monomial below the operands, and equal in meaning to the left operand

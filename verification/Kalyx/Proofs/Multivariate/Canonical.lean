@@ -318,8 +318,8 @@ public theorem testZero_of_ne_zero (hz : ZeroTestExact R M) {c : E} (hc : (M p).
   rw [(hz.nonzero p c hc).2 h]
   rfl
 
-/-- The polynomial of one term with a canonical coefficient is a canonical
-polynomial that denotes the monomial of Mathlib. -/
+/-- The polynomial of at most one term with a canonical coefficient, the zero polynomial when
+the coefficient is zero, is a canonical polynomial that denotes the monomial of Mathlib. -/
 public theorem monomial_yields (hR : ExactRing R M) (r : MultivariateRing P n) (e : Exponents n)
     {c : E} (hc : (M r.coefficients).canonical c) :
     r.Yields M (MvPoly.monomial R r.coefficients e c)
