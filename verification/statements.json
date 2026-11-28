@@ -714,181 +714,181 @@
       "name": "Kalyx.Statements.Multivariate.MonomialOrdersAreStrictTotalOrders",
       "theorem": "Kalyx.Proofs.Multivariate.monomialOrdersAreStrictTotalOrders",
       "module": "Kalyx.Proofs.Multivariate.Orders",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.MonomialOrdersRespectProducts",
       "theorem": "Kalyx.Proofs.Multivariate.monomialOrdersRespectProducts",
       "module": "Kalyx.Proofs.Multivariate.Orders",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.MonomialOrdersAreWellFounded",
       "theorem": "Kalyx.Proofs.Multivariate.monomialOrdersAreWellFounded",
       "module": "Kalyx.Proofs.Multivariate.Orders",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.TheConstantMonomialIsLeast",
       "theorem": "Kalyx.Proofs.Multivariate.theConstantMonomialIsLeast",
       "module": "Kalyx.Proofs.Multivariate.Orders",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.BlockOrdersEliminateTheirFirstBlock",
       "theorem": "Kalyx.Proofs.Multivariate.blockOrdersEliminateTheirFirstBlock",
       "module": "Kalyx.Proofs.Multivariate.Orders",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.MonomialOrdersAreThoseOfMathlib",
       "theorem": "Kalyx.Proofs.Multivariate.monomialOrdersAreThoseOfMathlib",
       "module": "Kalyx.Proofs.Multivariate.Orders",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.RingOperationsAreExact",
       "theorem": "Kalyx.Proofs.Multivariate.ringOperationsAreExact",
       "module": "Kalyx.Proofs.Multivariate.Arithmetic",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.LeadingTermsAreThoseOfMathlib",
       "theorem": "Kalyx.Proofs.Multivariate.leadingTermsAreThoseOfMathlib",
       "module": "Kalyx.Proofs.Multivariate.Form",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.NormalizationGivesCanonicalForms",
       "theorem": "Kalyx.Proofs.Multivariate.normalizationGivesCanonicalForms",
       "module": "Kalyx.Proofs.Multivariate.Form",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.ExpansionAndConversionKeepMeanings",
       "theorem": "Kalyx.Proofs.Multivariate.expansionAndConversionKeepMeanings",
       "module": "Kalyx.Proofs.Multivariate.Terms",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.ComparisonsUnderGrevlexAndABlockOrder",
       "theorem": "Kalyx.Proofs.Multivariate.comparisonsUnderGrevlexAndABlockOrder",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.ComparisonsOfOtherOrdersDoNotHold",
       "theorem": "Kalyx.Proofs.Multivariate.comparisonsOfOtherOrdersDoNotHold",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.CanonicalFormOfThreeTerms",
       "theorem": "Kalyx.Proofs.Multivariate.canonicalFormOfThreeTerms",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.NonCanonicalTermLists",
       "theorem": "Kalyx.Proofs.Multivariate.nonCanonicalTermLists",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.RingsAreBuiltFromTheirData",
       "theorem": "Kalyx.Proofs.Multivariate.ringsAreBuiltFromTheirData",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.RepeatedNamesAndDifferentRings",
       "theorem": "Kalyx.Proofs.Multivariate.repeatedNamesAndDifferentRings",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.LeadingMonomialsDependOnTheOrder",
       "theorem": "Kalyx.Proofs.Multivariate.leadingMonomialsDependOnTheOrder",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.MonicDependsOnTheOrder",
       "theorem": "Kalyx.Proofs.Multivariate.monicDependsOnTheOrder",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.NormalizationSortsAndAddsTerms",
       "theorem": "Kalyx.Proofs.Multivariate.normalizationSortsAndAddsTerms",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.CancellingTermsLeaveNoTerm",
       "theorem": "Kalyx.Proofs.Multivariate.cancellingTermsLeaveNoTerm",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.OneNormalizationForEveryCoefficientRing",
       "theorem": "Kalyx.Proofs.Multivariate.oneNormalizationForEveryCoefficientRing",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.TermsVanishingModuloTwoLeaveNoTerm",
       "theorem": "Kalyx.Proofs.Multivariate.termsVanishingModuloTwoLeaveNoTerm",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.SumsAndProductsOfBinomials",
       "theorem": "Kalyx.Proofs.Multivariate.sumsAndProductsOfBinomials",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.ZeroCoefficientsLeaveNoTerm",
       "theorem": "Kalyx.Proofs.Multivariate.zeroCoefficientsLeaveNoTerm",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.PowersOfABinomialAndOfZero",
       "theorem": "Kalyx.Proofs.Multivariate.powersOfABinomialAndOfZero",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.PowersModuloTwoAndPowersOfZero",
       "theorem": "Kalyx.Proofs.Multivariate.powersModuloTwoAndPowersOfZero",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.TermsExpandIntoPolynomials",
       "theorem": "Kalyx.Proofs.Multivariate.termsExpandIntoPolynomials",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.ForeignSymbolsAndNegativePowersFail",
       "theorem": "Kalyx.Proofs.Multivariate.foreignSymbolsAndNegativePowersFail",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.PolynomialsConvertBackToTerms",
       "theorem": "Kalyx.Proofs.Multivariate.polynomialsConvertBackToTerms",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     },
     {
       "name": "Kalyx.Statements.Multivariate.ConversionBuildsCanonicalTerms",
       "theorem": "Kalyx.Proofs.Multivariate.conversionBuildsCanonicalTerms",
       "module": "Kalyx.Proofs.Multivariate.Examples",
-      "state": "planned"
+      "state": "proved"
     }
   ]
 }
